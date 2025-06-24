@@ -31,6 +31,9 @@
 *.out
 *.app
 
-# Visual Studio IntelliSense precompiled headers
+# VS IntelliSense & VS workspace settings
+.vs/
+
+# IntelliSense precompiled headers
 *.ipch/
 *.IPCH/
