@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+# Visual Studio IntelliSense precompiled headers
+*.ipch/
+*.IPCH/
