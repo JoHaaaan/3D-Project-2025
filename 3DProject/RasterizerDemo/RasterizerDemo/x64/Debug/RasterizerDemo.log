@@ -1,4 +1,8 @@
-﻿  Main.cpp
+﻿  compilation object save succeeded; see C:\Users\johan\OneDrive\Desktop\3D-Project-2025\3DProject\RasterizerDemo\x64\Debug\PixelShader.cso
+  compilation object save succeeded; see C:\Users\johan\OneDrive\Desktop\3D-Project-2025\3DProject\RasterizerDemo\x64\Debug\VertexShader.cso
+  D3D11Helper.cpp
+  Main.cpp
+  PipelineHelper.cpp
   WindowHelper.cpp
   Generating Code...
-  RasterizerDemo.vcxproj -> C:\Users\johan\OneDrive\Desktop\RasterizerDemo\RasterizerDemo\x64\Debug\RasterizerDemo.exe
+  RasterizerDemo.vcxproj -> C:\Users\johan\OneDrive\Desktop\3D-Project-2025\3DProject\RasterizerDemo\x64\Debug\RasterizerDemo.exe
