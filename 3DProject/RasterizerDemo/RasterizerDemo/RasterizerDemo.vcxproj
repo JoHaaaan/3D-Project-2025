@@ -181,6 +181,9 @@
     <ClInclude Include="PipelineHelper.h" />
     <ClInclude Include="WindowHelper.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="Test.txt" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
