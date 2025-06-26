@@ -64,3 +64,13 @@ x64/Release/
 *.pdb
 *.exe
 *.dll
+
+# --- Visual Studio DB files ---
+*.idb
+*.VC.db
+
+# --- Compiled shader blobs ---
+*.cso
+
+# Ignore VS build “recipe” side-cars
+*.recipe
