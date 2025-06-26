@@ -33,6 +33,10 @@
 
 # VS IntelliSense & VS workspace settings
 .vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
 # ignore the VS browse database
 /3DProject/RasterizerDemo/.vs/RasterizerDemo/v1/Browse.VC.db
 
@@ -40,3 +44,23 @@
 # IntelliSense precompiled headers
 *.ipch/
 *.IPCH/
+
+# --- Folders to ignore ---
+[Bb]in/
+[Oo]bj/
+x64/Debug/
+x64/Release/
+# --- Build results ---
+# Intermediate object files and logs
+*.obj
+*.o
+*.tlog
+*.lastbuildstate
+# Logs and command-line outputs
+*.log
+
+# --- Linker and compiler outputs ---
+*.ilk
+*.pdb
+*.exe
+*.dll
