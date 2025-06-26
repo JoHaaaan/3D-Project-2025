@@ -64,3 +64,9 @@ x64/Release/
 *.pdb
 *.exe
 *.dll
+
+# Vertex Shader & Pixel Shader
+*.cso
+
+# .idb (no clue what this is but we dont want it.
+*.idb
