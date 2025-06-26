@@ -33,6 +33,9 @@
 
 # VS IntelliSense & VS workspace settings
 .vs/
+# ignore the VS browse database
+/3DProject/RasterizerDemo/.vs/RasterizerDemo/v1/Browse.VC.db
+
 
 # IntelliSense precompiled headers
 *.ipch/
