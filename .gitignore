@@ -65,8 +65,9 @@ x64/Release/
 *.exe
 *.dll
 
-# Vertex Shader & Pixel Shader
-*.cso
-
-# .idb (no clue what this is but we dont want it.
+# --- Visual Studio DB files ---
 *.idb
+*.VC.db
+
+# --- Compiled shader blobs ---
+*.cso
