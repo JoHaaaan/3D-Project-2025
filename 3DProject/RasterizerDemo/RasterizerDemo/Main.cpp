@@ -9,6 +9,8 @@
 #include "PipelineHelper.h"
 #include <d3d11.h>
 #include <DirectXMath.h>
+#include "CameraD3D11.h"
+//#include "ConstantBufferD3D11.h"
 
 using namespace DirectX;
 #define STB_IMAGE_IMPLEMENTATION
@@ -19,13 +21,7 @@ static const float ASPECT_RATIO = 1280.0f / 720.0f;
 static const float NEAR_PLANE = 0.1f;
 static const float FAR_PLANE = 100.0f;
 
-static const XMVECTOR EYE = XMVectorSet(0.0f, 0.0f, 3.0f, 1.0f);
-static const XMVECTOR AT = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
-static const XMVECTOR UP = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
-static const XMMATRIX VIEW = XMMatrixLookAtLH(EYE, AT, UP);
-static const XMMATRIX PROJECTION = XMMatrixPerspectiveFovLH(FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE);
-static const XMMATRIX VIEW_PROJ = VIEW * PROJECTION;
 
 // Structures
 struct MatrixPair {
@@ -67,6 +63,7 @@ void Render(
     ID3D11Buffer* constantBuffer,
     ID3D11ShaderResourceView* textureView,
     ID3D11SamplerState* samplerState,
+    const CameraD3D11& camera,
     const XMMATRIX& worldMatrix)
 {
     float clearColor[4] = { 0.f, 0.f, 0.f, 0.f };
@@ -75,7 +72,11 @@ void Render(
 
     // Transpose matrices
     XMMATRIX worldT = XMMatrixTranspose(worldMatrix);
-    XMMATRIX viewProjT = XMMatrixTranspose(VIEW_PROJ);
+    XMFLOAT4X4 viewProjMatrix = camera.GetViewProjectionMatrix();
+    XMMATRIX viewProjT = XMMatrixTranspose(XMLoadFloat4x4(&camera.GetViewProjectionMatrix()));
+
+
+
 
     // Update constant buffer
     D3D11_MAPPED_SUBRESOURCE mapped;
@@ -142,6 +143,15 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     // Basic setup
     SetupD3D11(WIDTH, HEIGHT, window, device, immediateContext, swapChain, rtv, dsTexture, dsView, viewport);
     SetupPipeline(device, vertexBuffer, vShader, pShader, inputLayout);
+    ProjectionInfo projInfo = {
+    FOV,
+    ASPECT_RATIO,
+    NEAR_PLANE,
+    FAR_PLANE
+    };
+
+    CameraD3D11 camera(device, projInfo, XMFLOAT3(0.0f, 0.0f, 3.0f));
+
 
     // MatrixPair buffer
     {
@@ -182,7 +192,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     // Camera buffer
     {
         Camera cam;
-        XMStoreFloat3(&cam.position, EYE);
+        cam.position = XMFLOAT3(0.0f, 0.0f, 3.0f);
+
         cam.padding = 0.f;
         D3D11_BUFFER_DESC desc = {};
         desc.ByteWidth = sizeof(Camera);
@@ -272,7 +283,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         XMMATRIX worldMatrix = XMMatrixTranspose(lookAtMatrix) * translation;
 
         Render(immediateContext, rtv, dsView, viewport, vShader, pShader, inputLayout,
-            vertexBuffer, constantBuffer, textureView, samplerState, worldMatrix);
+            vertexBuffer, constantBuffer, textureView, samplerState, camera, worldMatrix);
+
 
         swapChain->Present(0, 0);
     }
