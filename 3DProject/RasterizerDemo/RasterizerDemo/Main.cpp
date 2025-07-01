@@ -1,5 +1,3 @@
-// Project
-
 #include <Windows.h>
 #include <iostream>
 #include <fstream>
@@ -10,10 +8,12 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 #include "RenderHelper.h"
+#include "ConstantBufferD3D11.h"
 
 using namespace DirectX;
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+
 // Transformation parameters
 static const float FOV = XMConvertToRadians(45.0f);
 static const float ASPECT_RATIO = 1280.0f / 720.0f;
@@ -29,13 +29,11 @@ static const XMMATRIX PROJECTION = XMMatrixPerspectiveFovLH(FOV, ASPECT_RATIO, N
 XMMATRIX VIEW_PROJ = VIEW * PROJECTION;
 
 // Structures
-
-
 struct Light {
     XMFLOAT3 position;
     float    intensity;
     XMFLOAT3 color;
-    float    padding; 
+    float    padding;
 };
 
 struct Material {
@@ -52,20 +50,15 @@ struct Camera {
     float    padding;
 };
 
-
-// main
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 {
-    // Window setup
     const UINT WIDTH = 1024;
     const UINT HEIGHT = 576;
     HWND window;
     SetupWindow(hInstance, WIDTH, HEIGHT, nCmdShow, window);
 
-	// Debug memory leaks
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
-    // Device/SwapChain/Context
     ID3D11Device* device = nullptr;
     ID3D11DeviceContext* immediateContext = nullptr;
     IDXGISwapChain* swapChain = nullptr;
@@ -77,7 +70,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11PixelShader* pShader = nullptr;
     ID3D11InputLayout* inputLayout = nullptr;
     ID3D11Buffer* vertexBuffer = nullptr;
-    ID3D11Buffer* constantBuffer = nullptr;
+    ConstantBufferD3D11 constantBuffer;
     ID3D11Texture2D* texture = nullptr;
     ID3D11ShaderResourceView* textureView = nullptr;
     ID3D11SamplerState* samplerState = nullptr;
@@ -85,19 +78,12 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11Buffer* materialBuffer = nullptr;
     ID3D11Buffer* cameraBuffer = nullptr;
 
-    // Basic setup
     SetupD3D11(WIDTH, HEIGHT, window, device, immediateContext, swapChain, rtv, dsTexture, dsView, viewport);
     SetupPipeline(device, vertexBuffer, vShader, pShader, inputLayout);
 
-    // MatrixPair buffer
-    {
-        D3D11_BUFFER_DESC desc = {};
-        desc.ByteWidth = sizeof(MatrixPair);
-        desc.Usage = D3D11_USAGE_DYNAMIC;
-        desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-        desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        device->CreateBuffer(&desc, nullptr, &constantBuffer);
-    }
+    // Constant BUffer
+    constantBuffer.Initialize(device, sizeof(MatrixPair));
+
 
     // Light buffer
     {
@@ -138,13 +124,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         device->CreateBuffer(&desc, &initData, &cameraBuffer);
     }
 
-    // Load Texture from File using stb_image
+    // Texture loading
     {
         int wTex, hTex, channels;
-        // Load "image.png" from disk as an RGBA image (4 channels)
         unsigned char* imageData = stbi_load("image.png", &wTex, &hTex, &channels, 4);
 
-        // Describe the 2D texture to create
         D3D11_TEXTURE2D_DESC texDesc = {};
         texDesc.Width = wTex;
         texDesc.Height = hTex;
@@ -155,21 +139,16 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         texDesc.Usage = D3D11_USAGE_DEFAULT;
         texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
-        // Setup subresource data with the image loaded from disk
         D3D11_SUBRESOURCE_DATA texData = {};
         texData.pSysMem = imageData;
         texData.SysMemPitch = wTex * 4;
-        // Create the texture on the GPU and copy the image data into it
+
         device->CreateTexture2D(&texDesc, &texData, &texture);
-
-        // Free the image data from system memory after copying to GPU
         stbi_image_free(imageData);
-
-        // Create a shader resource view so the texture can be accessed in the pixel shader
         device->CreateShaderResourceView(texture, nullptr, &textureView);
     }
 
-    // Sampler state
+    // Sampler
     {
         D3D11_SAMPLER_DESC sdesc = {};
         sdesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -182,12 +161,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         device->CreateSamplerState(&sdesc, &samplerState);
     }
 
-    // Bind extra constant buffers to the pixel shader
     immediateContext->PSSetConstantBuffers(1, 1, &lightBuffer);
     immediateContext->PSSetConstantBuffers(2, 1, &materialBuffer);
     immediateContext->PSSetConstantBuffers(3, 1, &cameraBuffer);
 
-	// Main loop
     auto previousTime = std::chrono::high_resolution_clock::now();
     float rotationAngle = 0.f;
     MSG msg = {};
@@ -213,24 +190,30 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         XMMATRIX translation = XMMatrixTranslation(x, 0.f, z);
         XMVECTOR objectPos = XMVectorSet(x, 0.f, z, 1.f);
         XMMATRIX lookAtMatrix = XMMatrixLookAtLH(objectPos, XMVectorZero(), XMVectorSet(0.f, 1.f, 0.f, 0.f));
-
-        // Combine rotation/orientation (transposing to use it as a 'world' transform)
         XMMATRIX worldMatrix = XMMatrixTranspose(lookAtMatrix) * translation;
 
-        Render(immediateContext, rtv, dsView, viewport, vShader, pShader, inputLayout,
-            vertexBuffer, constantBuffer, textureView, samplerState, worldMatrix);
+        // Update matrix buffer
+        MatrixPair data;
+        XMStoreFloat4x4(&data.world, XMMatrixTranspose(worldMatrix));
+        XMStoreFloat4x4(&data.viewProj, XMMatrixTranspose(VIEW_PROJ));
+        constantBuffer.UpdateBuffer(immediateContext, &data);
+
+
+
+        ID3D11Buffer* cb = constantBuffer.GetBuffer();
+        Render(immediateContext, rtv, dsView, viewport, vShader, pShader, inputLayout, vertexBuffer, cb, textureView, samplerState, worldMatrix);
+
 
         swapChain->Present(0, 0);
     }
 
-    // Cleanup
+    // Manual cleanup (RAII handles constantBuffer)
     cameraBuffer->Release();
     materialBuffer->Release();
     lightBuffer->Release();
     samplerState->Release();
     textureView->Release();
     texture->Release();
-    constantBuffer->Release();
     vertexBuffer->Release();
     inputLayout->Release();
     pShader->Release();
