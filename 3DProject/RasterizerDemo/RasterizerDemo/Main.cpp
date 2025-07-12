@@ -74,55 +74,34 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11Texture2D* texture = nullptr;
     ID3D11ShaderResourceView* textureView = nullptr;
     ID3D11SamplerState* samplerState = nullptr;
-    ID3D11Buffer* lightBuffer = nullptr;
-    ID3D11Buffer* materialBuffer = nullptr;
-    ID3D11Buffer* cameraBuffer = nullptr;
+    ConstantBufferD3D11 lightBuffer;
+    ConstantBufferD3D11 materialBuffer;
+    ConstantBufferD3D11 cameraBuffer;
 
     SetupD3D11(WIDTH, HEIGHT, window, device, immediateContext, swapChain, rtv, dsTexture, dsView, viewport);
     SetupPipeline(device, vertexBuffer, vShader, pShader, inputLayout);
 
-    // Constant BUffer
+    // Constant Buffer
     constantBuffer.Initialize(device, sizeof(MatrixPair));
 
 
     // Light buffer
-    {
-        Light lightData{ XMFLOAT3(0.f, 0.f, 2.f), 1.f, XMFLOAT3(1.f, 1.f, 1.f), 0.f };
-        D3D11_BUFFER_DESC desc = {};
-        desc.ByteWidth = sizeof(Light);
-        desc.Usage = D3D11_USAGE_DEFAULT;
-        desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-        D3D11_SUBRESOURCE_DATA initData = { &lightData };
-        device->CreateBuffer(&desc, &initData, &lightBuffer);
-    }
+    Light lightData{ XMFLOAT3(0.f, 0.f, 2.f), 1.f, XMFLOAT3(1.f, 1.f, 1.f), 0.f };
+    lightBuffer.Initialize(device, sizeof(Light), &lightData);
 
     // Material buffer
-    {
-        Material mat{
-            XMFLOAT3(0.2f, 0.2f, 0.2f), 0.f,
-            XMFLOAT3(0.5f, 0.5f, 0.5f), 0.f,
-            XMFLOAT3(0.5f, 0.5f, 0.5f), 100.f
-        };
-        D3D11_BUFFER_DESC desc = {};
-        desc.ByteWidth = sizeof(Material);
-        desc.Usage = D3D11_USAGE_DEFAULT;
-        desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-        D3D11_SUBRESOURCE_DATA initData = { &mat };
-        device->CreateBuffer(&desc, &initData, &materialBuffer);
-    }
+    Material mat{
+    XMFLOAT3(0.2f, 0.2f, 0.2f), 0.f,
+    XMFLOAT3(0.5f, 0.5f, 0.5f), 0.f,
+    XMFLOAT3(0.5f, 0.5f, 0.5f), 100.f
+    };
+    materialBuffer.Initialize(device, sizeof(Material), &mat);
 
     // Camera buffer
-    {
-        Camera cam;
-        XMStoreFloat3(&cam.position, EYE);
-        cam.padding = 0.f;
-        D3D11_BUFFER_DESC desc = {};
-        desc.ByteWidth = sizeof(Camera);
-        desc.Usage = D3D11_USAGE_DEFAULT;
-        desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-        D3D11_SUBRESOURCE_DATA initData = { &cam };
-        device->CreateBuffer(&desc, &initData, &cameraBuffer);
-    }
+    Camera cam;
+    XMStoreFloat3(&cam.position, EYE);
+    cam.padding = 0.f;
+    cameraBuffer.Initialize(device, sizeof(Camera), &cam);
 
     // Texture loading
     {
@@ -161,9 +140,14 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         device->CreateSamplerState(&sdesc, &samplerState);
     }
 
-    immediateContext->PSSetConstantBuffers(1, 1, &lightBuffer);
-    immediateContext->PSSetConstantBuffers(2, 1, &materialBuffer);
-    immediateContext->PSSetConstantBuffers(3, 1, &cameraBuffer);
+    ID3D11Buffer* lightCB = lightBuffer.GetBuffer();
+    ID3D11Buffer* materialCB = materialBuffer.GetBuffer();
+    ID3D11Buffer* cameraCB = cameraBuffer.GetBuffer();
+
+    immediateContext->PSSetConstantBuffers(1, 1, &lightCB);
+    immediateContext->PSSetConstantBuffers(2, 1, &materialCB);
+    immediateContext->PSSetConstantBuffers(3, 1, &cameraCB);
+
 
     auto previousTime = std::chrono::high_resolution_clock::now();
     float rotationAngle = 0.f;
@@ -208,9 +192,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     }
 
     // Manual cleanup (RAII handles constantBuffer)
-    cameraBuffer->Release();
-    materialBuffer->Release();
-    lightBuffer->Release();
+
     samplerState->Release();
     textureView->Release();
     texture->Release();
