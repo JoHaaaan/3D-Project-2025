@@ -54,6 +54,8 @@ bool CreateVertexBuffer(ID3D11Device* device, ID3D11Buffer*& vertexBuffer)
         { { 0.5f, -0.5f, 0.0f}, {0, 0, -1}, {1.0f, 1.0f} }
     };
 
+    
+
     D3D11_BUFFER_DESC bufferDesc{};
     bufferDesc.ByteWidth = sizeof(quad);
     bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;

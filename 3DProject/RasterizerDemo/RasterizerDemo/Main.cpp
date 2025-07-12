@@ -20,13 +20,14 @@ static const float ASPECT_RATIO = 1280.0f / 720.0f;
 static const float NEAR_PLANE = 0.1f;
 static const float FAR_PLANE = 100.0f;
 
-static const XMVECTOR EYE = XMVectorSet(0.0f, 0.0f, 3.0f, 1.0f);
-static const XMVECTOR AT = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
-static const XMVECTOR UP = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+// start camera 3 units back on Z
+XMFLOAT3 eyePos = { 0.0f, 0.0f, 10.0f };
+XMFLOAT3 lookAt = { 0.0f, 0.0f, 0.0f };
+XMFLOAT3 upVector = { 0.0f, 1.0f, 0.0f };
 
-static const XMMATRIX VIEW = XMMatrixLookAtLH(EYE, AT, UP);
-static const XMMATRIX PROJECTION = XMMatrixPerspectiveFovLH(FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE);
-XMMATRIX VIEW_PROJ = VIEW * PROJECTION;
+XMMATRIX PROJECTION = XMMatrixPerspectiveFovLH(FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE);
+XMMATRIX VIEW_PROJ;    // we’ll recalc each frame
+
 
 // Structures
 struct Light {
@@ -80,6 +81,26 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     SetupD3D11(WIDTH, HEIGHT, window, device, immediateContext, swapChain, rtv, dsTexture, dsView, viewport);
     SetupPipeline(device, vertexBuffer, vShader, pShader, inputLayout);
+    // ——— create a simple 3-vertex triangle VB ———
+    ID3D11Buffer* triangleVB = nullptr;
+    {
+        SimpleVertex triVerts[] = {
+            { {  0.0f,  1.0f, 0.0f }, {0,0,-1}, {0.0f, 0.0f} },
+            { {  1.0f, -1.0f, 0.0f }, {0,0,-1}, {1.0f, 1.0f} },
+            { { -1.0f, -1.0f, 0.0f }, {0,0,-1}, {0.0f, 1.0f} },
+        };
+
+        D3D11_BUFFER_DESC bd = {};
+        bd.Usage = D3D11_USAGE_IMMUTABLE;
+        bd.ByteWidth = sizeof(triVerts);
+        bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+        D3D11_SUBRESOURCE_DATA sd = { triVerts };
+        HRESULT hr = device->CreateBuffer(&bd, &sd, &triangleVB);
+        if (FAILED(hr)) {
+            OutputDebugStringA("Failed to create triangle VB\n");
+        }
+    }
 
     // Constant Buffer
     constantBuffer.Initialize(device, sizeof(MatrixPair));
@@ -98,10 +119,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     materialBuffer.Initialize(device, sizeof(Material), &mat);
 
     // Camera buffer
-    Camera cam;
-    XMStoreFloat3(&cam.position, EYE);
-    cam.padding = 0.f;
+    // Camera buffer (start at eyePos)
+    Camera cam{ eyePos, 0.f };
     cameraBuffer.Initialize(device, sizeof(Camera), &cam);
+
 
     // Texture loading
     {
@@ -150,7 +171,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 
     auto previousTime = std::chrono::high_resolution_clock::now();
-    float rotationAngle = 0.f;
+    float rotationAngle = 90.f;
     MSG msg = {};
     while (!(GetKeyState(VK_ESCAPE) & 0x8000) && msg.message != WM_QUIT)
     {
@@ -164,7 +185,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         float dt = std::chrono::duration<float>(currentTime - previousTime).count();
         previousTime = currentTime;
 
-        rotationAngle += XMConvertToRadians(-60.f) * dt;
+        rotationAngle += XMConvertToRadians(30.f) * dt;
         if (rotationAngle > XM_2PI) rotationAngle -= XM_2PI;
 
         float armLength = 0.7f;
@@ -177,15 +198,61 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         XMMATRIX worldMatrix = XMMatrixTranspose(lookAtMatrix) * translation;
 
         // Update matrix buffer
+        // worldMatrix from before...
         MatrixPair data;
         XMStoreFloat4x4(&data.world, XMMatrixTranspose(worldMatrix));
+
+        // transpose the newest viewProj into your CB
         XMStoreFloat4x4(&data.viewProj, XMMatrixTranspose(VIEW_PROJ));
         constantBuffer.UpdateBuffer(immediateContext, &data);
 
 
+        const float camSpeed = 3.0f;            // units per second
+        if (GetAsyncKeyState('W') & 0x8000) eyePos.z -= camSpeed * dt;
+        if (GetAsyncKeyState('S') & 0x8000) eyePos.z += camSpeed * dt;
+        if (GetAsyncKeyState('A') & 0x8000) eyePos.x -= camSpeed * dt;
+        if (GetAsyncKeyState('D') & 0x8000) eyePos.x += camSpeed * dt;
+        if (GetAsyncKeyState('F') & 0x8000) eyePos.y -= camSpeed * dt;
+        if (GetAsyncKeyState('G') & 0x8000) eyePos.y += camSpeed * dt;
+        XMVECTOR eyeV = XMLoadFloat3(&eyePos);
+        XMVECTOR atV = XMLoadFloat3(&lookAt);
+        XMVECTOR upV = XMLoadFloat3(&upVector);
+        XMMATRIX view = XMMatrixLookAtLH(eyeV, atV, upV);
+        VIEW_PROJ = view * PROJECTION;
 
         ID3D11Buffer* cb = constantBuffer.GetBuffer();
-        Render(immediateContext, rtv, dsView, viewport, vShader, pShader, inputLayout, vertexBuffer, cb, textureView, samplerState, worldMatrix);
+        // ——— draw the quad ———
+        Render(immediateContext, rtv, dsView, viewport,
+            vShader, pShader, inputLayout, vertexBuffer,
+            constantBuffer.GetBuffer(), textureView,
+            samplerState, worldMatrix);
+
+        // ——— now draw the triangle ———
+        // 1) update CB (identity or custom world)
+        MatrixPair triData;
+        XMStoreFloat4x4(&triData.world, XMMatrixTranspose(XMMatrixIdentity()));
+        XMStoreFloat4x4(&triData.viewProj, XMMatrixTranspose(VIEW_PROJ));
+        constantBuffer.UpdateBuffer(immediateContext, &triData);
+
+        // 2) bind triangle VB
+        UINT stride = sizeof(SimpleVertex);
+        UINT offset = 0;
+        immediateContext->IASetVertexBuffers(0, 1, &triangleVB, &stride, &offset);
+        immediateContext->IASetInputLayout(inputLayout);
+        immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+        // 3) shaders & resources (already bound)
+        immediateContext->VSSetShader(vShader, nullptr, 0);
+        immediateContext->PSSetShader(pShader, nullptr, 0);
+        immediateContext->PSSetShaderResources(0, 1, &textureView);
+        immediateContext->PSSetSamplers(0, 1, &samplerState);
+
+        // 4) draw
+        immediateContext->Draw(3, 0);
+
+        // 5) present
+        swapChain->Present(0, 0);
+
 
 
         swapChain->Present(0, 0);
