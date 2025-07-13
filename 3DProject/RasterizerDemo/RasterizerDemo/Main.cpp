@@ -21,7 +21,7 @@ static const float NEAR_PLANE = 0.1f;
 static const float FAR_PLANE = 100.0f;
 
 // start camera 3 units back on Z
-XMFLOAT3 eyePos = { 0.0f, 0.0f, 10.0f };
+XMFLOAT3 eyePos = { 0.0f, 0.0f, -10.0f };
 XMFLOAT3 lookAt = { 0.0f, 0.0f, 0.0f };
 XMFLOAT3 upVector = { 0.0f, 1.0f, 0.0f };
 
@@ -85,11 +85,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11Buffer* triangleVB = nullptr;
     {
         SimpleVertex triVerts[] = {
-            { {  0.0f,  1.0f, 0.0f }, {0,0,-1}, {0.0f, 0.0f} },
-            { {  1.0f, -1.0f, 0.0f }, {0,0,-1}, {1.0f, 1.0f} },
-            { { -1.0f, -1.0f, 0.0f }, {0,0,-1}, {0.0f, 1.0f} },
+            { {  0.0f,  3.0f, 0.0f }, {0,0,-1}, {0.0f, 0.0f} },
+            { {  3.0f, -3.0f, 0.0f }, {0,0,-1}, {1.0f, 1.0f} },
+            { { -3.0f, -3.0f, 0.0f }, {0,0,-1}, {0.0f, 1.0f} },
         };
-
+         
         D3D11_BUFFER_DESC bd = {};
         bd.Usage = D3D11_USAGE_IMMUTABLE;
         bd.ByteWidth = sizeof(triVerts);
@@ -107,7 +107,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 
     // Light buffer
-    Light lightData{ XMFLOAT3(0.f, 0.f, 2.f), 1.f, XMFLOAT3(1.f, 1.f, 1.f), 0.f };
+    Light lightData{ XMFLOAT3(0.f, 0.f, -2.f), 1.f, XMFLOAT3(1.f, 1.f, 1.f), 0.f };
     lightBuffer.Initialize(device, sizeof(Light), &lightData);
 
     // Material buffer
@@ -198,7 +198,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         XMMATRIX worldMatrix = XMMatrixTranspose(lookAtMatrix) * translation;
 
         // Update matrix buffer
-        // worldMatrix from before...
         MatrixPair data;
         XMStoreFloat4x4(&data.world, XMMatrixTranspose(worldMatrix));
 
@@ -207,18 +206,41 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         constantBuffer.UpdateBuffer(immediateContext, &data);
 
 
-        const float camSpeed = 3.0f;            // units per second
-        if (GetAsyncKeyState('W') & 0x8000) eyePos.z -= camSpeed * dt;
-        if (GetAsyncKeyState('S') & 0x8000) eyePos.z += camSpeed * dt;
-        if (GetAsyncKeyState('A') & 0x8000) eyePos.x -= camSpeed * dt;
-        if (GetAsyncKeyState('D') & 0x8000) eyePos.x += camSpeed * dt;
-        if (GetAsyncKeyState('F') & 0x8000) eyePos.y -= camSpeed * dt;
-        if (GetAsyncKeyState('G') & 0x8000) eyePos.y += camSpeed * dt;
+        const float camSpeed = 3.0f;
+        float dx = 0, dy = 0, dz = 0;
+        if (GetAsyncKeyState('W') & 0x8000) dz += camSpeed * dt;
+        if (GetAsyncKeyState('S') & 0x8000) dz -= camSpeed * dt;
+        if (GetAsyncKeyState('A') & 0x8000) dx -= camSpeed * dt;
+        if (GetAsyncKeyState('D') & 0x8000) dx += camSpeed * dt;
+        if (GetAsyncKeyState('Q') & 0x8000) dy -= camSpeed * dt;
+        if (GetAsyncKeyState('E') & 0x8000) dy += camSpeed * dt;
+
+        // apply to both eyePos and lookAt
+        eyePos.x += dx;
+        eyePos.y += dy;
+        eyePos.z += dz;
+        lookAt.x += dx;
+        lookAt.y += dy;
+        lookAt.z += dz;
+
+
         XMVECTOR eyeV = XMLoadFloat3(&eyePos);
         XMVECTOR atV = XMLoadFloat3(&lookAt);
         XMVECTOR upV = XMLoadFloat3(&upVector);
         XMMATRIX view = XMMatrixLookAtLH(eyeV, atV, upV);
         VIEW_PROJ = view * PROJECTION;
+
+        {
+            // copy into an XMFLOAT3 (if it isn’t already)
+            XMFLOAT3 p = lookAt;
+
+            // format into a small buffer
+            char buf[128];
+            sprintf_s(buf, "Looking at: X=%.3f  Y=%.3f  Z=%.3f\n", p.x, p.y, p.z);
+
+            // send to Visual Studio’s Output window
+            OutputDebugStringA(buf);
+        }
 
         ID3D11Buffer* cb = constantBuffer.GetBuffer();
         // ——— draw the quad ———
@@ -234,28 +256,31 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         XMStoreFloat4x4(&triData.viewProj, XMMatrixTranspose(VIEW_PROJ));
         constantBuffer.UpdateBuffer(immediateContext, &triData);
 
-        // 2) bind triangle VB
+        {
+            ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
+            immediateContext->VSSetConstantBuffers(0, 1, &cb0);
+        }
+
+
         UINT stride = sizeof(SimpleVertex);
         UINT offset = 0;
         immediateContext->IASetVertexBuffers(0, 1, &triangleVB, &stride, &offset);
         immediateContext->IASetInputLayout(inputLayout);
         immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-        // 3) shaders & resources (already bound)
+
         immediateContext->VSSetShader(vShader, nullptr, 0);
         immediateContext->PSSetShader(pShader, nullptr, 0);
         immediateContext->PSSetShaderResources(0, 1, &textureView);
         immediateContext->PSSetSamplers(0, 1, &samplerState);
 
-        // 4) draw
         immediateContext->Draw(3, 0);
 
-        // 5) present
-        swapChain->Present(0, 0);
-
-
 
         swapChain->Present(0, 0);
+
+
+
     }
 
     // Manual cleanup (RAII handles constantBuffer)
