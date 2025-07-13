@@ -20,13 +20,13 @@ static const float ASPECT_RATIO = 1280.0f / 720.0f;
 static const float NEAR_PLANE = 0.1f;
 static const float FAR_PLANE = 100.0f;
 
-// start camera 3 units back on Z
+// Camera starting stuff
 XMFLOAT3 eyePos = { 0.0f, 0.0f, -10.0f };
 XMFLOAT3 lookAt = { 0.0f, 0.0f, 0.0f };
 XMFLOAT3 upVector = { 0.0f, 1.0f, 0.0f };
 
 XMMATRIX PROJECTION = XMMatrixPerspectiveFovLH(FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE);
-XMMATRIX VIEW_PROJ;    // we’ll recalc each frame
+XMMATRIX VIEW_PROJ;
 
 
 // Structures
@@ -83,7 +83,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     SetupD3D11(WIDTH, HEIGHT, window, device, immediateContext, swapChain, rtv, dsTexture, dsView, viewport);
     SetupPipeline(device, vertexBuffer, vShader, pShader, inputLayout);
-    // ——— create a simple 3-vertex triangle VB ———
+    
+    // Triangle for testing
     ID3D11Buffer* triangleVB = nullptr;
     {
         SimpleVertex triVerts[] = {
@@ -121,7 +122,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     materialBuffer.Initialize(device, sizeof(Material), &mat);
 
     // Camera buffer
-    // Camera buffer (start at eyePos)
     Camera cam{ eyePos, 0.f };
     cameraBuffer.Initialize(device, sizeof(Camera), &cam);
 
@@ -208,25 +208,27 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         constantBuffer.UpdateBuffer(immediateContext, &data);
 
 
+
+        // Camera movement
         const float camSpeed = 3.0f;
         XMVECTOR posV = XMLoadFloat3(&eyePos);
         XMVECTOR lookV = XMLoadFloat3(&lookAt);
         XMVECTOR upV = XMLoadFloat3(&upVector);
 
-        XMVECTOR forwardV = XMVector3Normalize(XMVectorSubtract(lookV, posV));         // where you face
-        XMVECTOR rightV = XMVector3Normalize(XMVector3Cross(upV, forwardV));          // true “right” of camera
+        XMVECTOR forwardV = XMVector3Normalize(XMVectorSubtract(lookV, posV));
+        XMVECTOR rightV = XMVector3Normalize(XMVector3Cross(upV, forwardV));
 
         float moveAmt = camSpeed * dt;
-        XMVECTOR offsett = XMVectorZero();
-        if (GetAsyncKeyState('W') & 0x8000) offsett = XMVectorAdd(offsett, XMVectorScale(forwardV, moveAmt));
-        if (GetAsyncKeyState('S') & 0x8000) offsett = XMVectorSubtract(offsett, XMVectorScale(forwardV, moveAmt));
-        if (GetAsyncKeyState('A') & 0x8000) offsett = XMVectorSubtract(offsett, XMVectorScale(rightV, moveAmt));
-        if (GetAsyncKeyState('D') & 0x8000) offsett = XMVectorAdd(offsett, XMVectorScale(rightV, moveAmt));
-        if (GetAsyncKeyState('Q') & 0x8000) offsett = XMVectorSubtract(offsett, XMVectorScale(upV, moveAmt));
-        if (GetAsyncKeyState('E') & 0x8000) offsett = XMVectorAdd(offsett, XMVectorScale(upV, moveAmt));
+        XMVECTOR CameraOffset = XMVectorZero();
+        if (GetAsyncKeyState('W') & 0x8000) CameraOffset = XMVectorAdd(CameraOffset, XMVectorScale(forwardV, moveAmt));
+        if (GetAsyncKeyState('S') & 0x8000) CameraOffset = XMVectorSubtract(CameraOffset, XMVectorScale(forwardV, moveAmt));
+        if (GetAsyncKeyState('A') & 0x8000) CameraOffset = XMVectorSubtract(CameraOffset, XMVectorScale(rightV, moveAmt));
+        if (GetAsyncKeyState('D') & 0x8000) CameraOffset = XMVectorAdd(CameraOffset, XMVectorScale(rightV, moveAmt));
+        if (GetAsyncKeyState('Q') & 0x8000) CameraOffset = XMVectorSubtract(CameraOffset, XMVectorScale(upV, moveAmt));
+        if (GetAsyncKeyState('E') & 0x8000) CameraOffset = XMVectorAdd(CameraOffset, XMVectorScale(upV, moveAmt));
 
-        posV = XMVectorAdd(posV, offsett);
-        lookV = XMVectorAdd(lookV, offsett);
+        posV = XMVectorAdd(posV, CameraOffset);
+        lookV = XMVectorAdd(lookV, CameraOffset);
 
         XMStoreFloat3(&eyePos, posV);
         XMStoreFloat3(&lookAt, lookV);
@@ -234,9 +236,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         XMMATRIX view = XMMatrixLookAtLH(posV, lookV, upV);
         VIEW_PROJ = view * PROJECTION;
 
-
+        // Printing whatever in terminal during runtime (testing)
         {
-            // copy into an XMFLOAT3 (if it isn’t already)
             XMFLOAT3 p = lookAt;
 
             // format into a small buffer
@@ -248,14 +249,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         }
 
         ID3D11Buffer* cb = constantBuffer.GetBuffer();
-        // ——— draw the quad ———
+        // Draw Quad
         Render(immediateContext, rtv, dsView, viewport,
             vShader, pShader, inputLayout, vertexBuffer,
             constantBuffer.GetBuffer(), textureView,
             samplerState, worldMatrix);
 
-        // ——— now draw the triangle ———
-        // 1) update CB (identity or custom world)
+
         MatrixPair triData;
         XMStoreFloat4x4(&triData.world, XMMatrixTranspose(XMMatrixIdentity()));
         XMStoreFloat4x4(&triData.viewProj, XMMatrixTranspose(VIEW_PROJ));
@@ -288,8 +288,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     }
 
-    // Manual cleanup (RAII handles constantBuffer)
-
+    // Manual cleanup
     samplerState->Release();
     textureView->Release();
     texture->Release();
