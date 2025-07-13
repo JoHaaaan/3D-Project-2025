@@ -58,6 +58,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     HWND window;
     SetupWindow(hInstance, WIDTH, HEIGHT, nCmdShow, window);
 
+
+
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
     ID3D11Device* device = nullptr;
@@ -207,28 +209,31 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 
         const float camSpeed = 3.0f;
-        float dx = 0, dy = 0, dz = 0;
-        if (GetAsyncKeyState('W') & 0x8000) dz += camSpeed * dt;
-        if (GetAsyncKeyState('S') & 0x8000) dz -= camSpeed * dt;
-        if (GetAsyncKeyState('A') & 0x8000) dx -= camSpeed * dt;
-        if (GetAsyncKeyState('D') & 0x8000) dx += camSpeed * dt;
-        if (GetAsyncKeyState('Q') & 0x8000) dy -= camSpeed * dt;
-        if (GetAsyncKeyState('E') & 0x8000) dy += camSpeed * dt;
-
-        // apply to both eyePos and lookAt
-        eyePos.x += dx;
-        eyePos.y += dy;
-        eyePos.z += dz;
-        lookAt.x += dx;
-        lookAt.y += dy;
-        lookAt.z += dz;
-
-
-        XMVECTOR eyeV = XMLoadFloat3(&eyePos);
-        XMVECTOR atV = XMLoadFloat3(&lookAt);
+        XMVECTOR posV = XMLoadFloat3(&eyePos);
+        XMVECTOR lookV = XMLoadFloat3(&lookAt);
         XMVECTOR upV = XMLoadFloat3(&upVector);
-        XMMATRIX view = XMMatrixLookAtLH(eyeV, atV, upV);
+
+        XMVECTOR forwardV = XMVector3Normalize(XMVectorSubtract(lookV, posV));         // where you face
+        XMVECTOR rightV = XMVector3Normalize(XMVector3Cross(upV, forwardV));          // true “right” of camera
+
+        float moveAmt = camSpeed * dt;
+        XMVECTOR offsett = XMVectorZero();
+        if (GetAsyncKeyState('W') & 0x8000) offsett = XMVectorAdd(offsett, XMVectorScale(forwardV, moveAmt));
+        if (GetAsyncKeyState('S') & 0x8000) offsett = XMVectorSubtract(offsett, XMVectorScale(forwardV, moveAmt));
+        if (GetAsyncKeyState('A') & 0x8000) offsett = XMVectorSubtract(offsett, XMVectorScale(rightV, moveAmt));
+        if (GetAsyncKeyState('D') & 0x8000) offsett = XMVectorAdd(offsett, XMVectorScale(rightV, moveAmt));
+        if (GetAsyncKeyState('Q') & 0x8000) offsett = XMVectorSubtract(offsett, XMVectorScale(upV, moveAmt));
+        if (GetAsyncKeyState('E') & 0x8000) offsett = XMVectorAdd(offsett, XMVectorScale(upV, moveAmt));
+
+        posV = XMVectorAdd(posV, offsett);
+        lookV = XMVectorAdd(lookV, offsett);
+
+        XMStoreFloat3(&eyePos, posV);
+        XMStoreFloat3(&lookAt, lookV);
+
+        XMMATRIX view = XMMatrixLookAtLH(posV, lookV, upV);
         VIEW_PROJ = view * PROJECTION;
+
 
         {
             // copy into an XMFLOAT3 (if it isn’t already)
