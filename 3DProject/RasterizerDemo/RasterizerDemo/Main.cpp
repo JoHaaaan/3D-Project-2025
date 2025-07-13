@@ -58,6 +58,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     HWND window;
     SetupWindow(hInstance, WIDTH, HEIGHT, nCmdShow, window);
 
+    // center point in screen coords
+    POINT center = { WIDTH / 2, HEIGHT / 2 };
+    ClientToScreen(window, &center);
+    ShowCursor(FALSE);
+    SetCursorPos(center.x, center.y);
 
 
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
@@ -174,6 +179,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     auto previousTime = std::chrono::high_resolution_clock::now();
     float rotationAngle = 90.f;
+
+    float yaw = 0.0f;
+    float pitch = 0.0f;
+    const float mouseSens = 0.1f;
+
+
+
     MSG msg = {};
     while (!(GetKeyState(VK_ESCAPE) & 0x8000) && msg.message != WM_QUIT)
     {
@@ -209,7 +221,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 
 
-        // Camera movement
+        // ——— Camera movement + mouselook ———
         const float camSpeed = 3.0f;
         XMVECTOR posV = XMLoadFloat3(&eyePos);
         XMVECTOR lookV = XMLoadFloat3(&lookAt);
@@ -219,22 +231,46 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         XMVECTOR rightV = XMVector3Normalize(XMVector3Cross(upV, forwardV));
 
         float moveAmt = camSpeed * dt;
-        XMVECTOR CameraOffset = XMVectorZero();
-        if (GetAsyncKeyState('W') & 0x8000) CameraOffset = XMVectorAdd(CameraOffset, XMVectorScale(forwardV, moveAmt));
-        if (GetAsyncKeyState('S') & 0x8000) CameraOffset = XMVectorSubtract(CameraOffset, XMVectorScale(forwardV, moveAmt));
-        if (GetAsyncKeyState('A') & 0x8000) CameraOffset = XMVectorSubtract(CameraOffset, XMVectorScale(rightV, moveAmt));
-        if (GetAsyncKeyState('D') & 0x8000) CameraOffset = XMVectorAdd(CameraOffset, XMVectorScale(rightV, moveAmt));
-        if (GetAsyncKeyState('Q') & 0x8000) CameraOffset = XMVectorSubtract(CameraOffset, XMVectorScale(upV, moveAmt));
-        if (GetAsyncKeyState('E') & 0x8000) CameraOffset = XMVectorAdd(CameraOffset, XMVectorScale(upV, moveAmt));
+        XMVECTOR moveDelta = XMVectorZero();
+        if (GetAsyncKeyState('W') & 0x8000) moveDelta = XMVectorAdd(moveDelta, XMVectorScale(forwardV, moveAmt));
+        if (GetAsyncKeyState('S') & 0x8000) moveDelta = XMVectorSubtract(moveDelta, XMVectorScale(forwardV, moveAmt));
+        if (GetAsyncKeyState('A') & 0x8000) moveDelta = XMVectorSubtract(moveDelta, XMVectorScale(rightV, moveAmt));
+        if (GetAsyncKeyState('D') & 0x8000) moveDelta = XMVectorAdd(moveDelta, XMVectorScale(rightV, moveAmt));
+        if (GetAsyncKeyState('Q') & 0x8000) moveDelta = XMVectorSubtract(moveDelta, XMVectorScale(upV, moveAmt));
+        if (GetAsyncKeyState('E') & 0x8000) moveDelta = XMVectorAdd(moveDelta, XMVectorScale(upV, moveAmt));
 
-        posV = XMVectorAdd(posV, CameraOffset);
-        lookV = XMVectorAdd(lookV, CameraOffset);
+        posV = XMVectorAdd(posV, moveDelta);
+        lookV = XMVectorAdd(lookV, moveDelta);
+
+        POINT mouseP;
+        GetCursorPos(&mouseP);
+        int dx = mouseP.x - center.x;
+        int dy = mouseP.y - center.y;
+
+        yaw += dx * mouseSens;
+        pitch -= dy * mouseSens*1.6;
+
+        SetCursorPos(center.x, center.y);
+
+        float yawRad = XMConvertToRadians(yaw);
+        float pitchRad = XMConvertToRadians(pitch);
+        forwardV = XMVectorSet(
+            cosf(pitchRad) * sinf(yawRad),
+            sinf(pitchRad),
+            cosf(pitchRad) * cosf(yawRad),
+            0.0f
+        );
+        forwardV = XMVector3Normalize(forwardV);
+
+        lookV = XMVectorAdd(posV, forwardV);
 
         XMStoreFloat3(&eyePos, posV);
         XMStoreFloat3(&lookAt, lookV);
 
         XMMATRIX view = XMMatrixLookAtLH(posV, lookV, upV);
         VIEW_PROJ = view * PROJECTION;
+
+
 
         // Printing whatever in terminal during runtime (testing)
         {
