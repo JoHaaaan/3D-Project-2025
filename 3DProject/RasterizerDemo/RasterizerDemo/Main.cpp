@@ -248,7 +248,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         int dy = mouseP.y - center.y;
 
         yaw += dx * mouseSens;
-        pitch -= dy * mouseSens*1.6;
+        pitch -= dy * mouseSens;
 
         SetCursorPos(center.x, center.y);
 
@@ -278,7 +278,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
             // format into a small buffer
             char buf[128];
-            sprintf_s(buf, "Looking at: X=%.3f  Y=%.3f  Z=%.3f\n", p.x, p.y, p.z);
+            sprintf_s(buf, "Looking at: X=%.3f  Y=%.3f  Z=%.3f\n", center.x, center.y, p.z);
 
             // send to Visual Studio’s Output window
             OutputDebugStringA(buf);
