@@ -33,9 +33,9 @@ void ConstantBufferD3D11::Initialize(ID3D11Device* device, size_t byteSize, void
 {
 	D3D11_BUFFER_DESC desc = {};
 	desc.ByteWidth = static_cast<UINT>(byteSize);
-	desc.Usage = initialData ? D3D11_USAGE_DEFAULT : D3D11_USAGE_DYNAMIC;
+	desc.Usage = D3D11_USAGE_DYNAMIC;
 	desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	desc.CPUAccessFlags = initialData ? 0 : D3D11_CPU_ACCESS_WRITE;
+	desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
 	D3D11_SUBRESOURCE_DATA initData = {};
 	initData.pSysMem = initialData;
