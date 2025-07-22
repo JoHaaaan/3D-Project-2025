@@ -9,6 +9,8 @@
 #include <DirectXMath.h>
 #include "RenderHelper.h"
 #include "ConstantBufferD3D11.h"
+#include "CameraD3D11.h"
+
 
 using namespace DirectX;
 #define STB_IMAGE_IMPLEMENTATION
@@ -20,10 +22,7 @@ static const float ASPECT_RATIO = 1280.0f / 720.0f;
 static const float NEAR_PLANE = 0.1f;
 static const float FAR_PLANE = 100.0f;
 
-// Camera starting stuff
-XMFLOAT3 eyePos = { 0.0f, 0.0f, -10.0f };
-XMFLOAT3 lookAt = { 0.0f, 0.0f, 0.0f };
-XMFLOAT3 upVector = { 0.0f, 1.0f, 0.0f };
+
 
 XMMATRIX PROJECTION = XMMatrixPerspectiveFovLH(FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE);
 XMMATRIX VIEW_PROJ;
@@ -46,10 +45,6 @@ struct Material {
     float    specularPower;
 };
 
-struct Camera {
-    XMFLOAT3 position;
-    float    padding;
-};
 
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 {
@@ -84,7 +79,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11SamplerState* samplerState = nullptr;
     ConstantBufferD3D11 lightBuffer;
     ConstantBufferD3D11 materialBuffer;
-    ConstantBufferD3D11 cameraBuffer;
+    CameraD3D11 camera;
 
     SetupD3D11(WIDTH, HEIGHT, window, device, immediateContext, swapChain, rtv, dsTexture, dsView, viewport);
     SetupPipeline(device, vertexBuffer, vShader, pShader, inputLayout);
@@ -126,9 +121,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     };
     materialBuffer.Initialize(device, sizeof(Material), &mat);
 
-    // Camera buffer
-    Camera cam{ eyePos, 0.f };
-    cameraBuffer.Initialize(device, sizeof(Camera), &cam);
+    // Camera setup
+    ProjectionInfo proj{ FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE };
+    camera.Initialize(device, proj, XMFLOAT3(0.0f, 0.0f, -10.0f));
 
 
     // Texture loading
@@ -170,7 +165,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     ID3D11Buffer* lightCB = lightBuffer.GetBuffer();
     ID3D11Buffer* materialCB = materialBuffer.GetBuffer();
-    ID3D11Buffer* cameraCB = cameraBuffer.GetBuffer();
+    ID3D11Buffer* cameraCB = camera.GetConstantBuffer();
 
     immediateContext->PSSetConstantBuffers(1, 1, &lightCB);
     immediateContext->PSSetConstantBuffers(2, 1, &materialCB);
@@ -180,8 +175,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     auto previousTime = std::chrono::high_resolution_clock::now();
     float rotationAngle = 90.f;
 
-    float yaw = 0.0f;
-    float pitch = 0.0f;
+
     const float mouseSens = 0.1f;
 
 
@@ -221,66 +215,39 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 
 
-        // ——— Camera movement + mouselook ———
+        //  Camera movement + mouselook
         const float camSpeed = 3.0f;
-        XMVECTOR posV = XMLoadFloat3(&eyePos);
-        XMVECTOR lookV = XMLoadFloat3(&lookAt);
-        XMVECTOR upV = XMLoadFloat3(&upVector);
-
-        XMVECTOR forwardV = XMVector3Normalize(XMVectorSubtract(lookV, posV));
-        XMVECTOR rightV = XMVector3Normalize(XMVector3Cross(upV, forwardV));
-
-        float moveAmt = camSpeed * dt;
-        XMVECTOR moveDelta = XMVectorZero();
-        if (GetAsyncKeyState('W') & 0x8000) moveDelta = XMVectorAdd(moveDelta, XMVectorScale(forwardV, moveAmt));
-        if (GetAsyncKeyState('S') & 0x8000) moveDelta = XMVectorSubtract(moveDelta, XMVectorScale(forwardV, moveAmt));
-        if (GetAsyncKeyState('A') & 0x8000) moveDelta = XMVectorSubtract(moveDelta, XMVectorScale(rightV, moveAmt));
-        if (GetAsyncKeyState('D') & 0x8000) moveDelta = XMVectorAdd(moveDelta, XMVectorScale(rightV, moveAmt));
-        if (GetAsyncKeyState('Q') & 0x8000) moveDelta = XMVectorSubtract(moveDelta, XMVectorScale(upV, moveAmt));
-        if (GetAsyncKeyState('E') & 0x8000) moveDelta = XMVectorAdd(moveDelta, XMVectorScale(upV, moveAmt));
-
-        posV = XMVectorAdd(posV, moveDelta);
-        lookV = XMVectorAdd(lookV, moveDelta);
+        if (GetAsyncKeyState('W') & 0x8000) camera.MoveForward(camSpeed * dt);
+        if (GetAsyncKeyState('S') & 0x8000) camera.MoveForward(-camSpeed * dt);
+        if (GetAsyncKeyState('A') & 0x8000) camera.MoveRight(-camSpeed * dt);
+        if (GetAsyncKeyState('D') & 0x8000) camera.MoveRight(camSpeed * dt);
+        if (GetAsyncKeyState('Q') & 0x8000) camera.MoveUp(-camSpeed * dt);
+        if (GetAsyncKeyState('E') & 0x8000) camera.MoveUp(camSpeed * dt);
 
         POINT mouseP;
         GetCursorPos(&mouseP);
         int dx = mouseP.x - center.x;
         int dy = mouseP.y - center.y;
 
-        yaw += dx * mouseSens;
-        pitch -= dy * mouseSens;
-
         SetCursorPos(center.x, center.y);
 
-        float yawRad = XMConvertToRadians(yaw);
-        float pitchRad = XMConvertToRadians(pitch);
-        forwardV = XMVectorSet(
-            cosf(pitchRad) * sinf(yawRad),
-            sinf(pitchRad),
-            cosf(pitchRad) * cosf(yawRad),
-            0.0f
-        );
-        forwardV = XMVector3Normalize(forwardV);
+        camera.RotateRight(XMConvertToRadians(dx* mouseSens));
+        camera.RotateForward(XMConvertToRadians(-dy * mouseSens));
 
-        lookV = XMVectorAdd(posV, forwardV);
+        camera.UpdateInternalConstantBuffer(immediateContext);
 
-        XMStoreFloat3(&eyePos, posV);
-        XMStoreFloat3(&lookAt, lookV);
 
-        XMMATRIX view = XMMatrixLookAtLH(posV, lookV, upV);
-        VIEW_PROJ = view * PROJECTION;
-
+        XMFLOAT4X4 vp = camera.GetViewProjectionMatrix();
+        VIEW_PROJ = XMLoadFloat4x4(&vp);
 
 
         // Printing whatever in terminal during runtime (testing)
         {
-            XMFLOAT3 p = lookAt;
+            XMFLOAT3 p = camera.GetPosition();
 
-            // format into a small buffer
             char buf[128];
-            sprintf_s(buf, "Looking at: X=%.3f  Y=%.3f  Z=%.3f\n", center.x, center.y, p.z);
+            sprintf_s(buf, "Camera Pos: X=%.3f  Y=%.3f  Z=%.3f\n", p.x, p.y, p.z);
 
-            // send to Visual Studio’s Output window
             OutputDebugStringA(buf);
         }
 

@@ -149,6 +149,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CameraD3D11.cpp" />
     <ClCompile Include="ConstantBufferD3D11.cpp" />
     <ClCompile Include="D3D11Helper.cpp" />
     <ClCompile Include="Main.cpp" />
@@ -179,6 +180,7 @@
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CameraD3D11.h" />
     <ClInclude Include="ConstantBufferD3D11.h" />
     <ClInclude Include="D3D11Helper.h" />
     <ClInclude Include="PipelineHelper.h" />
