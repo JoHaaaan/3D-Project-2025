@@ -232,7 +232,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         SetCursorPos(center.x, center.y);
 
         camera.RotateRight(XMConvertToRadians(dx* mouseSens));
-        camera.RotateForward(XMConvertToRadians(-dy * mouseSens));
+        camera.RotateForward(XMConvertToRadians(dy * mouseSens));
 
         camera.UpdateInternalConstantBuffer(immediateContext);
 

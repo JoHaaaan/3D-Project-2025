@@ -72,7 +72,8 @@ void CameraD3D11::RotateAroundAxis(float amount, const XMFLOAT3& axis)
 
     XMVECTOR f = XMVector3Rotate(XMLoadFloat3(&forward), q);
     XMVECTOR u = XMVector3Rotate(XMLoadFloat3(&up), q);
-    XMVECTOR r = XMVector3Cross(f, u);
+    // Use up x forward for left-handed coordinate system
+    XMVECTOR r = XMVector3Cross(u, f);
 
     XMStoreFloat3(&forward, XMVector3Normalize(f));
     XMStoreFloat3(&up, XMVector3Normalize(u));
