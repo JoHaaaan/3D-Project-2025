@@ -1,6 +1,4 @@
 #include "ShaderResourceTextureD3D11.h"
-
-#define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 ShaderResourceTextureD3D11::ShaderResourceTextureD3D11(ID3D11Device* device, UINT width, UINT height, void* textureData)
