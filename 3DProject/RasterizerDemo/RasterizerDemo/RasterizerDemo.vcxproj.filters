@@ -24,9 +24,6 @@
     <ClCompile Include="D3D11Helper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PipelineHelper.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="RenderHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -34,6 +31,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CameraD3D11.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PipelineHelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SamplerD3D11.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -64,8 +67,15 @@
     <ClInclude Include="CameraD3D11.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SamplerD3D11.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Test.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="VertexShader.cso" />
+    <None Include="PixelShader.cso" />
   </ItemGroup>
 </Project>
