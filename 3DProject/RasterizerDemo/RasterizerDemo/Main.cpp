@@ -10,6 +10,7 @@
 #include "RenderHelper.h"
 #include "ConstantBufferD3D11.h"
 #include "CameraD3D11.h"
+#include "SamplerD3D11.h"
 
 
 using namespace DirectX;
@@ -76,7 +77,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ConstantBufferD3D11 constantBuffer;
     ID3D11Texture2D* texture = nullptr;
     ID3D11ShaderResourceView* textureView = nullptr;
-    ID3D11SamplerState* samplerState = nullptr;
+    SamplerD3D11 samplerState;
     ConstantBufferD3D11 lightBuffer;
     ConstantBufferD3D11 materialBuffer;
     CameraD3D11 camera;
@@ -150,18 +151,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         device->CreateShaderResourceView(texture, nullptr, &textureView);
     }
 
-    // Sampler
-    {
-        D3D11_SAMPLER_DESC sdesc = {};
-        sdesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-        sdesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-        sdesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-        sdesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-        sdesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-        sdesc.MinLOD = 0;
-        sdesc.MaxLOD = D3D11_FLOAT32_MAX;
-        device->CreateSamplerState(&sdesc, &samplerState);
-    }
+    samplerState.Initialize(device, D3D11_TEXTURE_ADDRESS_WRAP);
+
 
     ID3D11Buffer* lightCB = lightBuffer.GetBuffer();
     ID3D11Buffer* materialCB = materialBuffer.GetBuffer();
@@ -256,7 +247,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         Render(immediateContext, rtv, dsView, viewport,
             vShader, pShader, inputLayout, vertexBuffer,
             constantBuffer.GetBuffer(), textureView,
-            samplerState, worldMatrix);
+            samplerState.GetSamplerState(), worldMatrix);
 
 
         MatrixPair triData;
@@ -280,8 +271,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         immediateContext->VSSetShader(vShader, nullptr, 0);
         immediateContext->PSSetShader(pShader, nullptr, 0);
         immediateContext->PSSetShaderResources(0, 1, &textureView);
-        immediateContext->PSSetSamplers(0, 1, &samplerState);
-
+        ID3D11SamplerState* samplerPtr = samplerState.GetSamplerState();
+        immediateContext->PSSetSamplers(0, 1, &samplerPtr);
         immediateContext->Draw(3, 0);
 
 
@@ -292,7 +283,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     }
 
     // Manual cleanup
-    samplerState->Release();
     textureView->Release();
     texture->Release();
     vertexBuffer->Release();
