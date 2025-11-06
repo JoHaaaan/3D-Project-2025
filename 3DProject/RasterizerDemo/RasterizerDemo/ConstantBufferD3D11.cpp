@@ -1,4 +1,5 @@
 #include "ConstantBufferD3D11.h"
+#include "VertexBufferD3D11.h"
 
 ConstantBufferD3D11::ConstantBufferD3D11(ID3D11Device* device, size_t byteSize, void* initialData)
 {
@@ -53,6 +54,8 @@ size_t ConstantBufferD3D11::GetSize() const
 {
 	return bufferSize;
 }
+
+
 
 ID3D11Buffer* ConstantBufferD3D11::GetBuffer() const
 {
