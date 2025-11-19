@@ -14,7 +14,7 @@
 #include "SamplerD3D11.h"
 #include "InputLayoutD3D11.h"
 #include "VertexBufferD3D11.h"
-
+#include "DepthBufferD3D11.h"
 
 using namespace DirectX;
 #define STB_IMAGE_IMPLEMENTATION
@@ -88,6 +88,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     SetupD3D11(WIDTH, HEIGHT, window, device, immediateContext, swapChain, rtv, dsTexture, dsView, viewport);
     std::string vShaderByteCode;
     SetupPipeline(device, vertexBuffer, vShader, pShader, vShaderByteCode);
+    
+	// Depth buffer wrapper
+    DepthBufferD3D11 depthBuffer(device, WIDTH, HEIGHT, false);
+
 
     inputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
     inputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
@@ -245,8 +249,12 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         }
 
         ID3D11Buffer* cb = constantBuffer.GetBuffer();
+
+        ID3D11DepthStencilView* myDSV = depthBuffer.GetDSV(0);
+
+
         // Draw Quad
-        Render(immediateContext, rtv, dsView, viewport,
+        Render(immediateContext, rtv, myDSV, viewport,
             vShader, pShader, inputLayout.GetInputLayout(), vertexBuffer.GetBuffer(),
             constantBuffer.GetBuffer(), textureView,
             samplerState.GetSamplerState(), worldMatrix);
