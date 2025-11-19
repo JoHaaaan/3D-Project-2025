@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <string>
 #include <d3d11.h>
 
 struct SimpleVertex
@@ -22,5 +23,5 @@ struct SimpleVertex
 	}
 };
 
-bool SetupPipeline(ID3D11Device * device, ID3D11Buffer *& vertexBuffer, ID3D11VertexShader *& vShader, ID3D11PixelShader *& pShader, ID3D11InputLayout *& inputLayout);
+bool SetupPipeline(ID3D11Device* device, ID3D11Buffer*& vertexBuffer, ID3D11VertexShader*& vShader, ID3D11PixelShader*& pShader, std::string& outVertexShaderByteCode);
 bool CreateVertexBuffer(ID3D11Device* device, ID3D11Buffer*& vertexBuffer);

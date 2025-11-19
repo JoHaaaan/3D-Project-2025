@@ -1,6 +1,7 @@
 #include <Windows.h>
 #include <iostream>
 #include <fstream>
+#include <string>
 #include <chrono>
 #include "WindowHelper.h"
 #include "D3D11Helper.h" 
@@ -11,6 +12,7 @@
 #include "ConstantBufferD3D11.h"
 #include "CameraD3D11.h"
 #include "SamplerD3D11.h"
+#include "InputLayoutD3D11.h"
 
 
 using namespace DirectX;
@@ -72,7 +74,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     D3D11_VIEWPORT viewport;
     ID3D11VertexShader* vShader = nullptr;
     ID3D11PixelShader* pShader = nullptr;
-    ID3D11InputLayout* inputLayout = nullptr;
+    InputLayoutD3D11 inputLayout;
     ID3D11Buffer* vertexBuffer = nullptr;
     ConstantBufferD3D11 constantBuffer;
     ID3D11Texture2D* texture = nullptr;
@@ -83,8 +85,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     CameraD3D11 camera;
 
     SetupD3D11(WIDTH, HEIGHT, window, device, immediateContext, swapChain, rtv, dsTexture, dsView, viewport);
-    SetupPipeline(device, vertexBuffer, vShader, pShader, inputLayout);
-    
+    std::string vShaderByteCode;
+    SetupPipeline(device, vertexBuffer, vShader, pShader, vShaderByteCode);
+
+    inputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
+    inputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
+    inputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
+    inputLayout.FinalizeInputLayout(device, vShaderByteCode.data(), vShaderByteCode.size());
     // Triangle for testing
     ID3D11Buffer* triangleVB = nullptr;
     {
@@ -245,7 +252,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         ID3D11Buffer* cb = constantBuffer.GetBuffer();
         // Draw Quad
         Render(immediateContext, rtv, dsView, viewport,
-            vShader, pShader, inputLayout, vertexBuffer,
+            vShader, pShader, inputLayout.GetInputLayout(), vertexBuffer,
             constantBuffer.GetBuffer(), textureView,
             samplerState.GetSamplerState(), worldMatrix);
 
@@ -264,7 +271,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         UINT stride = sizeof(SimpleVertex);
         UINT offset = 0;
         immediateContext->IASetVertexBuffers(0, 1, &triangleVB, &stride, &offset);
-        immediateContext->IASetInputLayout(inputLayout);
+        immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
         immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 
@@ -286,7 +293,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     textureView->Release();
     texture->Release();
     vertexBuffer->Release();
-    inputLayout->Release();
     pShader->Release();
     vShader->Release();
     dsView->Release();
