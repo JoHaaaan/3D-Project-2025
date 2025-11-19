@@ -1,4 +1,5 @@
 #include "PipelineHelper.h"
+#include "VertexBufferD3D11.h"
 
 #include <fstream>
 #include <string>
@@ -26,7 +27,7 @@ bool LoadShaders(ID3D11Device* device, ID3D11VertexShader*& vShader, ID3D11Pixel
     return true;
 }
 
-bool CreateVertexBuffer(ID3D11Device* device, ID3D11Buffer*& vertexBuffer)
+bool CreateVertexBuffer(ID3D11Device* device, VertexBufferD3D11& vertexBuffer)
 {
     SimpleVertex quad[] =
     {
@@ -43,17 +44,12 @@ bool CreateVertexBuffer(ID3D11Device* device, ID3D11Buffer*& vertexBuffer)
 
     
 
-    D3D11_BUFFER_DESC bufferDesc{};
-    bufferDesc.ByteWidth = sizeof(quad);
-    bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
-    bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-
-    D3D11_SUBRESOURCE_DATA data = { quad };
-    device->CreateBuffer(&bufferDesc, &data, &vertexBuffer);
+    const UINT vertexCount = static_cast<UINT>(sizeof(quad) / sizeof(quad[0]));
+    vertexBuffer.Initialize(device, sizeof(SimpleVertex), vertexCount, quad);
     return true;
 }
 
-bool SetupPipeline(ID3D11Device* device, ID3D11Buffer*& vertexBuffer, ID3D11VertexShader*& vShader,
+bool SetupPipeline(ID3D11Device* device, VertexBufferD3D11& vertexBuffer, ID3D11VertexShader*& vShader,
     ID3D11PixelShader*& pShader, std::string& outVertexShaderByteCode)
 {
     LoadShaders(device, vShader, pShader, outVertexShaderByteCode);

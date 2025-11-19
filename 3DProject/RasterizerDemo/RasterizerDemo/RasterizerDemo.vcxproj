@@ -159,6 +159,7 @@
     <ClCompile Include="PipelineHelper.cpp" />
     <ClCompile Include="RenderHelper.cpp" />
     <ClCompile Include="SamplerD3D11.cpp" />
+    <ClCompile Include="VertexBufferD3D11.cpp" />
     <ClCompile Include="WindowHelper.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -192,6 +193,7 @@
     <ClInclude Include="PipelineHelper.h" />
     <ClInclude Include="RenderHelper.h" />
     <ClInclude Include="SamplerD3D11.h" />
+    <ClInclude Include="VertexBufferD3D11.h" />
     <ClInclude Include="WindowHelper.h" />
   </ItemGroup>
   <ItemGroup>

@@ -13,6 +13,7 @@
 #include "CameraD3D11.h"
 #include "SamplerD3D11.h"
 #include "InputLayoutD3D11.h"
+#include "VertexBufferD3D11.h"
 
 
 using namespace DirectX;
@@ -75,7 +76,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11VertexShader* vShader = nullptr;
     ID3D11PixelShader* pShader = nullptr;
     InputLayoutD3D11 inputLayout;
-    ID3D11Buffer* vertexBuffer = nullptr;
+    VertexBufferD3D11 vertexBuffer;
     ConstantBufferD3D11 constantBuffer;
     ID3D11Texture2D* texture = nullptr;
     ID3D11ShaderResourceView* textureView = nullptr;
@@ -93,24 +94,18 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     inputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
     inputLayout.FinalizeInputLayout(device, vShaderByteCode.data(), vShaderByteCode.size());
     // Triangle for testing
-    ID3D11Buffer* triangleVB = nullptr;
+    VertexBufferD3D11 triangleVB;
     {
         SimpleVertex triVerts[] = {
             { {  0.0f,  3.0f, 0.0f }, {0,0,-1}, {0.0f, 0.0f} },
             { {  3.0f, -3.0f, 0.0f }, {0,0,-1}, {1.0f, 1.0f} },
             { { -3.0f, -3.0f, 0.0f }, {0,0,-1}, {0.0f, 1.0f} },
         };
-         
-        D3D11_BUFFER_DESC bd = {};
-        bd.Usage = D3D11_USAGE_IMMUTABLE;
-        bd.ByteWidth = sizeof(triVerts);
-        bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-
-        D3D11_SUBRESOURCE_DATA sd = { triVerts };
-        HRESULT hr = device->CreateBuffer(&bd, &sd, &triangleVB);
-        if (FAILED(hr)) {
-            OutputDebugStringA("Failed to create triangle VB\n");
-        }
+        triangleVB.Initialize(
+            device,
+            sizeof(SimpleVertex),
+            static_cast<UINT>(sizeof(triVerts) / sizeof(triVerts[0])),
+            triVerts);
     }
 
     // Constant Buffer
@@ -252,7 +247,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         ID3D11Buffer* cb = constantBuffer.GetBuffer();
         // Draw Quad
         Render(immediateContext, rtv, dsView, viewport,
-            vShader, pShader, inputLayout.GetInputLayout(), vertexBuffer,
+            vShader, pShader, inputLayout.GetInputLayout(), vertexBuffer.GetBuffer(),
             constantBuffer.GetBuffer(), textureView,
             samplerState.GetSamplerState(), worldMatrix);
 
@@ -270,7 +265,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
         UINT stride = sizeof(SimpleVertex);
         UINT offset = 0;
-        immediateContext->IASetVertexBuffers(0, 1, &triangleVB, &stride, &offset);
+        ID3D11Buffer* triangleBuffer = triangleVB.GetBuffer();
+        immediateContext->IASetVertexBuffers(0, 1, &triangleBuffer, &stride, &offset);
         immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
         immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -292,7 +288,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     // Manual cleanup
     textureView->Release();
     texture->Release();
-    vertexBuffer->Release();
     pShader->Release();
     vShader->Release();
     dsView->Release();
