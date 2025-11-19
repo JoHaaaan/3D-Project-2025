@@ -33,13 +33,8 @@ DepthBufferD3D11::~DepthBufferD3D11()
     }
 }
 
-#include "DepthBufferD3D11.h"
 
-void DepthBufferD3D11::Initialize(ID3D11Device* device,
-    UINT width,
-    UINT height,
-    bool hasSRV,
-    UINT arraySize)
+void DepthBufferD3D11::Initialize(ID3D11Device* device, UINT width, UINT height, bool hasSRV, UINT arraySize)
 {
     // Släpp ev. gamla resurser om Initialize kallas flera gånger
     for (size_t i = 0; i < depthStencilViews.size(); ++i)
