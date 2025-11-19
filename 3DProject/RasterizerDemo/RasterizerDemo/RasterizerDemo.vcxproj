@@ -159,6 +159,8 @@
     <ClCompile Include="PipelineHelper.cpp" />
     <ClCompile Include="RenderHelper.cpp" />
     <ClCompile Include="SamplerD3D11.cpp" />
+    <ClCompile Include="ShaderD3D11.cpp" />
+    <ClCompile Include="SubMeshD3D11.cpp" />
     <ClCompile Include="VertexBufferD3D11.cpp" />
     <ClCompile Include="WindowHelper.cpp" />
   </ItemGroup>
@@ -189,10 +191,18 @@
     <ClInclude Include="ConstantBufferD3D11.h" />
     <ClInclude Include="D3D11Helper.h" />
     <ClInclude Include="DepthBufferD3D11.h" />
+    <ClInclude Include="IndexBufferD3D11.h" />
     <ClInclude Include="InputLayoutD3D11.h" />
+    <ClInclude Include="MeshD3D11.h" />
     <ClInclude Include="PipelineHelper.h" />
     <ClInclude Include="RenderHelper.h" />
+    <ClInclude Include="RenderTargetD3D11.h" />
     <ClInclude Include="SamplerD3D11.h" />
+    <ClInclude Include="ShaderD3D11.h" />
+    <ClInclude Include="ShaderResourceTextureD3D11.h" />
+    <ClInclude Include="SpotLightCollectionD3D11.h" />
+    <ClInclude Include="StructuredBufferD3D11.h" />
+    <ClInclude Include="SubMeshD3D11.h" />
     <ClInclude Include="VertexBufferD3D11.h" />
     <ClInclude Include="WindowHelper.h" />
   </ItemGroup>
