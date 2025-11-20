@@ -70,8 +70,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11DeviceContext* immediateContext = nullptr;
     IDXGISwapChain* swapChain = nullptr;
     ID3D11RenderTargetView* rtv = nullptr;
-    ID3D11Texture2D* dsTexture = nullptr;
-    ID3D11DepthStencilView* dsView = nullptr;
     D3D11_VIEWPORT viewport;
     ID3D11VertexShader* vShader = nullptr;
     ID3D11PixelShader* pShader = nullptr;
@@ -85,7 +83,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ConstantBufferD3D11 materialBuffer;
     CameraD3D11 camera;
 
-    SetupD3D11(WIDTH, HEIGHT, window, device, immediateContext, swapChain, rtv, dsTexture, dsView, viewport);
+    SetupD3D11(WIDTH, HEIGHT, window, device, immediateContext, swapChain, rtv, viewport);
+
     std::string vShaderByteCode;
     SetupPipeline(device, vertexBuffer, vShader, pShader, vShaderByteCode);
     
@@ -298,8 +297,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     texture->Release();
     pShader->Release();
     vShader->Release();
-    dsView->Release();
-    dsTexture->Release();
     rtv->Release();
     swapChain->Release();
     immediateContext->Release();
