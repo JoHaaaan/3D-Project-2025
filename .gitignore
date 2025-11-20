@@ -40,7 +40,7 @@
 # ignore the VS browse database
 /3DProject/RasterizerDemo/.vs/RasterizerDemo/v1/Browse.VC.db
 
-*.cso
+
 
 # IntelliSense precompiled headers
 *.ipch/
