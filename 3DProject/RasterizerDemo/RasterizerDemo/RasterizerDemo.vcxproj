@@ -200,6 +200,7 @@
     <ClInclude Include="IndexBufferD3D11.h" />
     <ClInclude Include="InputLayoutD3D11.h" />
     <ClInclude Include="MeshD3D11.h" />
+    <ClInclude Include="OBJParser.h" />
     <ClInclude Include="PipelineHelper.h" />
     <ClInclude Include="RenderHelper.h" />
     <ClInclude Include="RenderTargetD3D11.h" />
