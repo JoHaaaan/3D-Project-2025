@@ -1,9 +1,17 @@
 #include "OBJParser.h"
 
 
-float GetLineFloat(const std::string& line, size_t& currentPos)
+float GetLineFloat(const std::string& line, size_t& currentLinePos)
 {
     size_t numberStart = currentLinePos;
+
+	while (currentLinePos < line.size() && line[currentLinePos] != ' ')
+	{
+		currentLinePos++;
+	}
+
+	std::string part = line.substr(numberStart, currentLinePos - numberStart);
+	float extractedAndConvertedFloat = std::stof(part);
 
     // Loop until end of string or a space is reached, incrementing currentLinePos for each loop iteration
 
@@ -17,6 +25,14 @@ int GetLineInt(const std::string& line, size_t& currentLinePos)
 {
     size_t numberStart = currentLinePos;
 
+	while (currentLinePos < line.size() && line[currentLinePos] != ' ' && line[currentLinePos] != '/')
+	{
+		currentLinePos++;
+	}
+
+	std::string part = line.substr(numberStart, currentLinePos - numberStart);
+	int extractedAndConvertedInteger = std::stoi(part);
+
     // Loop until end of string or either a '/' or space is reached, incrementing currentLinePos for each loop iteration
 
 	// Extract substring using numberStart and the incremented currentLinePos (tip: there is a fdunction in std::string for this, substr)
@@ -28,7 +44,14 @@ int GetLineInt(const std::string& line, size_t& currentLinePos)
 
 std::string GetLineString(const std::string& line, size_t& currentLinePos)
 {
-	size_t stringStart = currentLinePos;
+	size_t numberStart = currentLinePos;
+
+	while (currentLinePos < line.size() && line[currentLinePos] != ' ')
+	{
+		currentLinePos++;
+	}
+	std::string extractedString = line.substr(numberStart, currentLinePos - numberStart);
+
 
 	// Loop until end of string or a space is reached, incrementing currentLinePos for each loop iteration
 
@@ -45,7 +68,7 @@ const Mesh* GetMesh(const std::string& path)
 	{
 		std::string fileData;
 		ReadFile(path, fileData);
-		ParseOBJ(path, fileData):
+		ParseOBJ(path, fileData);
 	}
 
 	return &loadedMeshes[path];
@@ -54,14 +77,14 @@ const Mesh* GetMesh(const std::string& path)
 void Readfile(const std::string& path, std::string& toFill)
 {
 	std::ifstream reader;
-	reaer.open(defaultDirectory + path);
+	reader.open(defaultDirectory + path);
 	if (!reader.is_open())
 	{
 		throw std::runtime_error("Failed to open file: " + path);
 	}
 
 	reader.seekg(0, std::ios::end);
-	toFill.reserve(static_cast<unsigned_ int>(reader.tellg()));
+	toFill.reserve(static_cast<unsigned int>(reader.tellg()));
 	reader.seekg(0, std::ios::beg);
 
 	toFill.assign((std::istreambuf_iterator<char>(reader)),
