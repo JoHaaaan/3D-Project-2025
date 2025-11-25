@@ -72,6 +72,9 @@
     <ClCompile Include="RenderTargetD3D11.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="OBJParser.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="VertexShader.hlsl">
@@ -139,6 +142,9 @@
     <ClInclude Include="OBJParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="stb_image.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Text Include="Test.txt" />
@@ -146,5 +152,10 @@
   <ItemGroup>
     <None Include="VertexShader.cso" />
     <None Include="PixelShader.cso" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="image.png">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>
