@@ -7,6 +7,17 @@ RenderTargetD3D11::~RenderTargetD3D11()
 		rtv->Release();
 		rtv = nullptr;
 	}
+
+	if (srv)
+	{
+		srv->Release();
+		srv = nullptr;
+	}
+	if (texture)
+	{
+		texture->Release();
+		texture = nullptr;
+	}
 }
 
 void RenderTargetD3D11::Initialize(ID3D11Device* device, UINT width, UINT height, DXGI_FORMAT format, bool hasSRV)
