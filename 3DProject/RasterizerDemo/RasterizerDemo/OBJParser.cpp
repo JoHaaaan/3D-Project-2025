@@ -1,5 +1,5 @@
 #include "OBJParser.h"
-
+#include "MeshD3D11.h"
 
 float GetLineFloat(const std::string& line, size_t& currentLinePos)
 {
@@ -74,7 +74,7 @@ const Mesh* GetMesh(const std::string& path)
 	return &loadedMeshes[path];
 }
 
-void Readfile(const std::string& path, std::string& toFill)
+void ReadFile(const std::string& path, std::string& toFill)
 {
 	std::ifstream reader;
 	reader.open(defaultDirectory + path);
@@ -102,7 +102,7 @@ void ParseOBJ(const std::string& identifier, const std::string& contents)
 		ParseLine(line, data);
 	}
 
-	PushbackCurrentSubmesh(data);
+	PushBackCurrentSubmesh(data);
 
 	Mesh toAdd;
 	// Use the data we have parsed into our ParseData strucutre and use it to build a mesh we can work with
