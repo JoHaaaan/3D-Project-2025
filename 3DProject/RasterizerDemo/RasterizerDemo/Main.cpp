@@ -15,6 +15,7 @@
 #include "InputLayoutD3D11.h"
 #include "VertexBufferD3D11.h"
 #include "DepthBufferD3D11.h"
+#include "RenderTargetD3D11.h"   // <-- ny include
 
 using namespace DirectX;
 #define STB_IMAGE_IMPLEMENTATION
@@ -26,11 +27,8 @@ static const float ASPECT_RATIO = 1280.0f / 720.0f;
 static const float NEAR_PLANE = 0.1f;
 static const float FAR_PLANE = 100.0f;
 
-
-
 XMMATRIX PROJECTION = XMMatrixPerspectiveFovLH(FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE);
 XMMATRIX VIEW_PROJ;
-
 
 // Structures
 struct Light {
@@ -49,7 +47,6 @@ struct Material {
     float    specularPower;
 };
 
-
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 {
     const UINT WIDTH = 1024;
@@ -63,13 +60,12 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ShowCursor(FALSE);
     SetCursorPos(center.x, center.y);
 
-
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
     ID3D11Device* device = nullptr;
     ID3D11DeviceContext* immediateContext = nullptr;
     IDXGISwapChain* swapChain = nullptr;
-    ID3D11RenderTargetView* rtv = nullptr;
+    ID3D11RenderTargetView* rtv = nullptr;  // backbuffer RTV, används bara ev. senare
     D3D11_VIEWPORT viewport;
     ID3D11VertexShader* vShader = nullptr;
     ID3D11PixelShader* pShader = nullptr;
@@ -87,15 +83,19 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     std::string vShaderByteCode;
     SetupPipeline(device, vertexBuffer, vShader, pShader, vShaderByteCode);
-    
-	// Depth buffer wrapper
+
+    // Depth buffer wrapper
     DepthBufferD3D11 depthBuffer(device, WIDTH, HEIGHT, false);
 
+    // Offscreen render target
+    RenderTargetD3D11 sceneRT;
+    sceneRT.Initialize(device, WIDTH, HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, false);
 
     inputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
     inputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
     inputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
     inputLayout.FinalizeInputLayout(device, vShaderByteCode.data(), vShaderByteCode.size());
+
     // Triangle for testing
     VertexBufferD3D11 triangleVB;
     {
@@ -114,23 +114,21 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     // Constant Buffer
     constantBuffer.Initialize(device, sizeof(MatrixPair));
 
-
     // Light buffer
     Light lightData{ XMFLOAT3(0.f, 0.f, -2.f), 1.f, XMFLOAT3(1.f, 1.f, 1.f), 0.f };
     lightBuffer.Initialize(device, sizeof(Light), &lightData);
 
     // Material buffer
     Material mat{
-    XMFLOAT3(0.2f, 0.2f, 0.2f), 0.f,
-    XMFLOAT3(0.5f, 0.5f, 0.5f), 0.f,
-    XMFLOAT3(0.5f, 0.5f, 0.5f), 100.f
+        XMFLOAT3(0.2f, 0.2f, 0.2f), 0.f,
+        XMFLOAT3(0.5f, 0.5f, 0.5f), 0.f,
+        XMFLOAT3(0.5f, 0.5f, 0.5f), 100.f
     };
     materialBuffer.Initialize(device, sizeof(Material), &mat);
 
     // Camera setup
     ProjectionInfo proj{ FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE };
     camera.Initialize(device, proj, XMFLOAT3(0.0f, 0.0f, -10.0f));
-
 
     // Texture loading
     {
@@ -158,7 +156,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     samplerState.Initialize(device, D3D11_TEXTURE_ADDRESS_WRAP);
 
-
     ID3D11Buffer* lightCB = lightBuffer.GetBuffer();
     ID3D11Buffer* materialCB = materialBuffer.GetBuffer();
     ID3D11Buffer* cameraCB = camera.GetConstantBuffer();
@@ -167,14 +164,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     immediateContext->PSSetConstantBuffers(2, 1, &materialCB);
     immediateContext->PSSetConstantBuffers(3, 1, &cameraCB);
 
-
     auto previousTime = std::chrono::high_resolution_clock::now();
     float rotationAngle = 90.f;
 
-
     const float mouseSens = 0.1f;
-
-
 
     MSG msg = {};
     while (!(GetKeyState(VK_ESCAPE) & 0x8000) && msg.message != WM_QUIT)
@@ -204,12 +197,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         // Update matrix buffer
         MatrixPair data;
         XMStoreFloat4x4(&data.world, XMMatrixTranspose(worldMatrix));
-
-        // transpose the newest viewProj into your CB
         XMStoreFloat4x4(&data.viewProj, XMMatrixTranspose(VIEW_PROJ));
         constantBuffer.UpdateBuffer(immediateContext, &data);
-
-
 
         //  Camera movement + mouselook
         const float camSpeed = 3.0f;
@@ -227,38 +216,31 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
         SetCursorPos(center.x, center.y);
 
-        camera.RotateRight(XMConvertToRadians(dx* mouseSens));
+        camera.RotateRight(XMConvertToRadians(dx * mouseSens));
         camera.RotateForward(XMConvertToRadians(dy * mouseSens));
-
         camera.UpdateInternalConstantBuffer(immediateContext);
-
 
         XMFLOAT4X4 vp = camera.GetViewProjectionMatrix();
         VIEW_PROJ = XMLoadFloat4x4(&vp);
 
-
-        // Printing whatever in terminal during runtime (testing)
+        // Debug print camera position
         {
             XMFLOAT3 p = camera.GetPosition();
-
             char buf[128];
             sprintf_s(buf, "Camera Pos: X=%.3f  Y=%.3f  Z=%.3f\n", p.x, p.y, p.z);
-
             OutputDebugStringA(buf);
         }
 
-        ID3D11Buffer* cb = constantBuffer.GetBuffer();
-
         ID3D11DepthStencilView* myDSV = depthBuffer.GetDSV(0);
+        ID3D11RenderTargetView* sceneRTV = sceneRT.GetRTV();
 
-
-        // Draw Quad
-        Render(immediateContext, rtv, myDSV, viewport,
+        // Draw Quad till vår offscreen render target
+        Render(immediateContext, sceneRTV, myDSV, viewport,
             vShader, pShader, inputLayout.GetInputLayout(), vertexBuffer.GetBuffer(),
             constantBuffer.GetBuffer(), textureView,
             samplerState.GetSamplerState(), worldMatrix);
 
-
+        // Triangle
         MatrixPair triData;
         XMStoreFloat4x4(&triData.world, XMMatrixTranspose(XMMatrixIdentity()));
         XMStoreFloat4x4(&triData.viewProj, XMMatrixTranspose(VIEW_PROJ));
@@ -269,14 +251,12 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             immediateContext->VSSetConstantBuffers(0, 1, &cb0);
         }
 
-
         UINT stride = sizeof(SimpleVertex);
         UINT offset = 0;
         ID3D11Buffer* triangleBuffer = triangleVB.GetBuffer();
         immediateContext->IASetVertexBuffers(0, 1, &triangleBuffer, &stride, &offset);
         immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
         immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
 
         immediateContext->VSSetShader(vShader, nullptr, 0);
         immediateContext->PSSetShader(pShader, nullptr, 0);
@@ -285,11 +265,25 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         immediateContext->PSSetSamplers(0, 1, &samplerPtr);
         immediateContext->Draw(3, 0);
 
+        // Kopiera offscreen-renderingen till backbuffer
+        ID3D11Texture2D* backBufferTex = nullptr;
+        HRESULT hr = swapChain->GetBuffer(
+            0,
+            __uuidof(ID3D11Texture2D),
+            reinterpret_cast<void**>(&backBufferTex)
+        );
+
+        if (SUCCEEDED(hr) && backBufferTex)
+        {
+            ID3D11Texture2D* src = sceneRT.GetTexture();
+            if (src)
+            {
+                immediateContext->CopyResource(backBufferTex, src);
+            }
+            backBufferTex->Release();
+        }
 
         swapChain->Present(0, 0);
-
-
-
     }
 
     // Manual cleanup
