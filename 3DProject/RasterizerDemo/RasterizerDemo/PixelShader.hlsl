@@ -9,7 +9,7 @@ cbuffer LightBuffer : register(b1)
 cbuffer MaterialBuffer : register(b2)
 {
     float3 materialAmbient;
-    float padding1; 
+    float padding1;
 
     float3 materialDiffuse;
     float padding2;
@@ -26,41 +26,38 @@ cbuffer CameraBuffer : register(b3)
 
 struct PS_INPUT
 {
-    float4 position : SV_POSITION;    // Clip-space position
-    float3 worldPos : WORLD_POSITION; // World-space position
-    float3 normal : NORMAL;           // World-space normal
-    float2 uv : TEXCOORD0;            // Texture coordinates
+    float4 position : SV_POSITION;
+    float3 worldPos : WORLD_POSITION;
+    float3 normal : NORMAL;
+    float2 uv : TEXCOORD0;
 };
 
 Texture2D shaderTexture : register(t0);
 SamplerState samplerState : register(s0);
 
-float4 main(PS_INPUT input) : SV_TARGET
+// --- G-buffer output ---
+struct PS_OUTPUT
 {
-    // Normalize vectors
-    float3 normal = normalize(input.normal);
-    float3 lightDir = normalize(lightPosition - input.worldPos);
-    float3 viewDir = normalize(cameraPosition - input.worldPos);
-    float3 reflectDir = reflect(-lightDir, normal);
+    float4 Albedo : SV_Target0;
+    float4 Normal : SV_Target1;
+    float4 Spec : SV_Target2;
+};
 
-    // Ambient lighting
-    float3 ambient = lightIntensity * lightColor * materialAmbient;
+PS_OUTPUT main(PS_INPUT input)
+{
+    PS_OUTPUT o;
 
-    // Diffuse lighting
-    float diffuseFactor = max(dot(normal, lightDir), 0.0);
-    float3 diffuse = diffuseFactor * lightIntensity * lightColor * materialDiffuse;
+    // 1) Albedo: texturfärg * materialets diffuse
+    float3 texColor = shaderTexture.Sample(samplerState, input.uv).rgb;
+    float3 albedo = texColor * materialDiffuse;
+    o.Albedo = float4(albedo, 1.0f);
 
-    // Specular lighting
-    float specAngle = max(dot(viewDir, reflectDir), 0.0);
-    float specularFactor = pow(specAngle, specularPower);
-    float3 specular = specularFactor * lightIntensity * lightColor * materialSpecular;
+    // 2) Normal: world normal packad från [-1,1] till [0,1]
+    float3 n = normalize(input.normal);
+    o.Normal = float4(n * 0.5f + 0.5f, 1.0f);
 
-    // Sample texture
-    float4 textureColor = shaderTexture.Sample(samplerState, input.uv);
+    // 3) Spec: specularfärg + shininess i alpha
+    o.Spec = float4(materialSpecular, specularPower);
 
-    // Combine lighting components with the texture color
-    float3 finalColor = (ambient + diffuse + specular) * textureColor.rgb;
-
-    return float4(finalColor, 1.0f);
+    return o;
 }
-
