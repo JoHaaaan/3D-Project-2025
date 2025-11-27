@@ -3,8 +3,7 @@
 
 // Initialize global maps
 std::string defaultDirectory = "RasterizerDemo/"; // Adjust if needed
-std::unordered_map<std::string, MeshD3D11> loadedMeshes;
-std::unordered_map<std::string, TextureResource> loadedTextures; // Dummy implementation if needed
+std::unordered_map<std::string, MeshD3D11*> loadedMeshes; // Changed to pointers
 
 float GetLineFloat(const std::string& line, size_t& currentLinePos)
 {
@@ -59,7 +58,7 @@ const MeshD3D11* GetMesh(const std::string& path, ID3D11Device* device) {
 		ParseOBJ(path, fileData, device);
 	}
 
-	return &loadedMeshes[path];
+	return loadedMeshes[path];
 }
 
 void ReadFile(const std::string& path, std::string& toFill)
@@ -110,19 +109,19 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
         MeshData::SubMeshInfo sm = {};
         sm.startIndexValue = sub.startIndexValue;
         sm.nrOfIndicesInSubMesh = sub.nrOfIndicesInSubMesh;
-        sm.ambientTextureSRV = sub.ambientTextureSRV;
-        sm.diffuseTextureSRV = sub.diffuseTextureSRV;
-        sm.specularTextureSRV = sub.specularTextureSRV;
+        sm.ambientTextureSRV = nullptr;  // No texture loading for now
+        sm.diffuseTextureSRV = nullptr;
+        sm.specularTextureSRV = nullptr;
 
         meshInfo.subMeshInfo.push_back(sm);
     }
 
-    // 5. Initialize the mesh
-    MeshD3D11 toAdd;
-    toAdd.Initialize(device, meshInfo);
+    // 5. Initialize the mesh - use new to create on heap since move is deleted
+    MeshD3D11* toAdd = new MeshD3D11();
+    toAdd->Initialize(device, meshInfo);
     // --- FIX ENDS HERE ---
 
-    loadedMeshes[identifier] = std::move(toAdd); // slightly more efficient to move
+    loadedMeshes[identifier] = toAdd;
 }
 
 void ParseLine(const std::string& line, ParseData& data)
@@ -329,25 +328,10 @@ void PushBackCurrentSubmesh(ParseData& data)
     toAdd.startIndexValue = data.currentSubmeshStartIndex;
     toAdd.nrOfIndicesInSubMesh = data.indexData.size() - toAdd.startIndexValue;
 
-    // Get material textures (with bounds checking)
-    size_t matIdx = data.currentSubMeshMaterial;
-    if (matIdx < data.parsedMaterials.size())
-    {
-        // Try to find textures in the loadedTextures map
-        auto kaIt = loadedTextures.find(data.parsedMaterials[matIdx].mapKa);
-        auto kdIt = loadedTextures.find(data.parsedMaterials[matIdx].mapKd);
-        auto ksIt = loadedTextures.find(data.parsedMaterials[matIdx].mapKs);
-
-        toAdd.ambientTextureSRV = (kaIt != loadedTextures.end()) ? kaIt->second.GetSRV() : nullptr;
-        toAdd.diffuseTextureSRV = (kdIt != loadedTextures.end()) ? kdIt->second.GetSRV() : nullptr;
-        toAdd.specularTextureSRV = (ksIt != loadedTextures.end()) ? ksIt->second.GetSRV() : nullptr;
-    }
-    else
-    {
-        toAdd.ambientTextureSRV = nullptr;
-        toAdd.diffuseTextureSRV = nullptr;
-        toAdd.specularTextureSRV = nullptr;
-    }
+    // Set texture SRVs to nullptr for now (no texture loading implemented)
+    toAdd.ambientTextureSRV = nullptr;
+    toAdd.diffuseTextureSRV = nullptr;
+    toAdd.specularTextureSRV = nullptr;
 
     data.finishedSubMeshes.push_back(toAdd);
 }

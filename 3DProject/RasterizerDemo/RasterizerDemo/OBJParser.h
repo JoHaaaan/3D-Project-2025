@@ -51,7 +51,7 @@ struct ParseData
     std::unordered_map<std::string, unsigned int> vertexCache;
 
     // Final vertex buffer data
-    std::vector<Vertex> vertices;
+    std::vector<Vertex> vertices;   
 
     // Index data for the final mesh
     std::vector<unsigned int> indexData;
@@ -67,7 +67,7 @@ struct ParseData
 // Global data used by the parser
 extern std::string defaultDirectory;
 // Note: Changed Mesh to MeshD3D11 to match your class name
-extern std::unordered_map<std::string, MeshD3D11> loadedMeshes;
+extern std::unordered_map<std::string, MeshD3D11*> loadedMeshes; // Changed to pointers
 
 struct TextureResource;
 extern std::unordered_map<std::string, TextureResource> loadedTextures;
