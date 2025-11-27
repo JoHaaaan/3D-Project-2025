@@ -2,11 +2,17 @@
 #include "MeshD3D11.h"
 
 // Initialize global maps
-std::string defaultDirectory = "RasterizerDemo/"; // Adjust if needed
+std::string defaultDirectory = ""; // Adjust if needed
 std::unordered_map<std::string, MeshD3D11*> loadedMeshes; // Changed to pointers
 
 float GetLineFloat(const std::string& line, size_t& currentLinePos)
 {
+    // Skip leading whitespace
+    while (currentLinePos < line.size() && line[currentLinePos] == ' ')
+    {
+        currentLinePos++;
+    }
+    
     size_t numberStart = currentLinePos;
 
 	while (currentLinePos < line.size() && line[currentLinePos] != ' ')

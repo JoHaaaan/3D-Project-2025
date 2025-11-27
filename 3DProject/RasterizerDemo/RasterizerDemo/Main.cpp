@@ -16,7 +16,8 @@
 #include "VertexBufferD3D11.h"
 #include "DepthBufferD3D11.h"
 #include "RenderTargetD3D11.h"   // <-- ny include
-
+#include "OBJParser.h"
+#include "MeshD3D11.h"
 using namespace DirectX;
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -117,6 +118,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     // Light buffer
     Light lightData{ XMFLOAT3(0.f, 0.f, -2.f), 1.f, XMFLOAT3(1.f, 1.f, 1.f), 0.f };
     lightBuffer.Initialize(device, sizeof(Light), &lightData);
+
+        // Note: 'GetMesh' is a global function from OBJParser.h
+        // It will parse 'cube.obj' and create the vertex/index buffers.
+        const MeshD3D11 * cubeMesh = GetMesh("cube.obj", device);
 
     // Material buffer
     Material mat{
@@ -240,30 +245,37 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             constantBuffer.GetBuffer(), textureView,
             samplerState.GetSamplerState(), worldMatrix);
 
-        // Triangle
-        MatrixPair triData;
-        XMStoreFloat4x4(&triData.world, XMMatrixTranspose(XMMatrixIdentity()));
-        XMStoreFloat4x4(&triData.viewProj, XMMatrixTranspose(VIEW_PROJ));
-        constantBuffer.UpdateBuffer(immediateContext, &triData);
+        // --- CUBE RENDERING ---
 
-        {
-            ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
-            immediateContext->VSSetConstantBuffers(0, 1, &cb0);
-        }
+        // 1. Update Constant Buffer 
+        // We use the 'data' struct defined earlier in the loop which contains
+        // the rotating world matrix. We re-bind it to be safe.
+        ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
+        immediateContext->VSSetConstantBuffers(0, 1, &cb0);
 
-        UINT stride = sizeof(SimpleVertex);
-        UINT offset = 0;
-        ID3D11Buffer* triangleBuffer = triangleVB.GetBuffer();
-        immediateContext->IASetVertexBuffers(0, 1, &triangleBuffer, &stride, &offset);
+        // 2. Setup Shaders and Input Layout
         immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
         immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
         immediateContext->VSSetShader(vShader, nullptr, 0);
         immediateContext->PSSetShader(pShader, nullptr, 0);
+
+        // 3. Bind Textures and Samplers
+        // We bind the loaded "image.png" since the cube.obj might not have textures linked.
         immediateContext->PSSetShaderResources(0, 1, &textureView);
         ID3D11SamplerState* samplerPtr = samplerState.GetSamplerState();
         immediateContext->PSSetSamplers(0, 1, &samplerPtr);
-        immediateContext->Draw(3, 0);
+
+        // 4. Bind and Draw Mesh
+        if (cubeMesh)
+        {
+            cubeMesh->BindMeshBuffers(immediateContext);
+
+            for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
+            {
+                cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
+            }
+        }
 
         // Kopiera offscreen-renderingen till backbuffer
         ID3D11Texture2D* backBufferTex = nullptr;
