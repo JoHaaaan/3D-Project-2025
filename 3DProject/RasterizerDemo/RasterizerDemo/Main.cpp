@@ -179,6 +179,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     const float mouseSens = 0.1f;
 
+    // Static cube world matrix - position (5, 0, 0), scale (1, 1, 1)
+    XMMATRIX staticCubeWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(5.0f, 0.0f, 0.0f);
+
     MSG msg = {};
     while (!(GetKeyState(VK_ESCAPE) & 0x8000) && msg.message != WM_QUIT)
     {
@@ -275,6 +278,24 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             }
         }
 
+        // Render static cube
+        {
+            MatrixPair staticData;
+            XMStoreFloat4x4(&staticData.world, XMMatrixTranspose(staticCubeWorld));
+            XMStoreFloat4x4(&staticData.viewProj, XMMatrixTranspose(VIEW_PROJ));
+            constantBuffer.UpdateBuffer(immediateContext, &staticData);
+
+            if (cubeMesh)
+            {
+                cubeMesh->BindMeshBuffers(immediateContext);
+
+                for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
+                {
+                    cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
+                }
+            }
+        }
+
         // ----- NYTT: GEOMETRY-PASS TILL G-BUFFER -----
         {
             // Bind G-buffer-RTVs + samma depth-buffer
@@ -296,13 +317,39 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             immediateContext->PSSetShaderResources(0, 1, &textureView);
             immediateContext->PSSetSamplers(0, 1, &samplerPtr);
 
-            if (cubeMesh)
+            // Render rotating cube to G-buffer
             {
-                cubeMesh->BindMeshBuffers(immediateContext);
+                MatrixPair rotatingData;
+                XMStoreFloat4x4(&rotatingData.world, XMMatrixTranspose(worldMatrix));
+                XMStoreFloat4x4(&rotatingData.viewProj, XMMatrixTranspose(VIEW_PROJ));
+                constantBuffer.UpdateBuffer(immediateContext, &rotatingData);
 
-                for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
+                if (cubeMesh)
                 {
-                    cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
+                    cubeMesh->BindMeshBuffers(immediateContext);
+
+                    for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
+                    {
+                        cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
+                    }
+                }
+            }
+
+            // Render static cube to G-buffer
+            {
+                MatrixPair staticData;
+                XMStoreFloat4x4(&staticData.world, XMMatrixTranspose(staticCubeWorld));
+                XMStoreFloat4x4(&staticData.viewProj, XMMatrixTranspose(VIEW_PROJ));
+                constantBuffer.UpdateBuffer(immediateContext, &staticData);
+
+                if (cubeMesh)
+                {
+                    cubeMesh->BindMeshBuffers(immediateContext);
+
+                    for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
+                    {
+                        cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
+                    }
                 }
             }
         }
