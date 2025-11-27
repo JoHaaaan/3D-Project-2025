@@ -376,6 +376,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     }
 
     // Manual cleanup
+    UnloadAllMeshes();
     textureView->Release();
     texture->Release();
     pShader->Release();
