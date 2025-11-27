@@ -1,6 +1,11 @@
 #include "OBJParser.h"
 #include "MeshD3D11.h"
 
+// Initialize global maps
+std::string defaultDirectory = "RasterizerDemo/"; // Adjust if needed
+std::unordered_map<std::string, MeshD3D11> loadedMeshes;
+std::unordered_map<std::string, TextureResource> loadedTextures; // Dummy implementation if needed
+
 float GetLineFloat(const std::string& line, size_t& currentLinePos)
 {
     size_t numberStart = currentLinePos;
@@ -13,11 +18,6 @@ float GetLineFloat(const std::string& line, size_t& currentLinePos)
 	std::string part = line.substr(numberStart, currentLinePos - numberStart);
 	float extractedAndConvertedFloat = std::stof(part);
 
-    // Loop until end of string or a space is reached, incrementing currentLinePos for each loop iteration
-
-	// Exctract substring using numberStart and the incremented currentLinePos (tip: there is a fdunction in std::string for this, substr)
-
-    // Convert the extracted substring to float (tip: there is a function in the standard libraru for this, std::stof)
     return extractedAndConvertedFloat;
 }
 
@@ -33,12 +33,6 @@ int GetLineInt(const std::string& line, size_t& currentLinePos)
 	std::string part = line.substr(numberStart, currentLinePos - numberStart);
 	int extractedAndConvertedInteger = std::stoi(part);
 
-    // Loop until end of string or either a '/' or space is reached, incrementing currentLinePos for each loop iteration
-
-	// Extract substring using numberStart and the incremented currentLinePos (tip: there is a fdunction in std::string for this, substr)
-
-	// Convert the extracted substring to int (tip: there is a function in the standard libraru for this, std::stoi)
-
 	return extractedAndConvertedInteger;
 }
 
@@ -52,23 +46,17 @@ std::string GetLineString(const std::string& line, size_t& currentLinePos)
 	}
 	std::string extractedString = line.substr(numberStart, currentLinePos - numberStart);
 
-
-	// Loop until end of string or a space is reached, incrementing currentLinePos for each loop iteration
-
-	// Extract substring using stringStart and the incremented currentLinePos (tip: there is a function in std::string for this, substr)
-
 	return extractedString;
 }
 
-const Mesh* GetMesh(const std::string& path)
-{
+const MeshD3D11* GetMesh(const std::string& path, ID3D11Device* device) {
 	// loadedMeshes is our persistent map of meshes we have parsed
 
 	if (loadedMeshes.find(path) == loadedMeshes.end())
 	{
 		std::string fileData;
 		ReadFile(path, fileData);
-		ParseOBJ(path, fileData);
+		ParseOBJ(path, fileData, device);
 	}
 
 	return &loadedMeshes[path];
@@ -91,23 +79,50 @@ void ReadFile(const std::string& path, std::string& toFill)
 		std::istreambuf_iterator<char>());
 }
 
-void ParseOBJ(const std::string& identifier, const std::string& contents)
+void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11Device* device)
 {
-	std::istringstream lineStream(contents);
-	ParseData data;
+    std::istringstream lineStream(contents);
+    ParseData data;
 
-	std::string line;
-	while (std::getline(lineStream, line))
-	{
-		ParseLine(line, data);
-	}
+    std::string line;
+    while (std::getline(lineStream, line))
+    {
+        ParseLine(line, data);
+    }
+    PushBackCurrentSubmesh(data);
 
-	PushBackCurrentSubmesh(data);
+    // --- FIX STARTS HERE ---
+    // 1. Create a MeshData struct to transfer data to the MeshD3D11
+    MeshData meshInfo = {};
 
-	MeshD3D11 toAdd;
-	// Use the data we have parsed into our ParseData strucutre and use it to build a mesh we can work with
+    // 2. Fill Vertex Info
+    meshInfo.vertexInfo.sizeOfVertex = sizeof(Vertex);
+    meshInfo.vertexInfo.nrOfVerticesInBuffer = data.vertices.size();
+    meshInfo.vertexInfo.vertexData = data.vertices.data();
 
-	loadedMeshes[identifier] = toAdd;
+    // 3. Fill Index Info
+    meshInfo.indexInfo.nrOfIndicesInBuffer = data.indexData.size();
+    meshInfo.indexInfo.indexData = data.indexData.data();
+
+    // 4. Fill SubMesh Info
+    for (const auto& sub : data.finishedSubMeshes)
+    {
+        MeshData::SubMeshInfo sm = {};
+        sm.startIndexValue = sub.startIndexValue;
+        sm.nrOfIndicesInSubMesh = sub.nrOfIndicesInSubMesh;
+        sm.ambientTextureSRV = sub.ambientTextureSRV;
+        sm.diffuseTextureSRV = sub.diffuseTextureSRV;
+        sm.specularTextureSRV = sub.specularTextureSRV;
+
+        meshInfo.subMeshInfo.push_back(sm);
+    }
+
+    // 5. Initialize the mesh
+    MeshD3D11 toAdd;
+    toAdd.Initialize(device, meshInfo);
+    // --- FIX ENDS HERE ---
+
+    loadedMeshes[identifier] = std::move(toAdd); // slightly more efficient to move
 }
 
 void ParseLine(const std::string& line, ParseData& data)
@@ -143,6 +158,7 @@ void ParseTexCoord(const std::string& dataSection, ParseData& data)
 {
     size_t pos = 0;
     float u = GetLineFloat(dataSection, pos);
+    ++pos; // skip space
     float v = GetLineFloat(dataSection, pos);
     data.texCoords.push_back({ u, 1.0f - v }); // Invert V for DirectX
 }
@@ -151,86 +167,131 @@ void ParseNormal(const std::string& dataSection, ParseData& data)
 {
     size_t pos = 0;
     float x = GetLineFloat(dataSection, pos);
+    ++pos; // skip space
     float y = GetLineFloat(dataSection, pos);
+    ++pos; // skip space
     float z = GetLineFloat(dataSection, pos);
-    data.normals.push_back({ x, y, -z }); // Invert Z
+    data.normals.push_back({ x, y, -z }); // Invert Z for left-handed coordinate system
+}
+struct VertexData
+{
+    int vInd;
+    int tInd;
+    int nInd;
+};
+VertexData ParseFaceVertex(const std::string& dataSection, size_t& pos)
+{
+    VertexData vertex = { 0, 0, 0 };
+
+    vertex.vInd = GetLineInt(dataSection, pos);
+    vertex.tInd = 0;
+    vertex.nInd = 0;
+
+    // Check for texture coordinate
+    if (pos < dataSection.size() && dataSection[pos] == '/')
+    {
+        pos++; // skip first slash
+        if (pos < dataSection.size() && dataSection[pos] != '/')
+        {
+            vertex.tInd = GetLineInt(dataSection, pos);
+        }
+
+        // Check for normal
+        if (pos < dataSection.size() && dataSection[pos] == '/')
+        {
+            pos++; // skip second slash
+            vertex.nInd = GetLineInt(dataSection, pos);
+        }
+    }
+
+    return vertex;
 }
 
-void ParseFace(const std::string& dataSection, ParseData& data)
+void ParseFace(const std::string & dataSection, ParseData & data)
 {
     size_t pos = 0;
+    std::vector<VertexData> faceVertices;
 
-    // OBJ faces can be triangles or quads. We assume triangles or triangulated data.
-    // If it's a quad, this loop will need adjustment (read 4, emit 2 triangles).
-    // For now, we read 3 vertices.
-
-    for (int i = 0; i < 3; ++i)
+    // Parse all vertices in the face
+    while (pos < dataSection.size() && dataSection[pos] != '\0')
     {
-        // Read the triplet string to use as a cache key (e.g., "1/1/1")
-        size_t startToken = pos;
-        while (pos < dataSection.size() && dataSection[pos] == ' ') pos++; // skip spaces
-        size_t endToken = pos;
-        while (endToken < dataSection.size() && dataSection[endToken] != ' ') endToken++;
+        // Skip leading whitespace
+        while (pos < dataSection.size() && dataSection[pos] == ' ')
+            pos++;
 
-        std::string token = dataSection.substr(pos, endToken - pos);
+        if (pos >= dataSection.size())
+            break;
 
-        // Check Cache
-        if (data.vertexCache.find(token) != data.vertexCache.end())
+        VertexData vertex = ParseFaceVertex(dataSection, pos);
+        faceVertices.push_back(vertex);
+    }
+
+    // OBJ faces can be triangles or quads; triangulate if needed
+    if (faceVertices.size() >= 3)
+    {
+        // Fan triangulation for quads and n-gons
+        for (size_t i = 1; i < faceVertices.size() - 1; ++i)
         {
-            data.indexData.push_back(data.vertexCache[token]);
-            pos = endToken;
-            continue;
-        }
+            std::vector<VertexData> triangle = {
+                faceVertices[0],
+                faceVertices[i],
+                faceVertices[i + 1]
+            };
 
-        // Not in cache, parse indices
-        size_t subPos = pos;
-        int vInd = GetLineInt(dataSection, subPos);
-        int tInd = 0;
-        int nInd = 0;
-
-        // check for slash
-        if (subPos < dataSection.size() && dataSection[subPos] == '/')
-        {
-            subPos++; // skip first slash
-            if (subPos < dataSection.size() && dataSection[subPos] != '/')
+            for (const auto& vdata : triangle)
             {
-                tInd = GetLineInt(dataSection, subPos);
-            }
+                // Create cache key (e.g., "1/1/1")
+                std::string token = std::to_string(vdata.vInd) + "/" +
+                    std::to_string(vdata.tInd) + "/" +
+                    std::to_string(vdata.nInd);
 
-            if (subPos < dataSection.size() && dataSection[subPos] == '/')
-            {
-                subPos++; // skip second slash
-                nInd = GetLineInt(dataSection, subPos);
+                // Check cache
+                if (data.vertexCache.find(token) != data.vertexCache.end())
+                {
+                    data.indexData.push_back(data.vertexCache[token]);
+                    continue;
+                }
+
+                // Create new vertex
+                Vertex newVert = {};
+
+                // Handle negative indices (relative) and 1-based indices
+                int vInd = vdata.vInd;
+                int tInd = vdata.tInd;
+                int nInd = vdata.nInd;
+
+                if (vInd < 0) vInd = (int)data.positions.size() + vInd + 1;
+                if (tInd < 0) tInd = (int)data.texCoords.size() + tInd + 1;
+                if (nInd < 0) nInd = (int)data.normals.size() + nInd + 1;
+
+                // Assign vertex data (1-based indexing in OBJ)
+                if (vInd > 0 && vInd <= (int)data.positions.size())
+                    newVert.Position = data.positions[vInd - 1];
+
+                if (tInd > 0 && tInd <= (int)data.texCoords.size())
+                    newVert.UV = data.texCoords[tInd - 1];
+
+                if (nInd > 0 && nInd <= (int)data.normals.size())
+                    newVert.Normal = data.normals[nInd - 1];
+
+                // Add to buffer and cache
+                unsigned int newIndex = (unsigned int)data.vertices.size();
+                data.vertices.push_back(newVert);
+                data.indexData.push_back(newIndex);
+                data.vertexCache[token] = newIndex;
             }
         }
-        pos = subPos; // Advance main position
-
-        // Create Vertex
-        Vertex newVert = {};
-
-        // Handle negative indices (relative) and 1-based indices
-        if (vInd < 0) vInd = (int)data.positions.size() + vInd + 1;
-        if (tInd < 0) tInd = (int)data.texCoords.size() + tInd + 1;
-        if (nInd < 0) nInd = (int)data.normals.size() + nInd + 1;
-
-        if (vInd > 0) newVert.Position = data.positions[vInd - 1];
-        if (tInd > 0) newVert.UV = data.texCoords[tInd - 1];
-        if (nInd > 0) newVert.Normal = data.normals[nInd - 1];
-
-        // Add to buffer and cache
-        unsigned int newIndex = (unsigned int)data.vertices.size();
-        data.vertices.push_back(newVert);
-        data.indexData.push_back(newIndex);
-        data.vertexCache[token] = newIndex;
     }
 }
 
 void ParseMtlLib(const std::string& dataSection, ParseData& data)
 {
-    // Simplified: Just store the file name to load later if needed, 
-    // or parse it immediately. For this assignment, hardcoding or basic parsing is fine.
-    // Implementing actual MTL parsing is a large task. 
-    // Check if you have an external MTL loader or implement a basic one here.
+    // Simplified: Just store the file name to load later if needed
+    // For this implementation, we're not loading actual material files
+    // In a production system, you would load the .mtl file here
+    size_t pos = 0;
+    std::string mtlName = GetLineString(dataSection, pos);
+    // Could store this for later processing if needed
 }
 
 void ParseUseMtl(const std::string& dataSection, ParseData& data)
@@ -246,19 +307,48 @@ void ParseUseMtl(const std::string& dataSection, ParseData& data)
     }
 
     // Find material index in data.parsedMaterials matching mtlName
-    // (Implementation omitted for brevity, assumes materials are loaded)
+    size_t materialIndex = 0;
+    for (size_t i = 0; i < data.parsedMaterials.size(); ++i)
+    {
+        if (data.parsedMaterials[i].mapKa == mtlName ||
+            data.parsedMaterials[i].mapKd == mtlName)
+        {
+            materialIndex = i;
+            break;
+        }
+    }
+    data.currentSubMeshMaterial = materialIndex;
 }
 
 void PushBackCurrentSubmesh(ParseData& data)
 {
-	SubMeshInfo toAdd;
-	toAdd.startIndexValue = data.currentSubmeshStartIndex;
-	toAdd.nrOfIndicesInSubMesh = data.indexData.size() - toAdd.startIndexValue;
+    if (data.indexData.size() <= data.currentSubmeshStartIndex)
+        return; // No indices for this submesh
 
-	toAdd.ambientTextureSRV = loadedTextures[data.parsedMaterials[data.currentSubMeshMaterial].mapKa].GetSRV();
-	toAdd.diffuseTextureSRV = loadedTextures[data.parsedMaterials[data.currentSubMeshMaterial].mapKd].GetSRV();
-	toAdd.specularTextureSRV = loadedTextures[data.parsedMaterials[data.currentSubMeshMaterial].mapKs].GetSRV();
+    SubMeshInfo toAdd;
+    toAdd.startIndexValue = data.currentSubmeshStartIndex;
+    toAdd.nrOfIndicesInSubMesh = data.indexData.size() - toAdd.startIndexValue;
 
-	data.finishedSubMeshes.push_back(toAdd);
+    // Get material textures (with bounds checking)
+    size_t matIdx = data.currentSubMeshMaterial;
+    if (matIdx < data.parsedMaterials.size())
+    {
+        // Try to find textures in the loadedTextures map
+        auto kaIt = loadedTextures.find(data.parsedMaterials[matIdx].mapKa);
+        auto kdIt = loadedTextures.find(data.parsedMaterials[matIdx].mapKd);
+        auto ksIt = loadedTextures.find(data.parsedMaterials[matIdx].mapKs);
+
+        toAdd.ambientTextureSRV = (kaIt != loadedTextures.end()) ? kaIt->second.GetSRV() : nullptr;
+        toAdd.diffuseTextureSRV = (kdIt != loadedTextures.end()) ? kdIt->second.GetSRV() : nullptr;
+        toAdd.specularTextureSRV = (ksIt != loadedTextures.end()) ? ksIt->second.GetSRV() : nullptr;
+    }
+    else
+    {
+        toAdd.ambientTextureSRV = nullptr;
+        toAdd.diffuseTextureSRV = nullptr;
+        toAdd.specularTextureSRV = nullptr;
+    }
+
+    data.finishedSubMeshes.push_back(toAdd);
 }
 
