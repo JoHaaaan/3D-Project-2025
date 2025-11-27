@@ -50,10 +50,11 @@
 [Bb]in/
 [Oo]bj/
 x64/Debug/
+Debug/
 x64/Release/
 # --- Build results ---
 # Intermediate object files and logs
-*.obj
+
 *.o
 *.tlog
 *.lastbuildstate
