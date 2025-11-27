@@ -75,6 +75,9 @@
     <ClCompile Include="OBJParser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GBufferD3D11.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="VertexShader.hlsl">
@@ -143,6 +146,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="stb_image.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GBufferD3D11.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

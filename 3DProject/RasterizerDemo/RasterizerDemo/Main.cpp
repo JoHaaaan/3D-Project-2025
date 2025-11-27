@@ -15,9 +15,11 @@
 #include "InputLayoutD3D11.h"
 #include "VertexBufferD3D11.h"
 #include "DepthBufferD3D11.h"
-#include "RenderTargetD3D11.h"   // <-- ny include
+#include "RenderTargetD3D11.h"
 #include "OBJParser.h"
 #include "MeshD3D11.h"
+#include "GBufferD3D11.h"          // <<< NEW
+
 using namespace DirectX;
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -88,9 +90,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     // Depth buffer wrapper
     DepthBufferD3D11 depthBuffer(device, WIDTH, HEIGHT, false);
 
-    // Offscreen render target
+    // Offscreen render target (som tidigare)
     RenderTargetD3D11 sceneRT;
     sceneRT.Initialize(device, WIDTH, HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, false);
+
+    // <<< NEW: G-buffer-instans
+    GBufferD3D11 gbuffer;
+    gbuffer.Initialize(device, WIDTH, HEIGHT);
 
     inputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
     inputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
@@ -119,9 +125,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     Light lightData{ XMFLOAT3(0.f, 0.f, -2.f), 1.f, XMFLOAT3(1.f, 1.f, 1.f), 0.f };
     lightBuffer.Initialize(device, sizeof(Light), &lightData);
 
-        // Note: 'GetMesh' is a global function from OBJParser.h
-        // It will parse 'cube.obj' and create the vertex/index buffers.
-        const MeshD3D11 * cubeMesh = GetMesh("cube.obj", device);
+    // Note: 'GetMesh' is a global function from OBJParser.h
+    const MeshD3D11* cubeMesh = GetMesh("cube.obj", device);
 
     // Material buffer
     Material mat{
@@ -239,34 +244,27 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         ID3D11DepthStencilView* myDSV = depthBuffer.GetDSV(0);
         ID3D11RenderTargetView* sceneRTV = sceneRT.GetRTV();
 
-        // Draw Quad till vår offscreen render target
+        // ----- FORWARD-PASS TILL sceneRT (oförändrat) -----
         Render(immediateContext, sceneRTV, myDSV, viewport,
             vShader, pShader, inputLayout.GetInputLayout(), vertexBuffer.GetBuffer(),
             constantBuffer.GetBuffer(), textureView,
             samplerState.GetSamplerState(), worldMatrix);
 
-        // --- CUBE RENDERING ---
+        // --- CUBE RENDERING (som tidigare, ritar också till sceneRT) ---
 
-        // 1. Update Constant Buffer 
-        // We use the 'data' struct defined earlier in the loop which contains
-        // the rotating world matrix. We re-bind it to be safe.
         ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
         immediateContext->VSSetConstantBuffers(0, 1, &cb0);
 
-        // 2. Setup Shaders and Input Layout
         immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
         immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
         immediateContext->VSSetShader(vShader, nullptr, 0);
         immediateContext->PSSetShader(pShader, nullptr, 0);
 
-        // 3. Bind Textures and Samplers
-        // We bind the loaded "image.png" since the cube.obj might not have textures linked.
         immediateContext->PSSetShaderResources(0, 1, &textureView);
         ID3D11SamplerState* samplerPtr = samplerState.GetSamplerState();
         immediateContext->PSSetSamplers(0, 1, &samplerPtr);
 
-        // 4. Bind and Draw Mesh
         if (cubeMesh)
         {
             cubeMesh->BindMeshBuffers(immediateContext);
@@ -277,7 +275,39 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             }
         }
 
-        // Kopiera offscreen-renderingen till backbuffer
+        // ----- NYTT: GEOMETRY-PASS TILL G-BUFFER -----
+        {
+            // Bind G-buffer-RTVs + samma depth-buffer
+            gbuffer.SetAsRenderTargets(immediateContext, myDSV);
+
+            float gClear[4] = { 0.f, 0.f, 0.f, 0.f };
+            gbuffer.Clear(immediateContext, gClear);
+
+            immediateContext->RSSetViewports(1, &viewport);
+
+            // Samma shaders och buffers som för kuben ovan
+            immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
+            immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+            immediateContext->VSSetShader(vShader, nullptr, 0);
+            immediateContext->PSSetShader(pShader, nullptr, 0);
+
+            immediateContext->VSSetConstantBuffers(0, 1, &cb0);
+            immediateContext->PSSetShaderResources(0, 1, &textureView);
+            immediateContext->PSSetSamplers(0, 1, &samplerPtr);
+
+            if (cubeMesh)
+            {
+                cubeMesh->BindMeshBuffers(immediateContext);
+
+                for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
+                {
+                    cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
+                }
+            }
+        }
+
+        // Kopiera offscreen-renderingen (sceneRT) till backbuffer som tidigare
         ID3D11Texture2D* backBufferTex = nullptr;
         HRESULT hr = swapChain->GetBuffer(
             0,
