@@ -102,5 +102,3 @@ void ParseUseMtl(const std::string& dataSection, ParseData& data);
 // Helper to finish and store the current submesh
 void PushBackCurrentSubmesh(ParseData& data);
 
-// Add this to OBJParser.h
-void UnloadAllMeshes();

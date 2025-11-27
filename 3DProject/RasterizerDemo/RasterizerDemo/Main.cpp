@@ -52,6 +52,7 @@ struct Material {
 
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 {
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     const UINT WIDTH = 1024;
     const UINT HEIGHT = 576;
     HWND window;
@@ -376,7 +377,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     }
 
     // Manual cleanup
-    UnloadAllMeshes();
     textureView->Release();
     texture->Release();
     pShader->Release();

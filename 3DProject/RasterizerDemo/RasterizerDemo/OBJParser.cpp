@@ -342,16 +342,3 @@ void PushBackCurrentSubmesh(ParseData& data)
     data.finishedSubMeshes.push_back(toAdd);
 }
 
-// Add this to OBJParser.cpp
-void UnloadAllMeshes()
-{
-    for (auto& pair : loadedMeshes)
-    {
-        if (pair.second)
-        {
-            delete pair.second;
-            pair.second = nullptr;
-        }
-    }
-    loadedMeshes.clear();
-}
