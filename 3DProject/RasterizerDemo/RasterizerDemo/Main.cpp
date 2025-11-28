@@ -3,6 +3,7 @@
 #include <fstream>
 #include <string>
 #include <chrono>
+#include <vector>                 // <--- NYTT
 #include "WindowHelper.h"
 #include "D3D11Helper.h" 
 #include "PipelineHelper.h"
@@ -18,7 +19,7 @@
 #include "RenderTargetD3D11.h"
 #include "OBJParser.h"
 #include "MeshD3D11.h"
-#include "GBufferD3D11.h"          // <<< NEW
+#include "GBufferD3D11.h"
 
 using namespace DirectX;
 #define STB_IMAGE_IMPLEMENTATION
@@ -69,7 +70,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11Device* device = nullptr;
     ID3D11DeviceContext* immediateContext = nullptr;
     IDXGISwapChain* swapChain = nullptr;
-    ID3D11RenderTargetView* rtv = nullptr;  // backbuffer RTV, används bara ev. senare
+    ID3D11RenderTargetView* rtv = nullptr;  // backbuffer RTV (används bara ev. senare)
     D3D11_VIEWPORT viewport;
     ID3D11VertexShader* vShader = nullptr;
     ID3D11PixelShader* pShader = nullptr;
@@ -83,6 +84,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ConstantBufferD3D11 materialBuffer;
     CameraD3D11 camera;
 
+    // --- COMPUTE-relaterade pekare ---
+    ID3D11ComputeShader* lightingCS = nullptr;
+    ID3D11Texture2D* lightingTex = nullptr;
+    ID3D11UnorderedAccessView* lightingUAV = nullptr;
+
     SetupD3D11(WIDTH, HEIGHT, window, device, immediateContext, swapChain, rtv, viewport);
 
     std::string vShaderByteCode;
@@ -91,20 +97,80 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     // Depth buffer wrapper
     DepthBufferD3D11 depthBuffer(device, WIDTH, HEIGHT, false);
 
-    // Offscreen render target (som tidigare)
+    // Offscreen render target (forward-rendering, används mest historiskt nu)
     RenderTargetD3D11 sceneRT;
     sceneRT.Initialize(device, WIDTH, HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, false);
 
-    // <<< NEW: G-buffer-instans
+    // G-buffer-instans
     GBufferD3D11 gbuffer;
     gbuffer.Initialize(device, WIDTH, HEIGHT);
+
+    // --- CREATE compute output lightingTex + lightingUAV ---
+    {
+        D3D11_TEXTURE2D_DESC desc = {};
+        desc.Width = WIDTH;
+        desc.Height = HEIGHT;
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.SampleDesc.Quality = 0;
+        desc.Usage = D3D11_USAGE_DEFAULT;
+        desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+        desc.CPUAccessFlags = 0;
+        desc.MiscFlags = 0;
+
+        HRESULT hr = device->CreateTexture2D(&desc, nullptr, &lightingTex);
+        if (FAILED(hr))
+        {
+            OutputDebugStringA("Failed to create lightingTex\n");
+        }
+
+        D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+        uavDesc.Format = desc.Format;
+        uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+        uavDesc.Texture2D.MipSlice = 0;
+
+        hr = device->CreateUnorderedAccessView(lightingTex, &uavDesc, &lightingUAV);
+        if (FAILED(hr))
+        {
+            OutputDebugStringA("Failed to create lightingUAV\n");
+        }
+    }
+
+    // --- LOAD compute shader LightingCS.cso ---
+    {
+        std::ifstream reader("LightingCS.cso", std::ios::binary | std::ios::ate);
+        if (reader)
+        {
+            size_t size = static_cast<size_t>(reader.tellg());
+            std::vector<char> buffer(size);
+            reader.seekg(0);
+            reader.read(buffer.data(), size);
+
+            HRESULT hr = device->CreateComputeShader(
+                buffer.data(),
+                buffer.size(),
+                nullptr,
+                &lightingCS
+            );
+            if (FAILED(hr))
+            {
+                OutputDebugStringA("Failed to create compute shader!\n");
+            }
+        }
+        else
+        {
+            OutputDebugStringA("Could not open LightingCS.cso\n");
+        }
+    }
 
     inputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
     inputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
     inputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
     inputLayout.FinalizeInputLayout(device, vShaderByteCode.data(), vShaderByteCode.size());
 
-    // Triangle for testing
+    // Triangle for testing (Render-helpern)
     VertexBufferD3D11 triangleVB;
     {
         SimpleVertex triVerts[] = {
@@ -126,7 +192,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     Light lightData{ XMFLOAT3(0.f, 0.f, -2.f), 1.f, XMFLOAT3(1.f, 1.f, 1.f), 0.f };
     lightBuffer.Initialize(device, sizeof(Light), &lightData);
 
-    // Note: 'GetMesh' is a global function from OBJParser.h
+    // Mesh
     const MeshD3D11* cubeMesh = GetMesh("cube.obj", device);
 
     // Material buffer
@@ -231,9 +297,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         float z = armLength * sinf(rotationAngle);
 
         XMMATRIX translation = XMMatrixTranslation(x, 0.f, z);
-        XMVECTOR objectPos = XMVectorSet(x, 0.f, z, 1.f);
-        XMMATRIX lookAtMatrix = XMMatrixLookAtLH(objectPos, XMVectorZero(), XMVectorSet(0.f, 1.f, 0.f, 0.f));
-        XMMATRIX worldMatrix = XMMatrixTranspose(lookAtMatrix) * translation;
+        XMVECTOR  objectPos = XMVectorSet(x, 0.f, z, 1.f);
+        XMMATRIX  lookAtMatrix = XMMatrixLookAtLH(objectPos, XMVectorZero(), XMVectorSet(0.f, 1.f, 0.f, 0.f));
+        XMMATRIX  worldMatrix = XMMatrixTranspose(lookAtMatrix) * translation;
 
         // Update matrix buffer
         MatrixPair data;
@@ -241,7 +307,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         XMStoreFloat4x4(&data.viewProj, XMMatrixTranspose(VIEW_PROJ));
         constantBuffer.UpdateBuffer(immediateContext, &data);
 
-        //  Camera movement + mouselook
+        // Camera movement + mouselook
         const float camSpeed = 3.0f;
         if (GetAsyncKeyState('W') & 0x8000) camera.MoveForward(camSpeed * dt);
         if (GetAsyncKeyState('S') & 0x8000) camera.MoveForward(-camSpeed * dt);
@@ -275,14 +341,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         ID3D11DepthStencilView* myDSV = depthBuffer.GetDSV(0);
         ID3D11RenderTargetView* sceneRTV = sceneRT.GetRTV();
 
-        // ----- FORWARD-PASS TILL sceneRT (oförändrat) -----
-        Render(immediateContext, sceneRTV, myDSV, viewport,
+        // ----- FORWARD-PASS TILL sceneRT (behalls för nu) -----
+        /*Render(immediateContext, sceneRTV, myDSV, viewport,
             vShader, pShader, inputLayout.GetInputLayout(), vertexBuffer.GetBuffer(),
             constantBuffer.GetBuffer(), textureView,
-            samplerState.GetSamplerState(), worldMatrix);
+            samplerState.GetSamplerState(), worldMatrix);*/
 
-        // --- CUBE RENDERING (som tidigare, ritar också till sceneRT) ---
-
+        // --- CUBE RENDERING (forward, in i sceneRT) ---
         ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
         immediateContext->VSSetConstantBuffers(0, 1, &cb0);
 
@@ -303,12 +368,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
             {
                 updateMaterialBufferForSubMesh(i);
-
                 cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
             }
         }
 
-        // Render static cube
+        // Render static cube (forward)
         {
             MatrixPair staticData;
             XMStoreFloat4x4(&staticData.world, XMMatrixTranspose(staticCubeWorld));
@@ -317,40 +381,47 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
             if (cubeMesh)
             {
-
                 cubeMesh->BindMeshBuffers(immediateContext);
 
                 for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
                 {
                     updateMaterialBufferForSubMesh(i);
-
                     cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
                 }
             }
         }
 
-        // ----- NYTT: GEOMETRY-PASS TILL G-BUFFER -----
+        // ----- NEW: GEOMETRY PASS TO G-BUFFER -----
         {
-            // Bind G-buffer-RTVs + samma depth-buffer
             gbuffer.SetAsRenderTargets(immediateContext, myDSV);
 
             float gClear[4] = { 0.f, 0.f, 0.f, 0.f };
             gbuffer.Clear(immediateContext, gClear);
 
+            // IMPORTANT: clear depth so this pass can write
+            immediateContext->ClearDepthStencilView(
+                myDSV,
+                D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
+                1.0f,
+                0
+            );
+
             immediateContext->RSSetViewports(1, &viewport);
 
-            // Samma shaders och buffers som för kuben ovan
+            // same shaders and bindings as now...
             immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
             immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
             immediateContext->VSSetShader(vShader, nullptr, 0);
             immediateContext->PSSetShader(pShader, nullptr, 0);
 
+            ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
             immediateContext->VSSetConstantBuffers(0, 1, &cb0);
             immediateContext->PSSetShaderResources(0, 1, &textureView);
+            ID3D11SamplerState* samplerPtr = samplerState.GetSamplerState();
             immediateContext->PSSetSamplers(0, 1, &samplerPtr);
 
-            // Render rotating cube to G-buffer
+            // rotating cube
             {
                 MatrixPair rotatingData;
                 XMStoreFloat4x4(&rotatingData.world, XMMatrixTranspose(worldMatrix));
@@ -360,17 +431,15 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                 if (cubeMesh)
                 {
                     cubeMesh->BindMeshBuffers(immediateContext);
-
                     for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
                     {
                         updateMaterialBufferForSubMesh(i);
-
                         cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
                     }
                 }
             }
 
-            // Render static cube to G-buffer
+            // static cube
             {
                 MatrixPair staticData;
                 XMStoreFloat4x4(&staticData.world, XMMatrixTranspose(staticCubeWorld));
@@ -380,18 +449,72 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                 if (cubeMesh)
                 {
                     cubeMesh->BindMeshBuffers(immediateContext);
-
                     for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
                     {
                         updateMaterialBufferForSubMesh(i);
-
                         cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
                     }
                 }
             }
         }
 
-        // Kopiera offscreen-renderingen (sceneRT) till backbuffer som tidigare
+
+        // ----- LIGHTING-PASS MED COMPUTE SHADER (albedo + debug) -----
+        {
+            // Debug: kolla att SRVs faktiskt finns
+            if (!gbuffer.GetAlbedoSRV())
+                OutputDebugStringA("GBuffer Albedo SRV is NULL!\n");
+            if (!gbuffer.GetNormalSRV())
+                OutputDebugStringA("GBuffer Normal SRV is NULL!\n");
+            if (!gbuffer.GetSpecSRV())
+                OutputDebugStringA("GBuffer Spec SRV is NULL!\n");
+
+            // Viktigt: unbinda render targets innan vi läser dem som SRV i compute
+            {
+                ID3D11RenderTargetView* nullRTVs[3] = { nullptr, nullptr, nullptr };
+                immediateContext->OMSetRenderTargets(3, nullRTVs, nullptr);
+            }
+
+            // 1) Bind G-buffer-SRVs till compute: t0, t1, t2
+            ID3D11ShaderResourceView* srvs[3] =
+            {
+                gbuffer.GetAlbedoSRV(), // t0
+                gbuffer.GetNormalSRV(), // t1
+                gbuffer.GetSpecSRV()    // t2 (just nu "extra", vi använder bara albedo i shadern)
+            };
+            immediateContext->CSSetShaderResources(0, 3, srvs);
+
+            // 2) Bind ljus/material/kamera-constant buffers till b1,b2,b3
+            ID3D11Buffer* csCBs[3] = { lightCB, materialCB, cameraCB };
+            immediateContext->CSSetConstantBuffers(1, 3, csCBs);
+            // startslot = 1  b1,b2,b3 (matchar LightingCS.hlsl)
+
+            // 3) Bind UAV som output
+            ID3D11UnorderedAccessView* uavs[1] = { lightingUAV };
+            UINT initialCounts[1] = { 0 };
+            immediateContext->CSSetUnorderedAccessViews(0, 1, uavs, initialCounts);
+
+            // 4) Sätt compute shader och kör
+            immediateContext->CSSetShader(lightingCS, nullptr, 0);
+
+            UINT groupsX = (WIDTH + 15) / 16;
+            UINT groupsY = (HEIGHT + 15) / 16;
+            immediateContext->Dispatch(groupsX, groupsY, 1);
+
+            // 5) Städa upp bindings
+            ID3D11ShaderResourceView* nullSRVs[3] = { nullptr, nullptr, nullptr };
+            immediateContext->CSSetShaderResources(0, 3, nullSRVs);
+
+            ID3D11UnorderedAccessView* nullUAVs[1] = { nullptr };
+            UINT zeros[1] = { 0 };
+            immediateContext->CSSetUnorderedAccessViews(0, 1, nullUAVs, zeros);
+
+            immediateContext->CSSetShader(nullptr, nullptr, 0);
+        }
+
+
+
+        // ----- KOPIERA compute-resultat (lightingTex) TILL BACKBUFFER -----
         ID3D11Texture2D* backBufferTex = nullptr;
         HRESULT hr = swapChain->GetBuffer(
             0,
@@ -401,7 +524,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
         if (SUCCEEDED(hr) && backBufferTex)
         {
-            ID3D11Texture2D* src = sceneRT.GetTexture();
+            ID3D11Texture2D* src = lightingTex;  // <-- VIKTIGT anvanda compute-output
             if (src)
             {
                 immediateContext->CopyResource(backBufferTex, src);
@@ -413,6 +536,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     }
 
     // Manual cleanup
+    if (lightingUAV)  lightingUAV->Release();
+    if (lightingTex)  lightingTex->Release();
+    if (lightingCS)   lightingCS->Release();
+
     textureView->Release();
     texture->Release();
     pShader->Release();
