@@ -47,8 +47,7 @@ PS_OUTPUT main(PS_INPUT input)
     PS_OUTPUT o;
 
     // Albedo: textur * materialDiffuse
-    float3 texColor = shaderTexture.Sample(samplerState, input.uv).rgb;
-    float3 albedo = texColor * materialDiffuse;
+    float3 albedo = materialDiffuse;
     o.Albedo = float4(albedo, 1.0f);
 
     // Normal: [-1,1] -> [0,1]

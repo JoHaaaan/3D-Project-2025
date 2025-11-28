@@ -548,6 +548,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     swapChain->Release();
     immediateContext->Release();
     device->Release();
-
+    UnloadMeshes();
     return 0;
 }

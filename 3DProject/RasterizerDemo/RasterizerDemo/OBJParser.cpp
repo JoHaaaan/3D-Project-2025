@@ -19,6 +19,18 @@ namespace
     }
 }
 
+void UnloadMeshes()
+{
+    for (auto& pair : loadedMeshes)
+    {
+        if (pair.second)
+        {
+            delete pair.second; // Invokes MeshD3D11 destructor -> releases buffers
+            pair.second = nullptr;
+        }
+    }
+    loadedMeshes.clear();
+}
 
 float GetLineFloat(const std::string& line, size_t& currentLinePos)
 {
