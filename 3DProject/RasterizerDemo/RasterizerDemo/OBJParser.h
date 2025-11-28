@@ -7,6 +7,7 @@
 #include <fstream>
 #include <DirectXMath.h>
 #include <d3d11.h> // Needed for ID3D11Device
+#include <unordered_map>
 
 // Forward declarations
 class MeshD3D11; // Use the class name directly
@@ -112,3 +113,6 @@ void ParseUseMtl(const std::string& dataSection, ParseData& data);
 // Helper to finish and store the current submesh
 void PushBackCurrentSubmesh(ParseData& data);
 
+void UnloadMeshes();
+
+const MeshD3D11* GetMesh(const std::string& path, ID3D11Device* device);
