@@ -130,11 +130,23 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     const MeshD3D11* cubeMesh = GetMesh("cube.obj", device);
 
     // Material buffer
-    Material mat{
-        XMFLOAT3(0.2f, 0.2f, 0.2f), 0.f,
-        XMFLOAT3(0.5f, 0.5f, 0.5f), 0.f,
-        XMFLOAT3(0.5f, 0.5f, 0.5f), 100.f
-    };
+    Material mat{};
+    if (cubeMesh && cubeMesh->GetNrOfSubMeshes() > 0)
+    {
+        const auto& matData = cubeMesh->GetMaterial(0);
+        mat.ambient = matData.ambient;
+        mat.diffuse = matData.diffuse;
+        mat.specular = matData.specular;
+        mat.specularPower = matData.specularPower;
+    }
+    else
+    {
+        mat = Material{
+            XMFLOAT3(0.2f, 0.2f, 0.2f), 0.f,
+            XMFLOAT3(0.5f, 0.5f, 0.5f), 0.f,
+            XMFLOAT3(0.5f, 0.5f, 0.5f), 100.f
+        };
+    }
     materialBuffer.Initialize(device, sizeof(Material), &mat);
 
     // Camera setup
@@ -174,6 +186,21 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     immediateContext->PSSetConstantBuffers(1, 1, &lightCB);
     immediateContext->PSSetConstantBuffers(2, 1, &materialCB);
     immediateContext->PSSetConstantBuffers(3, 1, &cameraCB);
+
+    auto updateMaterialBufferForSubMesh = [&](size_t subMeshIndex)
+        {
+            if (!cubeMesh || subMeshIndex >= cubeMesh->GetNrOfSubMeshes())
+                return;
+
+            const auto& matData = cubeMesh->GetMaterial(subMeshIndex);
+            Material currentMaterial{
+                matData.ambient, 0.f,
+                matData.diffuse, 0.f,
+                matData.specular, matData.specularPower
+            };
+
+            materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
+        };
 
     auto previousTime = std::chrono::high_resolution_clock::now();
     float rotationAngle = 90.f;
@@ -275,6 +302,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
             for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
             {
+                updateMaterialBufferForSubMesh(i);
+
                 cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
             }
         }
@@ -288,10 +317,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
             if (cubeMesh)
             {
+
                 cubeMesh->BindMeshBuffers(immediateContext);
 
                 for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
                 {
+                    updateMaterialBufferForSubMesh(i);
+
                     cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
                 }
             }
@@ -331,6 +363,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
                     for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
                     {
+                        updateMaterialBufferForSubMesh(i);
+
                         cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
                     }
                 }
@@ -349,6 +383,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
                     for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
                     {
+                        updateMaterialBufferForSubMesh(i);
+
                         cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
                     }
                 }

@@ -23,6 +23,12 @@ struct Vertex
 // Simple material info used by ParseData
 struct MaterialInfo
 {
+    std::string name;
+    DirectX::XMFLOAT3 ambient{ 0.2f, 0.2f, 0.2f };
+    DirectX::XMFLOAT3 diffuse{ 0.8f, 0.8f, 0.8f };
+    DirectX::XMFLOAT3 specular{ 0.5f, 0.5f, 0.5f };
+    float specularPower{ 32.0f };
+
     std::string mapKa; // Ambient map
     std::string mapKd; // Diffuse map
     std::string mapKs; // Specular map
@@ -37,6 +43,10 @@ struct SubMeshInfo
     ID3D11ShaderResourceView* ambientTextureSRV = nullptr;
     ID3D11ShaderResourceView* diffuseTextureSRV = nullptr;
     ID3D11ShaderResourceView* specularTextureSRV = nullptr;
+
+
+    std::size_t materialIndex = 0;
+    std::size_t currentSubMeshMaterial = 0;
 };
 
 // All temporary data used while parsing a single OBJ
