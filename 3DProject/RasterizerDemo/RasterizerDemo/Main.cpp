@@ -97,9 +97,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     // Depth buffer wrapper
     DepthBufferD3D11 depthBuffer(device, WIDTH, HEIGHT, false);
 
-    // Offscreen render target (forward-rendering, används mest historiskt nu)
-    RenderTargetD3D11 sceneRT;
-    sceneRT.Initialize(device, WIDTH, HEIGHT, DXGI_FORMAT_R8G8B8A8_UNORM, false);
+
 
     // G-buffer-instans
     GBufferD3D11 gbuffer;
@@ -339,57 +337,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         }
 
         ID3D11DepthStencilView* myDSV = depthBuffer.GetDSV(0);
-        ID3D11RenderTargetView* sceneRTV = sceneRT.GetRTV();
 
-        // ----- FORWARD-PASS TILL sceneRT (behalls för nu) -----
-        /*Render(immediateContext, sceneRTV, myDSV, viewport,
-            vShader, pShader, inputLayout.GetInputLayout(), vertexBuffer.GetBuffer(),
-            constantBuffer.GetBuffer(), textureView,
-            samplerState.GetSamplerState(), worldMatrix);*/
-
-        // --- CUBE RENDERING (forward, in i sceneRT) ---
-        ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
-        immediateContext->VSSetConstantBuffers(0, 1, &cb0);
-
-        immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
-        immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-        immediateContext->VSSetShader(vShader, nullptr, 0);
-        immediateContext->PSSetShader(pShader, nullptr, 0);
-
-        immediateContext->PSSetShaderResources(0, 1, &textureView);
-        ID3D11SamplerState* samplerPtr = samplerState.GetSamplerState();
-        immediateContext->PSSetSamplers(0, 1, &samplerPtr);
-
-        if (cubeMesh)
-        {
-            cubeMesh->BindMeshBuffers(immediateContext);
-
-            for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
-            {
-                updateMaterialBufferForSubMesh(i);
-                cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
-            }
-        }
-
-        // Render static cube (forward)
-        {
-            MatrixPair staticData;
-            XMStoreFloat4x4(&staticData.world, XMMatrixTranspose(staticCubeWorld));
-            XMStoreFloat4x4(&staticData.viewProj, XMMatrixTranspose(VIEW_PROJ));
-            constantBuffer.UpdateBuffer(immediateContext, &staticData);
-
-            if (cubeMesh)
-            {
-                cubeMesh->BindMeshBuffers(immediateContext);
-
-                for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
-                {
-                    updateMaterialBufferForSubMesh(i);
-                    cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
-                }
-            }
-        }
 
         // ----- NEW: GEOMETRY PASS TO G-BUFFER -----
         {
