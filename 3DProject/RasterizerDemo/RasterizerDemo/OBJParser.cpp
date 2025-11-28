@@ -5,6 +5,21 @@
 std::string defaultDirectory = ""; // Adjust if needed
 std::unordered_map<std::string, MeshD3D11*> loadedMeshes; // Changed to pointers
 
+namespace
+{
+    std::string Trim(const std::string& str)
+    {
+        const auto start = str.find_first_not_of(" \t\r\n");
+        const auto end = str.find_last_not_of(" \t\r\n");
+        if (start == std::string::npos || end == std::string::npos)
+        {
+            return "";
+        }
+        return str.substr(start, end - start + 1);
+    }
+}
+
+
 float GetLineFloat(const std::string& line, size_t& currentLinePos)
 {
     // Skip leading whitespace
@@ -89,6 +104,10 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
     std::istringstream lineStream(contents);
     ParseData data;
 
+    // Default material in case the OBJ doesn't reference one
+    data.parsedMaterials.push_back(MaterialInfo{});
+
+
     std::string line;
     while (std::getline(lineStream, line))
     {
@@ -118,7 +137,13 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
         sm.ambientTextureSRV = nullptr;  // No texture loading for now
         sm.diffuseTextureSRV = nullptr;
         sm.specularTextureSRV = nullptr;
+        sm.materialIndex = sub.currentSubMeshMaterial;
 
+        const auto& material = data.parsedMaterials[sm.materialIndex];
+        sm.material.ambient = material.ambient;
+        sm.material.diffuse = material.diffuse;
+        sm.material.specular = material.specular;
+        sm.material.specularPower = material.specularPower;
         meshInfo.subMeshInfo.push_back(sm);
     }
 
@@ -291,12 +316,59 @@ void ParseFace(const std::string & dataSection, ParseData & data)
 
 void ParseMtlLib(const std::string& dataSection, ParseData& data)
 {
-    // Simplified: Just store the file name to load later if needed
-    // For this implementation, we're not loading actual material files
-    // In a production system, you would load the .mtl file here
-    size_t pos = 0;
-    std::string mtlName = GetLineString(dataSection, pos);
-    // Could store this for later processing if needed
+    const std::string mtlPath = Trim(dataSection);
+    if (mtlPath.empty())
+    {
+        return;
+    }
+
+    std::string fileContents;
+    ReadFile(mtlPath, fileContents);
+
+    std::istringstream mtlStream(fileContents);
+    std::string line;
+    MaterialInfo* current = nullptr;
+
+    while (std::getline(mtlStream, line))
+    {
+        if (line.empty() || line[0] == '#')
+            continue;
+
+        std::istringstream lineStream(line);
+        std::string type;
+        lineStream >> type;
+
+        if (type == "newmtl")
+        {
+            std::string name;
+            std::getline(lineStream, name);
+            name = Trim(name);
+            data.parsedMaterials.push_back(MaterialInfo{});
+            current = &data.parsedMaterials.back();
+            current->name = name;
+        }
+        else if (current && type == "Ka")
+        {
+            lineStream >> current->ambient.x >> current->ambient.y >> current->ambient.z;
+        }
+        else if (current && type == "Kd")
+        {
+            lineStream >> current->diffuse.x >> current->diffuse.y >> current->diffuse.z;
+        }
+        else if (current && type == "Ks")
+        {
+            lineStream >> current->specular.x >> current->specular.y >> current->specular.z;
+        }
+        else if (current && type == "Ns")
+        {
+            lineStream >> current->specularPower;
+        }
+        else if (current && type == "map_Kd")
+        {
+            std::getline(lineStream, current->mapKd);
+            current->mapKd = Trim(current->mapKd);
+        }
+    }
 }
 
 void ParseUseMtl(const std::string& dataSection, ParseData& data)
@@ -315,8 +387,8 @@ void ParseUseMtl(const std::string& dataSection, ParseData& data)
     size_t materialIndex = 0;
     for (size_t i = 0; i < data.parsedMaterials.size(); ++i)
     {
-        if (data.parsedMaterials[i].mapKa == mtlName ||
-            data.parsedMaterials[i].mapKd == mtlName)
+        if (data.parsedMaterials[i].name == mtlName)
+
         {
             materialIndex = i;
             break;
@@ -333,6 +405,7 @@ void PushBackCurrentSubmesh(ParseData& data)
     SubMeshInfo toAdd;
     toAdd.startIndexValue = data.currentSubmeshStartIndex;
     toAdd.nrOfIndicesInSubMesh = data.indexData.size() - toAdd.startIndexValue;
+    toAdd.currentSubMeshMaterial = data.currentSubMeshMaterial;
 
     // Set texture SRVs to nullptr for now (no texture loading implemented)
     toAdd.ambientTextureSRV = nullptr;

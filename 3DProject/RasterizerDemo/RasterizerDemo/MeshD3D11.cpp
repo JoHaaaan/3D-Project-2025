@@ -17,6 +17,8 @@ void MeshD3D11::Initialize(ID3D11Device* device, const MeshData& meshInfo)
 
     subMeshes.clear();
     subMeshes.reserve(meshInfo.subMeshInfo.size());
+    subMeshMaterials.clear();
+    subMeshMaterials.reserve(meshInfo.subMeshInfo.size());
 
     for (const auto& sm : meshInfo.subMeshInfo)
     {
@@ -30,6 +32,8 @@ void MeshD3D11::Initialize(ID3D11Device* device, const MeshData& meshInfo)
         );
 
         subMeshes.push_back(subMesh);
+        subMeshMaterials.push_back(sm.material);
+
     }
 }
 
@@ -66,5 +70,11 @@ ID3D11ShaderResourceView* MeshD3D11::GetDiffuseSRV(size_t subMeshIndex) const
 
 ID3D11ShaderResourceView* MeshD3D11::GetSpecularSRV(size_t subMeshIndex) const
 {
-	return subMeshes[subMeshIndex].GetSpecularSRV();
+    return subMeshes[subMeshIndex].GetSpecularSRV();
+}
+
+
+const MeshData::MaterialData& MeshD3D11::GetMaterial(size_t subMeshIndex) const
+{
+    return subMeshMaterials[subMeshIndex];
 }
