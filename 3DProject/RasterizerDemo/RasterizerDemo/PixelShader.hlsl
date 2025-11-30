@@ -15,7 +15,7 @@ cbuffer MaterialBuffer : register(b2)
     float padding2;
 
     float3 materialSpecular;
-    float specularPower;
+    float specularPower; // t.ex. upp till ~256
 };
 
 cbuffer CameraBuffer : register(b3)
@@ -26,10 +26,10 @@ cbuffer CameraBuffer : register(b3)
 
 struct PS_INPUT
 {
-    float4 position : SV_POSITION; // clip-space position
+    float4 position : SV_POSITION; // clip-space
     float3 worldPos : WORLD_POSITION; // world-space position
     float3 normal : NORMAL; // world-space normal
-    float2 uv : TEXCOORD0; // texture coordinates
+    float2 uv : TEXCOORD0; // UV
 };
 
 Texture2D shaderTexture : register(t0);
@@ -37,28 +37,29 @@ SamplerState samplerState : register(s0);
 
 struct PS_OUTPUT
 {
-    float4 Albedo : SV_Target0; // goes to gAlbedo (t0 in compute)
-    float4 Normal : SV_Target1; // goes to gNormal (t1 in compute)
-    float4 Extra : SV_Target2; // goes to gWorldPos (t2 in compute)
+    float4 Albedo : SV_Target0; // färg + specPower
+    float4 Normal : SV_Target1; // packad normal
+    float4 Extra : SV_Target2; // worldPos (eller annat)
 };
 
 PS_OUTPUT main(PS_INPUT input)
 {
     PS_OUTPUT o;
 
-    // Sample the base color from the texture
-    float4 texColor = shaderTexture.Sample(samplerState, input.uv);
+    // 1) Albedo = textur * materialDiffuse
+    float3 texColor = shaderTexture.Sample(samplerState, input.uv).rgb;
+    float3 albedo = texColor * materialDiffuse;
 
-    // Final albedo is texture color modulated by material diffuse color
-    float3 albedo = texColor.rgb * materialDiffuse;
-    o.Albedo = float4(albedo, 1.0f);
+    // Packa specularPower (t.ex. 0..256) in i alpha [0,1]
+    float specPacked = saturate(specularPower / 256.0f);
 
-    // Store normal in [0, 1] instead of [-1, 1]
+    o.Albedo = float4(albedo, specPacked);
+
+    // 2) Normal: [-1,1] -> [0,1]
     float3 n = normalize(input.normal);
-    float3 packedNormal = n * 0.5f + 0.5f;
-    o.Normal = float4(packedNormal, 1.0f);
+    o.Normal = float4(n * 0.5f + 0.5f, 1.0f);
 
-    // Store world position in RT2 so compute shader can use it
+    // 3) Extra: world position
     o.Extra = float4(input.worldPos, 1.0f);
 
     return o;

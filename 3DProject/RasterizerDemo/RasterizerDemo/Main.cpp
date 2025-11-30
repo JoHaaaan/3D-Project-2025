@@ -3,9 +3,9 @@
 #include <fstream>
 #include <string>
 #include <chrono>
-#include <vector>                 // <--- NYTT
+#include <vector>
 #include "WindowHelper.h"
-#include "D3D11Helper.h" 
+#include "D3D11Helper.h"
 #include "PipelineHelper.h"
 #include <d3d11.h>
 #include <DirectXMath.h>
@@ -35,20 +35,30 @@ XMMATRIX PROJECTION = XMMatrixPerspectiveFovLH(FOV, ASPECT_RATIO, NEAR_PLANE, FA
 XMMATRIX VIEW_PROJ;
 
 // Structures
-struct Light {
+struct Light
+{
     XMFLOAT3 position;
     float    intensity;
     XMFLOAT3 color;
     float    padding;
 };
 
-struct Material {
+struct Material
+{
     XMFLOAT3 ambient;
     float    padding1;
     XMFLOAT3 diffuse;
     float    padding2;
     XMFLOAT3 specular;
     float    specularPower;
+};
+
+struct LightingToggles
+{
+    int showAlbedoOnly; // 1 = show only albedo
+    int enableDiffuse;  // 1 = enable diffuse
+    int enableSpecular; // 1 = enable specular
+    int padding;        // unused, for 16-byte alignment
 };
 
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
@@ -59,18 +69,16 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     HWND window;
     SetupWindow(hInstance, WIDTH, HEIGHT, nCmdShow, window);
 
-    // center point in screen coords
+    // Center mouse
     POINT center = { WIDTH / 2, HEIGHT / 2 };
     ClientToScreen(window, &center);
     ShowCursor(FALSE);
     SetCursorPos(center.x, center.y);
 
-    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-
     ID3D11Device* device = nullptr;
     ID3D11DeviceContext* immediateContext = nullptr;
     IDXGISwapChain* swapChain = nullptr;
-    ID3D11RenderTargetView* rtv = nullptr;  // backbuffer RTV (används bara ev. senare)
+    ID3D11RenderTargetView* rtv = nullptr; // not really used now
     D3D11_VIEWPORT viewport;
     ID3D11VertexShader* vShader = nullptr;
     ID3D11PixelShader* pShader = nullptr;
@@ -82,9 +90,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     SamplerD3D11 samplerState;
     ConstantBufferD3D11 lightBuffer;
     ConstantBufferD3D11 materialBuffer;
+    ConstantBufferD3D11 lightingToggleCB; // NEW constant buffer for toggles
     CameraD3D11 camera;
 
-    // --- COMPUTE-relaterade pekare ---
+    // Compute related
     ID3D11ComputeShader* lightingCS = nullptr;
     ID3D11Texture2D* lightingTex = nullptr;
     ID3D11UnorderedAccessView* lightingUAV = nullptr;
@@ -94,16 +103,14 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     std::string vShaderByteCode;
     SetupPipeline(device, vertexBuffer, vShader, pShader, vShaderByteCode);
 
-    // Depth buffer wrapper
+    // Depth buffer
     DepthBufferD3D11 depthBuffer(device, WIDTH, HEIGHT, false);
 
-
-
-    // G-buffer-instans
+    // G-buffer
     GBufferD3D11 gbuffer;
     gbuffer.Initialize(device, WIDTH, HEIGHT);
 
-    // --- CREATE compute output lightingTex + lightingUAV ---
+    // Create compute output texture + UAV
     {
         D3D11_TEXTURE2D_DESC desc = {};
         desc.Width = WIDTH;
@@ -136,7 +143,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         }
     }
 
-    // --- LOAD compute shader LightingCS.cso ---
+    // Load compute shader LightingCS.cso
     {
         std::ifstream reader("LightingCS.cso", std::ios::binary | std::ios::ate);
         if (reader)
@@ -168,7 +175,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     inputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
     inputLayout.FinalizeInputLayout(device, vShaderByteCode.data(), vShaderByteCode.size());
 
-    // Triangle for testing (Render-helpern)
+    // Test triangle (not really used now but ok to keep)
     VertexBufferD3D11 triangleVB;
     {
         SimpleVertex triVerts[] = {
@@ -183,7 +190,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             triVerts);
     }
 
-    // Constant Buffer
+    // Matrix constant buffer
     constantBuffer.Initialize(device, sizeof(MatrixPair));
 
     // Light buffer
@@ -193,7 +200,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     // Mesh
     const MeshD3D11* cubeMesh = GetMesh("cube.obj", device);
 
-    // Material buffer
+    // Material buffer (still used in geometry pass / PS)
     Material mat{};
     if (cubeMesh && cubeMesh->GetNrOfSubMeshes() > 0)
     {
@@ -212,6 +219,14 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         };
     }
     materialBuffer.Initialize(device, sizeof(Material), &mat);
+
+    // Lighting toggles buffer
+    LightingToggles toggleData = {};
+    toggleData.showAlbedoOnly = 0;
+    toggleData.enableDiffuse = 1;
+    toggleData.enableSpecular = 1;
+    toggleData.padding = 0;
+    lightingToggleCB.Initialize(device, sizeof(LightingToggles), &toggleData);
 
     // Camera setup
     ProjectionInfo proj{ FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE };
@@ -247,6 +262,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11Buffer* materialCB = materialBuffer.GetBuffer();
     ID3D11Buffer* cameraCB = camera.GetConstantBuffer();
 
+    // Still bound to PS for geometry pass
     immediateContext->PSSetConstantBuffers(1, 1, &lightCB);
     immediateContext->PSSetConstantBuffers(2, 1, &materialCB);
     immediateContext->PSSetConstantBuffers(3, 1, &cameraCB);
@@ -271,8 +287,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     const float mouseSens = 0.1f;
 
-    // Static cube world matrix - position (5, 0, 0), scale (1, 1, 1)
+    // Static cube world matrix
     XMMATRIX staticCubeWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(5.0f, 0.0f, 0.0f);
+
+    // Toggle key state
+    static bool key1Prev = false;
+    static bool key2Prev = false;
+    static bool key3Prev = false;
 
     MSG msg = {};
     while (!(GetKeyState(VK_ESCAPE) & 0x8000) && msg.message != WM_QUIT)
@@ -299,13 +320,40 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         XMMATRIX  lookAtMatrix = XMMatrixLookAtLH(objectPos, XMVectorZero(), XMVectorSet(0.f, 1.f, 0.f, 0.f));
         XMMATRIX  worldMatrix = XMMatrixTranspose(lookAtMatrix) * translation;
 
-        // Update matrix buffer
-        MatrixPair data;
-        XMStoreFloat4x4(&data.world, XMMatrixTranspose(worldMatrix));
-        XMStoreFloat4x4(&data.viewProj, XMMatrixTranspose(VIEW_PROJ));
-        constantBuffer.UpdateBuffer(immediateContext, &data);
+        // --- Toggle handling (1,2,3) ---
+        short k1 = GetAsyncKeyState('1');
+        short k2 = GetAsyncKeyState('2');
+        short k3 = GetAsyncKeyState('3');
 
-        // Camera movement + mouselook
+        bool key1Now = (k1 & 0x8000) != 0;
+        bool key2Now = (k2 & 0x8000) != 0;
+        bool key3Now = (k3 & 0x8000) != 0;
+
+        if (key1Now && !key1Prev)
+        {
+            toggleData.showAlbedoOnly = !toggleData.showAlbedoOnly;
+            lightingToggleCB.UpdateBuffer(immediateContext, &toggleData);
+            OutputDebugStringA(toggleData.showAlbedoOnly ? "ShowAlbedoOnly: ON\n" : "ShowAlbedoOnly: OFF\n");
+        }
+        key1Prev = key1Now;
+
+        if (key2Now && !key2Prev)
+        {
+            toggleData.enableDiffuse = !toggleData.enableDiffuse;
+            lightingToggleCB.UpdateBuffer(immediateContext, &toggleData);
+            OutputDebugStringA(toggleData.enableDiffuse ? "Diffuse: ON\n" : "Diffuse: OFF\n");
+        }
+        key2Prev = key2Now;
+
+        if (key3Now && !key3Prev)
+        {
+            toggleData.enableSpecular = !toggleData.enableSpecular;
+            lightingToggleCB.UpdateBuffer(immediateContext, &toggleData);
+            OutputDebugStringA(toggleData.enableSpecular ? "Specular: ON\n" : "Specular: OFF\n");
+        }
+        key3Prev = key3Now;
+
+        // --- Camera movement + mouselook ---
         const float camSpeed = 3.0f;
         if (GetAsyncKeyState('W') & 0x8000) camera.MoveForward(camSpeed * dt);
         if (GetAsyncKeyState('S') & 0x8000) camera.MoveForward(-camSpeed * dt);
@@ -328,25 +376,24 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         XMFLOAT4X4 vp = camera.GetViewProjectionMatrix();
         VIEW_PROJ = XMLoadFloat4x4(&vp);
 
-        // Debug print camera position
+        // Debug camera position
+        /*
         {
             XMFLOAT3 p = camera.GetPosition();
             char buf[128];
             sprintf_s(buf, "Camera Pos: X=%.3f  Y=%.3f  Z=%.3f\n", p.x, p.y, p.z);
             OutputDebugStringA(buf);
         }
-
+        */
         ID3D11DepthStencilView* myDSV = depthBuffer.GetDSV(0);
 
-
-        // ----- NEW: GEOMETRY PASS TO G-BUFFER -----
+        // ----- GEOMETRY PASS TO G-BUFFER -----
         {
             gbuffer.SetAsRenderTargets(immediateContext, myDSV);
 
             float gClear[4] = { 0.f, 0.f, 0.f, 0.f };
             gbuffer.Clear(immediateContext, gClear);
 
-            // IMPORTANT: clear depth so this pass can write
             immediateContext->ClearDepthStencilView(
                 myDSV,
                 D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
@@ -356,7 +403,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
             immediateContext->RSSetViewports(1, &viewport);
 
-            // same shaders and bindings as now...
             immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
             immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -369,7 +415,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             ID3D11SamplerState* samplerPtr = samplerState.GetSamplerState();
             immediateContext->PSSetSamplers(0, 1, &samplerPtr);
 
-            // rotating cube
+            // Rotating cube
             {
                 MatrixPair rotatingData;
                 XMStoreFloat4x4(&rotatingData.world, XMMatrixTranspose(worldMatrix));
@@ -387,7 +433,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                 }
             }
 
-            // static cube
+            // Static cube
             {
                 MatrixPair staticData;
                 XMStoreFloat4x4(&staticData.world, XMMatrixTranspose(staticCubeWorld));
@@ -406,10 +452,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             }
         }
 
-
-        // ----- LIGHTING-PASS MED COMPUTE SHADER (albedo + debug) -----
+        // ----- LIGHTING PASS (COMPUTE SHADER) -----
         {
-            // Debug: kolla att SRVs faktiskt finns
             if (!gbuffer.GetAlbedoSRV())
                 OutputDebugStringA("GBuffer Albedo SRV is NULL!\n");
             if (!gbuffer.GetNormalSRV())
@@ -417,39 +461,42 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             if (!gbuffer.GetSpecSRV())
                 OutputDebugStringA("GBuffer Spec SRV is NULL!\n");
 
-            // Viktigt: unbinda render targets innan vi läser dem som SRV i compute
+            // Unbind RTs before using as SRV in compute
             {
                 ID3D11RenderTargetView* nullRTVs[3] = { nullptr, nullptr, nullptr };
                 immediateContext->OMSetRenderTargets(3, nullRTVs, nullptr);
             }
 
-            // 1) Bind G-buffer-SRVs till compute: t0, t1, t2
+            // Bind G-buffer SRVs t0,t1,t2
             ID3D11ShaderResourceView* srvs[3] =
             {
                 gbuffer.GetAlbedoSRV(), // t0
                 gbuffer.GetNormalSRV(), // t1
-                gbuffer.GetSpecSRV()    // t2 (just nu "extra", vi använder bara albedo i shadern)
+                gbuffer.GetSpecSRV()    // t2 (world pos)
             };
             immediateContext->CSSetShaderResources(0, 3, srvs);
 
-            // 2) Bind ljus/material/kamera-constant buffers till b1,b2,b3
-            ID3D11Buffer* csCBs[3] = { lightCB, materialCB, cameraCB };
-            immediateContext->CSSetConstantBuffers(1, 3, csCBs);
-            // startslot = 1  b1,b2,b3 (matchar LightingCS.hlsl)
+            // Bind light + camera to b1,b2
+            ID3D11Buffer* csCBs[2] = { lightCB, cameraCB };
+            immediateContext->CSSetConstantBuffers(1, 2, csCBs);
 
-            // 3) Bind UAV som output
+            // Bind toggle buffer to b4
+            ID3D11Buffer* toggleCBBuf = lightingToggleCB.GetBuffer();
+            immediateContext->CSSetConstantBuffers(4, 1, &toggleCBBuf);
+
+            // Bind UAV
             ID3D11UnorderedAccessView* uavs[1] = { lightingUAV };
             UINT initialCounts[1] = { 0 };
             immediateContext->CSSetUnorderedAccessViews(0, 1, uavs, initialCounts);
 
-            // 4) Sätt compute shader och kör
+            // Run compute
             immediateContext->CSSetShader(lightingCS, nullptr, 0);
 
             UINT groupsX = (WIDTH + 15) / 16;
             UINT groupsY = (HEIGHT + 15) / 16;
             immediateContext->Dispatch(groupsX, groupsY, 1);
 
-            // 5) Städa upp bindings
+            // Cleanup bindings
             ID3D11ShaderResourceView* nullSRVs[3] = { nullptr, nullptr, nullptr };
             immediateContext->CSSetShaderResources(0, 3, nullSRVs);
 
@@ -460,9 +507,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             immediateContext->CSSetShader(nullptr, nullptr, 0);
         }
 
-
-
-        // ----- KOPIERA compute-resultat (lightingTex) TILL BACKBUFFER -----
+        // Copy compute result to backbuffer
         ID3D11Texture2D* backBufferTex = nullptr;
         HRESULT hr = swapChain->GetBuffer(
             0,
@@ -472,7 +517,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
         if (SUCCEEDED(hr) && backBufferTex)
         {
-            ID3D11Texture2D* src = lightingTex;  // <-- VIKTIGT anvanda compute-output
+            ID3D11Texture2D* src = lightingTex;
             if (src)
             {
                 immediateContext->CopyResource(backBufferTex, src);
@@ -483,7 +528,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         swapChain->Present(0, 0);
     }
 
-    // Manual cleanup
+    // Cleanup
     if (lightingUAV)  lightingUAV->Release();
     if (lightingTex)  lightingTex->Release();
     if (lightingCS)   lightingCS->Release();
