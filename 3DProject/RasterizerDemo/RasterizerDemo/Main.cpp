@@ -503,8 +503,8 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
             immediateContext->PSSetShader(pShader, nullptr, 0);
 
             ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
-            immediateContext->VSSetConstantBuffers(0, 1, &cb0);
-            immediateContext->PSSetShaderResources(0, 1, &textureView);
+          immediateContext->VSSetConstantBuffers(0, 1, &cb0);
+            // Don't bind a global texture here - let each object bind its own texture
             ID3D11SamplerState* samplerPtr = samplerState.GetSamplerState();
             immediateContext->PSSetSamplers(0, 1, &samplerPtr);
 
@@ -534,31 +534,57 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
 
             // Static cube
             {
-                MatrixPair staticData;
-                XMStoreFloat4x4(&staticData.world, XMMatrixTranspose(staticCubeWorld));
-                XMStoreFloat4x4(&staticData.viewProj, XMMatrixTranspose(VIEW_PROJ));
-                constantBuffer.UpdateBuffer(immediateContext, &staticData);
+     // Debug flag for first frame output
+          static bool cubeDebugFirstFrame = true;
+     
+MatrixPair staticData;
+      XMStoreFloat4x4(&staticData.world, XMMatrixTranspose(staticCubeWorld));
+         XMStoreFloat4x4(&staticData.viewProj, XMMatrixTranspose(VIEW_PROJ));
+       constantBuffer.UpdateBuffer(immediateContext, &staticData);
 
-                if (cubeMesh)
-                {
-                    cubeMesh->BindMeshBuffers(immediateContext);
-                    for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
-                    {
-                        updateMaterialBufferForSubMesh(cubeMesh, i);
+     if (cubeMesh)
+     {
+           cubeMesh->BindMeshBuffers(immediateContext);
+  for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
+        {
+   updateMaterialBufferForSubMesh(cubeMesh, i);
 
-                        // Bind diffuse texture for this submesh (t0).
-                        ID3D11ShaderResourceView* subDiffuse = cubeMesh->GetDiffuseSRV(i);
-                        ID3D11ShaderResourceView* toBind = subDiffuse ? subDiffuse : whiteTexView;
-                        immediateContext->PSSetShaderResources(0, 1, &toBind);
+  // Debug: print the material being used
+        if (cubeDebugFirstFrame)
+              {
+      const auto& matData = cubeMesh->GetMaterial(i);
+              char matBuf[512];
+     sprintf_s(matBuf, "  Material %zu: Kd=(%.3f, %.3f, %.3f)\n",
+      i, matData.diffuse.x, matData.diffuse.y, matData.diffuse.z);
+           OutputDebugStringA(matBuf);
+         }
 
-                        cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
+       // Bind diffuse texture for this submesh (t0).
+       ID3D11ShaderResourceView* subDiffuse = cubeMesh->GetDiffuseSRV(i);
+       ID3D11ShaderResourceView* toBind = subDiffuse ? subDiffuse : whiteTexView;
 
-                        // Optional: unbind after draw to avoid keeping resource bound
-                        ID3D11ShaderResourceView* nullSRV = nullptr;
-                        immediateContext->PSSetShaderResources(0, 1, &nullSRV);
-                    }
-                }
-            }
+      // Debug output to see what texture is being used
+   if (cubeDebugFirstFrame)
+       {
+         char buf[256];
+sprintf_s(buf, "Cube submesh %zu: diffuseSRV = %p, using %s texture\n", 
+    i, 
+subDiffuse, 
+    subDiffuse ? "LOADED" : "WHITE FALLBACK");
+       OutputDebugStringA(buf);
+    }
+        
+            immediateContext->PSSetShaderResources(0, 1, &toBind);
+
+     cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
+
+             // Optional: unbind after draw to avoid keeping resource bound
+  ID3D11ShaderResourceView* nullSRV = nullptr;
+        immediateContext->PSSetShaderResources(0, 1, &nullSRV);
+        }
+        cubeDebugFirstFrame = false;
+       }
+     }
 
             // Pineapple (static, no animation for now)
             {
@@ -575,14 +601,16 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
                         // Update material buffer for pineapple submesh
                         updateMaterialBufferForSubMesh(pineAppleMesh, i);
 
-                        // Force bind pineapple texture for testing (ignore .mtl)
-                        immediateContext->PSSetShaderResources(0, 1, &pineappleTexView);
+                        // Bind texture from MTL file (just like the cube does)
+      ID3D11ShaderResourceView* subDiffuse = pineAppleMesh->GetDiffuseSRV(i);
+         ID3D11ShaderResourceView* toBind = subDiffuse ? subDiffuse : whiteTexView;
+  immediateContext->PSSetShaderResources(0, 1, &toBind);
 
                         pineAppleMesh->PerformSubMeshDrawCall(immediateContext, i);
 
-                        // Optional: unbind after draw to avoid keeping resource bound
-                        ID3D11ShaderResourceView* nullSRV = nullptr;
-                        immediateContext->PSSetShaderResources(0, 1, &nullSRV);
+                         // Unbind after draw
+          ID3D11ShaderResourceView* nullSRV = nullptr;
+     immediateContext->PSSetShaderResources(0, 1, &nullSRV);
                     }
                 }
             }

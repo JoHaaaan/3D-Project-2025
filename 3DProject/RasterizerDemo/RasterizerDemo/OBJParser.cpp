@@ -71,15 +71,21 @@ int GetLineInt(const std::string& line, size_t& currentLinePos)
 
 std::string GetLineString(const std::string& line, size_t& currentLinePos)
 {
-	size_t numberStart = currentLinePos;
+    // Skip leading whitespace
+    while (currentLinePos < line.size() && line[currentLinePos] == ' ')
+    {
+        currentLinePos++;
+    }
 
-	while (currentLinePos < line.size() && line[currentLinePos] != ' ')
-	{
-		currentLinePos++;
-	}
-	std::string extractedString = line.substr(numberStart, currentLinePos - numberStart);
+    size_t numberStart = currentLinePos;
 
-	return extractedString;
+    while (currentLinePos < line.size() && line[currentLinePos] != ' ')
+    {
+        currentLinePos++;
+    }
+    std::string extractedString = line.substr(numberStart, currentLinePos - numberStart);
+
+    return extractedString;
 }
 
 const MeshD3D11* GetMesh(const std::string& path, ID3D11Device* device) {
@@ -148,25 +154,35 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
             return nullptr;
 
         std::string fullPath = defaultDirectory + texPath;
+        
+        // Debug output
+        std::string debugMsg = "Attempting to load texture: " + fullPath + "\n";
+        OutputDebugStringA(debugMsg.c_str());
+        
         int w = 0, h = 0, channels = 0;
         unsigned char* imageData = stbi_load(fullPath.c_str(), &w, &h, &channels, 4);
-        if (!imageData)
+      if (!imageData)
         {
             // failed to load image
+ std::string errorMsg = "FAILED to load texture: " + fullPath + "\n";
+      OutputDebugStringA(errorMsg.c_str());
             return nullptr;
-        }
+      }
+
+        std::string successMsg = "SUCCESS: Loaded texture " + fullPath + " (" + std::to_string(w) + "x" + std::to_string(h) + ")\n";
+    OutputDebugStringA(successMsg.c_str());
 
         D3D11_TEXTURE2D_DESC desc = {};
-        desc.Width = static_cast<UINT>(w);
+  desc.Width = static_cast<UINT>(w);
         desc.Height = static_cast<UINT>(h);
-        desc.MipLevels = 1;
+    desc.MipLevels = 1;
         desc.ArraySize = 1;
         desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         desc.SampleDesc.Count = 1;
         desc.Usage = D3D11_USAGE_DEFAULT;
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        desc.CPUAccessFlags = 0;
-        desc.MiscFlags = 0;
+    desc.CPUAccessFlags = 0;
+    desc.MiscFlags = 0;
 
         D3D11_SUBRESOURCE_DATA texData = {};
         texData.pSysMem = imageData;
@@ -174,11 +190,12 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
 
         ID3D11Texture2D* tex = nullptr;
         HRESULT hr = device->CreateTexture2D(&desc, &texData, &tex);
-        stbi_image_free(imageData);
+ stbi_image_free(imageData);
 
         if (FAILED(hr) || !tex)
-        {
+ {
             if (tex) tex->Release();
+          OutputDebugStringA("FAILED to create D3D11 texture\n");
             return nullptr;
         }
 
@@ -187,12 +204,14 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
         // We can release the local texture; the SRV holds a reference.
         tex->Release();
 
-        if (FAILED(hr))
-        {
-            if (srv) srv->Release();
-            return nullptr;
+  if (FAILED(hr))
+      {
+   if (srv) srv->Release();
+            OutputDebugStringA("FAILED to create SRV for texture\n");
+    return nullptr;
         }
 
+   OutputDebugStringA("SUCCESS: Created SRV for texture\n");
         return srv;
     };
 
@@ -211,16 +230,30 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
         sm.material.ambient = material.ambient;
         sm.material.diffuse = material.diffuse;
         sm.material.specular = material.specular;
-        sm.material.specularPower = material.specularPower;
+     sm.material.specularPower = material.specularPower;
 
-        // If material references a diffuse texture, try loading it.
-        if (!material.mapKd.empty())
+        // Debug: Print material info
+{
+            char buf[512];
+    sprintf_s(buf, "Submesh %zu: Material '%s', map_Kd='%s'\n",
+  meshInfo.subMeshInfo.size(),
+             material.name.c_str(),
+     material.mapKd.c_str());
+         OutputDebugStringA(buf);
+   }
+
+   // If material references a diffuse texture, try loading it.
+if (!material.mapKd.empty())
+  {
+  ID3D11ShaderResourceView* diffuseSRV = LoadTextureSRV(material.mapKd);
+    sm.diffuseTextureSRV = diffuseSRV; // may be nullptr on failure
+        }
+        else
         {
-            ID3D11ShaderResourceView* diffuseSRV = LoadTextureSRV(material.mapKd);
-            sm.diffuseTextureSRV = diffuseSRV; // may be nullptr on failure
+  OutputDebugStringA("  -> No map_Kd specified for this material\n");
         }
 
-        meshInfo.subMeshInfo.push_back(sm);
+ meshInfo.subMeshInfo.push_back(sm);
     }
 
     // 5. Initialize the mesh - use new to create on heap since move is deleted
@@ -367,8 +400,8 @@ void ParseFace(const std::string & dataSection, ParseData & data)
                 int nInd = vdata.nInd;
 
                 if (vInd < 0) vInd = (int)data.positions.size() + vInd + 1;
-                if (tInd < 0) tInd = (int)data.texCoords.size() + tInd + 1;
-                if (nInd < 0) nInd = (int)data.normals.size() + nInd + 1;
+                if (tInd < 0) tInd = (int)data.texCoords.size() + vInd + 1;
+                if (nInd < 0) nInd = (int)data.normals.size() + vInd + 1;
 
                 // Assign vertex data (1-based indexing in OBJ)
                 if (vInd > 0 && vInd <= (int)data.positions.size())
@@ -451,25 +484,47 @@ void ParseUseMtl(const std::string& dataSection, ParseData& data)
 {
     size_t pos = 0;
     std::string mtlName = GetLineString(dataSection, pos);
+    
+    // Debug: print what material is being requested
+    {
+      std::string debugMsg = "usemtl: Requesting material '" + mtlName + "'\n";
+        OutputDebugStringA(debugMsg.c_str());
+    }
 
     // If we have indices, push the previous submesh
     if (data.indexData.size() > data.currentSubmeshStartIndex)
     {
         PushBackCurrentSubmesh(data);
-        data.currentSubmeshStartIndex = data.indexData.size();
+   data.currentSubmeshStartIndex = data.indexData.size();
     }
 
     // Find material index in data.parsedMaterials matching mtlName
     size_t materialIndex = 0;
+    bool found = false;
     for (size_t i = 0; i < data.parsedMaterials.size(); ++i)
     {
         if (data.parsedMaterials[i].name == mtlName)
-
         {
-            materialIndex = i;
-            break;
-        }
+  materialIndex = i;
+            found = true;
+  break;
     }
+    }
+    
+    if (!found)
+    {
+        std::string debugMsg = "  WARNING: Material '" + mtlName + "' not found in parsed materials!\n";
+        OutputDebugStringA(debugMsg.c_str());
+      
+      // Print all available materials
+   OutputDebugStringA("  Available materials:\n");
+        for (size_t i = 0; i < data.parsedMaterials.size(); ++i)
+        {
+    std::string matDebug = "    [" + std::to_string(i) + "] '" + data.parsedMaterials[i].name + "'\n";
+    OutputDebugStringA(matDebug.c_str());
+     }
+    }
+    
     data.currentSubMeshMaterial = materialIndex;
 }
 
