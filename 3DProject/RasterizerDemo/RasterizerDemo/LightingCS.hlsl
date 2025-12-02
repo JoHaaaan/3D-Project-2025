@@ -76,38 +76,41 @@ void main(uint3 DTid : SV_DispatchThreadID)
     // Avpacka shininess ~ [1,256]
     float specularPower = max(specPacked * 256.0f, 1.0f);
 
-    // Materialkomponenter per pixel (nu baserat på lagrad data)
+// === Material per pixel (från G-buffer) ===
     float3 materialDiffuse = diffuseColor;
-    float3 materialAmbient = ambientStrength * diffuseColor;
+
+// Dämpa ambient så den inte tar över allt.
+// 0.2f är en “global faktor” du kan tweaka.
+    float3 materialAmbient = ambientStrength * diffuseColor * 0.2f;
+
+// Gör specular tydligare: låt specularStrength styra en ganska stark vit highlight.
     float3 materialSpecular = specularStrength * float3(1.0f, 1.0f, 1.0f);
 
-    // ==== Debug-läge: visa bara albedo/diffuse ====
+// === Debug-läge: bara albedo ===
     if (showAlbedoOnly != 0)
     {
+    // Lägg gärna en *tydlig* skillnad: t.ex. ingen ljusfärg alls.
         outColor[pixel] = float4(diffuseColor, 1.0f);
         return;
     }
 
-    // ==== Phong/Blinn-liknande belysning per pixel ====
-
+// === Phong-liknande belysning ===
     float3 lightDir = normalize(lightPosition - worldPos);
     float3 viewDir = normalize(cameraPosition - worldPos);
     float3 reflectDir = reflect(-lightDir, normal);
 
-    // Ambient
-    float3 ambient = lightIntensity * lightColor * materialAmbient;
+    float3 ambient = materialAmbient; // OBS: vi tar inte med lightIntensity här – enklare att se skillnad
 
-    // Diffuse
     float diffuseFactor = max(dot(normal, lightDir), 0.0f);
     float3 diffuse = diffuseFactor * lightIntensity * lightColor * materialDiffuse;
 
-    // Specular
+// För att verkligen se specular: skala upp lite
     float specAngle = max(dot(viewDir, reflectDir), 0.0f);
     float specularFactor = pow(specAngle, specularPower);
-    float3 specular = specularFactor * lightIntensity * lightColor * materialSpecular;
+    float3 specular = specularFactor * lightIntensity * lightColor * materialSpecular * 2.0f;
 
-    // Bygg upp slutlig belysning med toggles
-    float3 lighting = ambient; // ambient alltid med (om du inte vill toggla den också)
+// Bygg upp slutlig belysning med toggles
+    float3 lighting = ambient; // alltid ambient-bas
 
     if (enableDiffuse != 0)
     {
@@ -119,6 +122,9 @@ void main(uint3 DTid : SV_DispatchThreadID)
         lighting += specular;
     }
 
-    // Skriv färdig pixel till output
+// Clamp så det inte bränner ut
+    lighting = saturate(lighting);
+
     outColor[pixel] = float4(lighting, 1.0f);
+
 }
