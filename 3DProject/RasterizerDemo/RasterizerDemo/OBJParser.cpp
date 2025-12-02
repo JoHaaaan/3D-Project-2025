@@ -1,5 +1,6 @@
 #include "OBJParser.h"
 #include "MeshD3D11.h"
+#include "stb_image.h" // header only (STB_IMAGE_IMPLEMENTATION present in one TU - Main.cpp)
 
 // Initialize global maps
 std::string defaultDirectory = ""; // Adjust if needed
@@ -140,13 +141,68 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
     meshInfo.indexInfo.nrOfIndicesInBuffer = data.indexData.size();
     meshInfo.indexInfo.indexData = data.indexData.data();
 
+    // Helper to load a texture file into an SRV (returns nullptr on failure)
+    auto LoadTextureSRV = [&](const std::string& texPath) -> ID3D11ShaderResourceView*
+    {
+        if (texPath.empty())
+            return nullptr;
+
+        std::string fullPath = defaultDirectory + texPath;
+        int w = 0, h = 0, channels = 0;
+        unsigned char* imageData = stbi_load(fullPath.c_str(), &w, &h, &channels, 4);
+        if (!imageData)
+        {
+            // failed to load image
+            return nullptr;
+        }
+
+        D3D11_TEXTURE2D_DESC desc = {};
+        desc.Width = static_cast<UINT>(w);
+        desc.Height = static_cast<UINT>(h);
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.Usage = D3D11_USAGE_DEFAULT;
+        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        desc.CPUAccessFlags = 0;
+        desc.MiscFlags = 0;
+
+        D3D11_SUBRESOURCE_DATA texData = {};
+        texData.pSysMem = imageData;
+        texData.SysMemPitch = w * 4;
+
+        ID3D11Texture2D* tex = nullptr;
+        HRESULT hr = device->CreateTexture2D(&desc, &texData, &tex);
+        stbi_image_free(imageData);
+
+        if (FAILED(hr) || !tex)
+        {
+            if (tex) tex->Release();
+            return nullptr;
+        }
+
+        ID3D11ShaderResourceView* srv = nullptr;
+        hr = device->CreateShaderResourceView(tex, nullptr, &srv);
+        // We can release the local texture; the SRV holds a reference.
+        tex->Release();
+
+        if (FAILED(hr))
+        {
+            if (srv) srv->Release();
+            return nullptr;
+        }
+
+        return srv;
+    };
+
     // 4. Fill SubMesh Info
     for (const auto& sub : data.finishedSubMeshes)
     {
         MeshData::SubMeshInfo sm = {};
         sm.startIndexValue = sub.startIndexValue;
         sm.nrOfIndicesInSubMesh = sub.nrOfIndicesInSubMesh;
-        sm.ambientTextureSRV = nullptr;  // No texture loading for now
+        sm.ambientTextureSRV = nullptr;  // no ambient map handling yet
         sm.diffuseTextureSRV = nullptr;
         sm.specularTextureSRV = nullptr;
         sm.materialIndex = sub.currentSubMeshMaterial;
@@ -156,6 +212,14 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
         sm.material.diffuse = material.diffuse;
         sm.material.specular = material.specular;
         sm.material.specularPower = material.specularPower;
+
+        // If material references a diffuse texture, try loading it.
+        if (!material.mapKd.empty())
+        {
+            ID3D11ShaderResourceView* diffuseSRV = LoadTextureSRV(material.mapKd);
+            sm.diffuseTextureSRV = diffuseSRV; // may be nullptr on failure
+        }
+
         meshInfo.subMeshInfo.push_back(sm);
     }
 
