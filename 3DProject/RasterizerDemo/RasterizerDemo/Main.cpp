@@ -217,7 +217,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     constantBuffer.Initialize(device, sizeof(MatrixPair));
 
     // Light buffer
-    Light lightData{ XMFLOAT3(0.f, 0.f, -2.f), 1.f, XMFLOAT3(1.f, 1.f, 1.f), 0.f };
+    Light lightData{ XMFLOAT3(1.0f, 1.0f, 4.0f), 1.0f, XMFLOAT3(1.0f, 1.0f, 1.0f), 0.0f };
     lightBuffer.Initialize(device, sizeof(Light), &lightData);
 
     // Mesh
@@ -254,7 +254,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     // Camera setup
     ProjectionInfo proj{ FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE };
-    camera.Initialize(device, proj, XMFLOAT3(0.0f, 0.0f, -10.0f));
+    camera.Initialize(device, proj, XMFLOAT3(0.0f, 0.0f, -4.0f));
 
     // Create a white 1x1 fallback texture (used when material has no map_Kd)
     ID3D11Texture2D* whiteTex = nullptr;
