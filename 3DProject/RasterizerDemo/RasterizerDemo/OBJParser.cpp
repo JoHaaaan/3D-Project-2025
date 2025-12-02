@@ -1,6 +1,6 @@
 #include "OBJParser.h"
 #include "MeshD3D11.h"
-
+#include "stb_image.h" // Make sure you have this header available
 // Initialize global maps
 std::string defaultDirectory = ""; // Adjust if needed
 std::unordered_map<std::string, MeshD3D11*> loadedMeshes; // Changed to pointers
@@ -110,15 +110,14 @@ void ReadFile(const std::string& path, std::string& toFill)
 	toFill.assign((std::istreambuf_iterator<char>(reader)),
 		std::istreambuf_iterator<char>());
 }
-
 void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11Device* device)
 {
     std::istringstream lineStream(contents);
     ParseData data;
+    data.device = device; // Store device for texture loading
 
     // Default material in case the OBJ doesn't reference one
     data.parsedMaterials.push_back(MaterialInfo{});
-
 
     std::string line;
     while (std::getline(lineStream, line))
@@ -127,7 +126,6 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
     }
     PushBackCurrentSubmesh(data);
 
-    // --- FIX STARTS HERE ---
     // 1. Create a MeshData struct to transfer data to the MeshD3D11
     MeshData meshInfo = {};
 
@@ -146,9 +144,12 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
         MeshData::SubMeshInfo sm = {};
         sm.startIndexValue = sub.startIndexValue;
         sm.nrOfIndicesInSubMesh = sub.nrOfIndicesInSubMesh;
-        sm.ambientTextureSRV = nullptr;  // No texture loading for now
-        sm.diffuseTextureSRV = nullptr;
-        sm.specularTextureSRV = nullptr;
+
+        // Pass the loaded textures
+        sm.ambientTextureSRV = sub.ambientTextureSRV;
+        sm.diffuseTextureSRV = sub.diffuseTextureSRV;
+        sm.specularTextureSRV = sub.specularTextureSRV;
+
         sm.materialIndex = sub.currentSubMeshMaterial;
 
         const auto& material = data.parsedMaterials[sm.materialIndex];
@@ -159,10 +160,9 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
         meshInfo.subMeshInfo.push_back(sm);
     }
 
-    // 5. Initialize the mesh - use new to create on heap since move is deleted
+    // 5. Initialize the mesh
     MeshD3D11* toAdd = new MeshD3D11();
     toAdd->Initialize(device, meshInfo);
-    // --- FIX ENDS HERE ---
 
     loadedMeshes[identifier] = toAdd;
 }
@@ -408,7 +408,6 @@ void ParseUseMtl(const std::string& dataSection, ParseData& data)
     }
     data.currentSubMeshMaterial = materialIndex;
 }
-
 void PushBackCurrentSubmesh(ParseData& data)
 {
     if (data.indexData.size() <= data.currentSubmeshStartIndex)
@@ -419,10 +418,48 @@ void PushBackCurrentSubmesh(ParseData& data)
     toAdd.nrOfIndicesInSubMesh = data.indexData.size() - toAdd.startIndexValue;
     toAdd.currentSubMeshMaterial = data.currentSubMeshMaterial;
 
-    // Set texture SRVs to nullptr for now (no texture loading implemented)
     toAdd.ambientTextureSRV = nullptr;
     toAdd.diffuseTextureSRV = nullptr;
     toAdd.specularTextureSRV = nullptr;
+
+    // --- Texture Loading Logic ---
+    if (data.device)
+    {
+        const auto& mat = data.parsedMaterials[data.currentSubMeshMaterial];
+
+        if (!mat.mapKd.empty())
+        {
+            std::string fullPath = defaultDirectory + mat.mapKd;
+            int w, h, c;
+            unsigned char* img = stbi_load(fullPath.c_str(), &w, &h, &c, 4);
+
+            if (img)
+            {
+                D3D11_TEXTURE2D_DESC texDesc = {};
+                texDesc.Width = w;
+                texDesc.Height = h;
+                texDesc.MipLevels = 1;
+                texDesc.ArraySize = 1;
+                texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+                texDesc.SampleDesc.Count = 1;
+                texDesc.Usage = D3D11_USAGE_DEFAULT;
+                texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+                D3D11_SUBRESOURCE_DATA initData = {};
+                initData.pSysMem = img;
+                initData.SysMemPitch = w * 4;
+
+                ID3D11Texture2D* tex = nullptr;
+                HRESULT hr = data.device->CreateTexture2D(&texDesc, &initData, &tex);
+                if (SUCCEEDED(hr))
+                {
+                    data.device->CreateShaderResourceView(tex, nullptr, &toAdd.diffuseTextureSRV);
+                    tex->Release();
+                }
+                stbi_image_free(img);
+            }
+        }
+    }
 
     data.finishedSubMeshes.push_back(toAdd);
 }

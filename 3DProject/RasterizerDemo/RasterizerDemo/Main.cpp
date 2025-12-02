@@ -98,6 +98,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11Texture2D* lightingTex = nullptr;
     ID3D11UnorderedAccessView* lightingUAV = nullptr;
 
+
+
+
+
     SetupD3D11(WIDTH, HEIGHT, window, device, immediateContext, swapChain, rtv, viewport);
 
     std::string vShaderByteCode;
@@ -142,7 +146,36 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             OutputDebugStringA("Failed to create lightingUAV\n");
         }
     }
+    // ... (Existing setup code) ...
 
+// --- CREATE DEFAULT WHITE TEXTURE ---
+// We need this so that materials with no texture maps (just colors) show up correctly.
+// (Color * White = Color).
+    ID3D11Texture2D* whiteTexture = nullptr;
+    ID3D11ShaderResourceView* whiteTextureView = nullptr;
+    {
+        uint32_t whitePixel = 0xFFFFFFFF; // RGBA(1,1,1,1)
+        D3D11_TEXTURE2D_DESC desc = {};
+        desc.Width = 1;
+        desc.Height = 1;
+        desc.MipLevels = 1;
+        desc.ArraySize = 1;
+        desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.Usage = D3D11_USAGE_IMMUTABLE;
+        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+        D3D11_SUBRESOURCE_DATA data = {};
+        data.pSysMem = &whitePixel;
+        data.SysMemPitch = 4;
+
+        HRESULT hr = device->CreateTexture2D(&desc, &data, &whiteTexture);
+        if (SUCCEEDED(hr))
+        {
+            device->CreateShaderResourceView(whiteTexture, nullptr, &whiteTextureView);
+        }
+    }
+    // ------------------------------------
     // Load compute shader LightingCS.cso
     {
         std::ifstream reader("LightingCS.cso", std::ios::binary | std::ios::ate);
@@ -411,7 +444,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
             ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
             immediateContext->VSSetConstantBuffers(0, 1, &cb0);
-            immediateContext->PSSetShaderResources(0, 1, &textureView);
+            immediateContext->PSSetShaderResources(0, 1, &whiteTextureView);
             ID3D11SamplerState* samplerPtr = samplerState.GetSamplerState();
             immediateContext->PSSetSamplers(0, 1, &samplerPtr);
 
@@ -428,6 +461,16 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                     for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
                     {
                         updateMaterialBufferForSubMesh(i);
+
+                        // Check if this submesh has a texture loaded from MTL
+                        ID3D11ShaderResourceView* tex = cubeMesh->GetDiffuseSRV(i);
+                        if (!tex)
+                        {
+                            // Fallback to white so material colors (blue/grey) show up
+                            tex = textureView;
+                        }
+
+                        immediateContext->PSSetShaderResources(0, 1, &tex);
                         cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
                     }
                 }
@@ -446,6 +489,16 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                     for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
                     {
                         updateMaterialBufferForSubMesh(i);
+
+                        // Check if this submesh has a texture loaded from MTL
+                        ID3D11ShaderResourceView* tex = cubeMesh->GetDiffuseSRV(i);
+                        if (!tex)
+                        {
+                            // Fallback to white so material colors (blue/grey) show up
+                            tex = whiteTextureView;
+                        }
+
+                        immediateContext->PSSetShaderResources(0, 1, &tex);
                         cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
                     }
                 }
@@ -541,6 +594,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     swapChain->Release();
     immediateContext->Release();
     device->Release();
+    if (whiteTextureView) whiteTextureView->Release();
+    if (whiteTexture) whiteTexture->Release();
     UnloadMeshes();
     return 0;
 }
