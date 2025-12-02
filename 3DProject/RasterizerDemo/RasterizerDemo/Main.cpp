@@ -220,14 +220,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     Light lightData{ XMFLOAT3(0.f, 0.f, -2.f), 1.f, XMFLOAT3(1.f, 1.f, 1.f), 0.f };
     lightBuffer.Initialize(device, sizeof(Light), &lightData);
 
-    // Second light buffer for pineapple
-    ConstantBufferD3D11 pineappleLight;
-    Light pineappleLightData{ XMFLOAT3(2.f, 0.f, -5.f), 2.f, XMFLOAT3(1.f, 0.9f, 0.7f), 0.f };
-    pineappleLight.Initialize(device, sizeof(Light), &pineappleLightData);
-
     // Mesh
     const MeshD3D11* cubeMesh = GetMesh("cube.obj", device);
-	const MeshD3D11* pineAppleMesh = GetMesh("pineapple2.obj", device);
+    const MeshD3D11* pineAppleMesh = GetMesh("pineapple2.obj", device);
 
     // Material buffer (still used in geometry pass / PS)
     Material mat{};
@@ -308,6 +303,43 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         device->CreateTexture2D(&texDesc, &texData, &texture);
         stbi_image_free(imageData);
         device->CreateShaderResourceView(texture, nullptr, &textureView);
+    }
+
+    // Load pineapple texture manually for testing
+    ID3D11Texture2D* pineappleTex = nullptr;
+    ID3D11ShaderResourceView* pineappleTexView = nullptr;
+    {
+        int wTex, hTex, channels;
+        unsigned char* imageData = stbi_load("pineapple2.jpeg", &wTex, &hTex, &channels, 4);
+        
+        if (imageData)
+        {
+            D3D11_TEXTURE2D_DESC texDesc = {};
+            texDesc.Width = wTex;
+            texDesc.Height = hTex;
+            texDesc.MipLevels = 1;
+            texDesc.ArraySize = 1;
+            texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            texDesc.SampleDesc.Count = 1;
+            texDesc.Usage = D3D11_USAGE_DEFAULT;
+            texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+            D3D11_SUBRESOURCE_DATA texData = {};
+            texData.pSysMem = imageData;
+            texData.SysMemPitch = wTex * 4;
+
+            device->CreateTexture2D(&texDesc, &texData, &pineappleTex);
+            stbi_image_free(imageData);
+            device->CreateShaderResourceView(pineappleTex, nullptr, &pineappleTexView);
+            if (pineappleTex) pineappleTex->Release();
+        
+            OutputDebugStringA("Successfully loaded pineapple2.jpeg!\n");
+        }
+        else
+        {
+            OutputDebugStringA("Failed to load pineapple2.jpeg!\n");
+            pineappleTexView = whiteTexView; // fallback to white
+        }
     }
 
     samplerState.Initialize(device, D3D11_TEXTURE_ADDRESS_WRAP);
@@ -483,19 +515,19 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
                 XMStoreFloat4x4(&rotatingData.viewProj, XMMatrixTranspose(VIEW_PROJ));
                 constantBuffer.UpdateBuffer(immediateContext, &rotatingData);
 
-                // Rotating image plane (quad with image.png texture)
+                // Rotating image plane (quad with pineapple2.jpeg texture for testing)
                 UINT stride = sizeof(SimpleVertex);
                 UINT offset = 0;
                 ID3D11Buffer* quadVB = imageQuadVB.GetBuffer();
                 immediateContext->IASetVertexBuffers(0, 1, &quadVB, &stride, &offset);
   
-                // Bind the image.png texture directly
-                immediateContext->PSSetShaderResources(0, 1, &textureView);
+                // Bind the pineapple texture for testing
+                immediateContext->PSSetShaderResources(0, 1, &pineappleTexView);
     
                 // Draw the quad (6 vertices = 2 triangles)
                 immediateContext->Draw(6, 0);
             
-                // Unbind texture
+                // Unbind texture§
                 ID3D11ShaderResourceView* nullSRV = nullptr;
                 immediateContext->PSSetShaderResources(0, 1, &nullSRV);
    }
@@ -540,12 +572,11 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
                     pineAppleMesh->BindMeshBuffers(immediateContext);
                     for (size_t i = 0; i < pineAppleMesh->GetNrOfSubMeshes(); ++i)
                     {
-                        // Material buffer update not needed here, using static pineapple material
+                        // Update material buffer for pineapple submesh
+                        updateMaterialBufferForSubMesh(pineAppleMesh, i);
 
-                        // Bind diffuse texture for this submesh (t0).
-                        ID3D11ShaderResourceView* subDiffuse = pineAppleMesh->GetDiffuseSRV(i);
-                        ID3D11ShaderResourceView* toBind = subDiffuse ? subDiffuse : whiteTexView;
-                        immediateContext->PSSetShaderResources(0, 1, &toBind);
+                        // Force bind pineapple texture for testing (ignore .mtl)
+                        immediateContext->PSSetShaderResources(0, 1, &pineappleTexView);
 
                         pineAppleMesh->PerformSubMeshDrawCall(immediateContext, i);
 
@@ -638,8 +669,9 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
     if (lightingTex)  lightingTex->Release();
     if (lightingCS)   lightingCS->Release();
 
+    if (pineappleTexView && pineappleTexView != whiteTexView) pineappleTexView->Release();
     if (whiteTexView) whiteTexView->Release();
-    textureView->Release();
+textureView->Release();
     texture->Release();
     pShader->Release();
     vShader->Release();

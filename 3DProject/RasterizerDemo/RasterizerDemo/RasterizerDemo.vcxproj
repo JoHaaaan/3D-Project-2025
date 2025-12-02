@@ -230,6 +230,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="LightingCS.cso" />
+    <None Include="pineapple2_fixed.mtl" />
     <None Include="PixelShader.cso" />
     <None Include="VertexShader.cso" />
   </ItemGroup>

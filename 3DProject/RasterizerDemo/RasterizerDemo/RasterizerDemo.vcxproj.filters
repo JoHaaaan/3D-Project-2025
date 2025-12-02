@@ -160,6 +160,7 @@
     <None Include="VertexShader.cso" />
     <None Include="PixelShader.cso" />
     <None Include="LightingCS.cso" />
+    <None Include="pineapple2_fixed.mtl" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="image.png">
