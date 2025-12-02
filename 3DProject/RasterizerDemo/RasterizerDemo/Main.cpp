@@ -378,9 +378,9 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
     const float mouseSens = 0.1f;
 
     // Static cube world matrix
-    XMMATRIX staticCubeWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(5.0f, 0.0f, 0.0f);
+    XMMATRIX staticCubeWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 
-    // Pineapple world matrix (at position 20, 0, 0)
+    // Pineapple world matrix (at position 10, 0, 0)
     XMMATRIX pineappleWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(10.0f, 0.0f, 0.0f);
 
     // Toggle key state

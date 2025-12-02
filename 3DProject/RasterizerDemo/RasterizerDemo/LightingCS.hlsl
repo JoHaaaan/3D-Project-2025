@@ -107,7 +107,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 // För att verkligen se specular: skala upp lite
     float specAngle = max(dot(viewDir, reflectDir), 0.0f);
     float specularFactor = pow(specAngle, specularPower);
-    float3 specular = specularFactor * lightIntensity * lightColor * materialSpecular * 2.0f;
+    float3 specular = specularFactor * lightIntensity * lightColor * materialSpecular * 1.0f;
 
 // Bygg upp slutlig belysning med toggles
     float3 lighting = ambient; // alltid ambient-bas
