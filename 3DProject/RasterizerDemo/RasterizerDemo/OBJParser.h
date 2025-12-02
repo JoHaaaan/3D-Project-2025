@@ -21,7 +21,6 @@ struct Vertex
     DirectX::XMFLOAT2 UV;
 };
 
-
 // Simple material info used by ParseData
 struct MaterialInfo
 {
@@ -54,9 +53,6 @@ struct SubMeshInfo
 // All temporary data used while parsing a single OBJ
 struct ParseData
 {
-    // Added device pointer for texture loading
-    ID3D11Device* device = nullptr;
-
     // Geometry
     std::vector<DirectX::XMFLOAT3> positions;
     std::vector<DirectX::XMFLOAT3> normals;
@@ -66,7 +62,7 @@ struct ParseData
     std::unordered_map<std::string, unsigned int> vertexCache;
 
     // Final vertex buffer data
-    std::vector<Vertex> vertices;
+    std::vector<Vertex> vertices;   
 
     // Index data for the final mesh
     std::vector<unsigned int> indexData;
