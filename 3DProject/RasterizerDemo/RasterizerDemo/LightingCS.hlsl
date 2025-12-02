@@ -94,20 +94,26 @@ void main(uint3 DTid : SV_DispatchThreadID)
         return;
     }
 
-// === Phong-liknande belysning ===
+// === Blinn-Phong-belysning ===
     float3 lightDir = normalize(lightPosition - worldPos);
     float3 viewDir = normalize(cameraPosition - worldPos);
-    float3 reflectDir = reflect(-lightDir, normal);
 
-    float3 ambient = materialAmbient; // OBS: vi tar inte med lightIntensity här – enklare att se skillnad
+// Half-vector mellan ljus och kamera
+    float3 halfVec = normalize(lightDir + viewDir);
 
+// Ambient
+    float3 ambient = materialAmbient;
+
+// Diffuse (samma som innan)
     float diffuseFactor = max(dot(normal, lightDir), 0.0f);
     float3 diffuse = diffuseFactor * lightIntensity * lightColor * materialDiffuse;
 
-// För att verkligen se specular: skala upp lite
-    float specAngle = max(dot(viewDir, reflectDir), 0.0f);
+// Specular (Blinn-Phong)
+// Du kan börja med att använda specularPower direkt
+    float specAngle = max(dot(normal, halfVec), 0.0f);
     float specularFactor = pow(specAngle, specularPower);
     float3 specular = specularFactor * lightIntensity * lightColor * materialSpecular * 1.0f;
+
 
 // Bygg upp slutlig belysning med toggles
     float3 lighting = ambient; // alltid ambient-bas
