@@ -14,16 +14,16 @@ cbuffer CameraBuffer : register(b2)
 
 cbuffer LightingToggleBuffer : register(b4)
 {
-    int showAlbedoOnly; // 1 = show only albedo
-    int enableDiffuse; // 1 = enable diffuse
-    int enableSpecular; // 1 = enable specular
-    int paddingToggle; // unused, padding
+    int showAlbedoOnly; // 1 = visa bara albedo
+    int enableDiffuse; // 1 = med diffuse
+    int enableSpecular; // 1 = med specular
+    int paddingToggle; // oanvänd
 };
 
 // G-buffer
 Texture2D gAlbedo : register(t0); // rgb = albedo, a = specPower/256
-Texture2D gNormal : register(t1); // packed normal
-Texture2D gWorldPos : register(t2); // world position
+Texture2D gNormal : register(t1); // packad normal
+Texture2D gWorldPos : register(t2); // world pos
 
 // Output image
 RWTexture2D<float4> outColor : register(u0);
@@ -38,7 +38,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     if (pixel.x >= w || pixel.y >= h)
         return;
 
-    // Read G-buffer
+    // Läs G-buffer
     float4 albedoSample = gAlbedo.Load(int3(pixel, 0));
     float3 albedo = albedoSample.rgb;
     float specPacked = albedoSample.a;
@@ -46,18 +46,18 @@ void main(uint3 DTid : SV_DispatchThreadID)
     float3 nPacked = gNormal.Load(int3(pixel, 0)).rgb;
     float3 worldPos = gWorldPos.Load(int3(pixel, 0)).xyz;
 
-    // Unpack normal from [0,1] to [-1,1]
+    // Unpack normal [0,1] -> [-1,1]
     float3 normal = normalize(nPacked * 2.0f - 1.0f);
 
-    // Restore specular power (stored as specPower / 256)
+    // Återställ specularPower ~ [1,256]
     float specularPower = max(specPacked * 256.0f, 1.0f);
 
-    // Build material per pixel
+    // Material per pixel
     float3 materialDiffuse = albedo;
     float3 materialAmbient = 0.2f * albedo;
     float3 materialSpecular = float3(1.0f, 1.0f, 1.0f);
 
-    // Phong style lighting
+    // Phong-liknande belysning
     float3 lightDir = normalize(lightPosition - worldPos);
     float3 viewDir = normalize(cameraPosition - worldPos);
     float3 reflectDir = reflect(-lightDir, normal);
@@ -71,8 +71,17 @@ void main(uint3 DTid : SV_DispatchThreadID)
     float specularFactor = pow(specAngle, specularPower);
     float3 specular = specularFactor * lightIntensity * lightColor * materialSpecular;
 
-    // Combine with toggles
-    float3 lighting = ambient;
+    // --- DEBUG MODES / TOGGLES ---
+
+    // 1) Visa enbart albedo om togglen är på
+    if (showAlbedoOnly != 0)
+    {
+        outColor[pixel] = float4(albedo, 1.0f);
+        return;
+    }
+
+    // 2) Bygg upp slutlig belysning med toggles
+    float3 lighting = ambient; // ambient alltid med (om du vill kan du också toggla den)
 
     if (enableDiffuse != 0)
     {
@@ -84,14 +93,6 @@ void main(uint3 DTid : SV_DispatchThreadID)
         lighting += specular;
     }
 
-    // Mode: only show albedo
-    if (showAlbedoOnly != 0)
-    {
-        outColor[pixel] = float4(albedo, 1.0f);
-    }
-    else
-    {
-        // Multiply lighting with albedo for final color
-        outColor[pixel] = float4(lighting * albedo, 1.0f);
-    }
+    // Här multiplicerar vi INTE med albedo igen – det är redan inbakat i ambient/diffuse.
+    outColor[pixel] = float4(lighting, 1.0f);
 }
