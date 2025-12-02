@@ -190,6 +190,29 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             triVerts);
     }
 
+    // Rotating image quad (6 vertices forming 2 triangles)
+    VertexBufferD3D11 imageQuadVB;
+    {
+        // Create a quad facing the camera (Z = 0), centered at origin
+        // Scale it to a reasonable size (2x2 units)
+        SimpleVertex quadVerts[] = {
+            // First triangle
+            { { -1.0f,  1.0f, 0.0f }, {0,0,-1}, {0.0f, 0.0f} }, // Top-left
+            { {  1.0f,  1.0f, 0.0f }, {0,0,-1}, {1.0f, 0.0f} }, // Top-right
+            { { -1.0f, -1.0f, 0.0f }, {0,0,-1}, {0.0f, 1.0f} }, // Bottom-left
+
+            // Second triangle
+            { {  1.0f,  1.0f, 0.0f }, {0,0,-1}, {1.0f, 0.0f} }, // Top-right
+            { {  1.0f, -1.0f, 0.0f }, {0,0,-1}, {1.0f, 1.0f} }, // Bottom-right
+            { { -1.0f, -1.0f, 0.0f }, {0,0,-1}, {0.0f, 1.0f} }, // Bottom-left
+        };
+        imageQuadVB.Initialize(
+            device,
+            sizeof(SimpleVertex),
+            static_cast<UINT>(sizeof(quadVerts) / sizeof(quadVerts[0])),
+            quadVerts);
+    }
+
     // Matrix constant buffer
     constantBuffer.Initialize(device, sizeof(MatrixPair));
 
@@ -197,8 +220,14 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     Light lightData{ XMFLOAT3(0.f, 0.f, -2.f), 1.f, XMFLOAT3(1.f, 1.f, 1.f), 0.f };
     lightBuffer.Initialize(device, sizeof(Light), &lightData);
 
+    // Second light buffer for pineapple
+    ConstantBufferD3D11 pineappleLight;
+    Light pineappleLightData{ XMFLOAT3(2.f, 0.f, -5.f), 2.f, XMFLOAT3(1.f, 0.9f, 0.7f), 0.f };
+    pineappleLight.Initialize(device, sizeof(Light), &pineappleLightData);
+
     // Mesh
     const MeshD3D11* cubeMesh = GetMesh("cube.obj", device);
+	const MeshD3D11* pineAppleMesh = GetMesh("pineapple2.obj", device);
 
     // Material buffer (still used in geometry pass / PS)
     Material mat{};
@@ -232,7 +261,32 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ProjectionInfo proj{ FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE };
     camera.Initialize(device, proj, XMFLOAT3(0.0f, 0.0f, -10.0f));
 
-    // Texture loading
+    // Create a white 1x1 fallback texture (used when material has no map_Kd)
+    ID3D11Texture2D* whiteTex = nullptr;
+    ID3D11ShaderResourceView* whiteTexView = nullptr;
+    {
+        unsigned char whitePixel[4] = { 255, 255, 255, 255 };
+
+        D3D11_TEXTURE2D_DESC texDesc = {};
+        texDesc.Width = 1;
+        texDesc.Height = 1;
+        texDesc.MipLevels = 1;
+        texDesc.ArraySize = 1;
+        texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        texDesc.SampleDesc.Count = 1;
+        texDesc.Usage = D3D11_USAGE_DEFAULT;
+        texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+        D3D11_SUBRESOURCE_DATA texData = {};
+        texData.pSysMem = whitePixel;
+        texData.SysMemPitch = 4;
+
+        device->CreateTexture2D(&texDesc, &texData, &whiteTex);
+        device->CreateShaderResourceView(whiteTex, nullptr, &whiteTexView);
+        if (whiteTex) whiteTex->Release(); // SRV holds reference
+    }
+
+    // Texture loading (fallback texture used when material has no map_Kd)
     {
         int wTex, hTex, channels;
         unsigned char* imageData = stbi_load("image.png", &wTex, &hTex, &channels, 4);
@@ -267,20 +321,24 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     immediateContext->PSSetConstantBuffers(2, 1, &materialCB);
     immediateContext->PSSetConstantBuffers(3, 1, &cameraCB);
 
-    auto updateMaterialBufferForSubMesh = [&](size_t subMeshIndex)
-        {
-            if (!cubeMesh || subMeshIndex >= cubeMesh->GetNrOfSubMeshes())
-                return;
+    // NOTE: we no longer bind a single global albedo SRV here.
+    // Geometry pass will bind per-submesh diffuse SRV (from OBJ .mtl map_Kd) if present,
+    // otherwise fall back to the textureView loaded above.
 
-            const auto& matData = cubeMesh->GetMaterial(subMeshIndex);
+    auto updateMaterialBufferForSubMesh = [&](const MeshD3D11* mesh, size_t subMeshIndex)
+        {
+            if (!mesh || subMeshIndex >= mesh->GetNrOfSubMeshes())
+         return;
+
+            const auto& matData = mesh->GetMaterial(subMeshIndex);
             Material currentMaterial{
-                matData.ambient, 0.f,
-                matData.diffuse, 0.f,
-                matData.specular, matData.specularPower
+       matData.ambient, 0.f,
+         matData.diffuse, 0.f,
+      matData.specular, matData.specularPower
             };
 
-            materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
-        };
+materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
+   };
 
     auto previousTime = std::chrono::high_resolution_clock::now();
     float rotationAngle = 90.f;
@@ -289,6 +347,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     // Static cube world matrix
     XMMATRIX staticCubeWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(5.0f, 0.0f, 0.0f);
+
+    // Pineapple world matrix (at position 20, 0, 0)
+    XMMATRIX pineappleWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(10.0f, 0.0f, 0.0f);
 
     // Toggle key state
     static bool key1Prev = false;
@@ -422,16 +483,22 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                 XMStoreFloat4x4(&rotatingData.viewProj, XMMatrixTranspose(VIEW_PROJ));
                 constantBuffer.UpdateBuffer(immediateContext, &rotatingData);
 
-                if (cubeMesh)
-                {
-                    cubeMesh->BindMeshBuffers(immediateContext);
-                    for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
-                    {
-                        updateMaterialBufferForSubMesh(i);
-                        cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
-                    }
-                }
-            }
+                // Rotating image plane (quad with image.png texture)
+                UINT stride = sizeof(SimpleVertex);
+                UINT offset = 0;
+                ID3D11Buffer* quadVB = imageQuadVB.GetBuffer();
+                immediateContext->IASetVertexBuffers(0, 1, &quadVB, &stride, &offset);
+  
+                // Bind the image.png texture directly
+                immediateContext->PSSetShaderResources(0, 1, &textureView);
+    
+                // Draw the quad (6 vertices = 2 triangles)
+                immediateContext->Draw(6, 0);
+            
+                // Unbind texture
+                ID3D11ShaderResourceView* nullSRV = nullptr;
+                immediateContext->PSSetShaderResources(0, 1, &nullSRV);
+   }
 
             // Static cube
             {
@@ -445,8 +512,46 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                     cubeMesh->BindMeshBuffers(immediateContext);
                     for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
                     {
-                        updateMaterialBufferForSubMesh(i);
+                        updateMaterialBufferForSubMesh(cubeMesh, i);
+
+                        // Bind diffuse texture for this submesh (t0).
+                        ID3D11ShaderResourceView* subDiffuse = cubeMesh->GetDiffuseSRV(i);
+                        ID3D11ShaderResourceView* toBind = subDiffuse ? subDiffuse : whiteTexView;
+                        immediateContext->PSSetShaderResources(0, 1, &toBind);
+
                         cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
+
+                        // Optional: unbind after draw to avoid keeping resource bound
+                        ID3D11ShaderResourceView* nullSRV = nullptr;
+                        immediateContext->PSSetShaderResources(0, 1, &nullSRV);
+                    }
+                }
+            }
+
+            // Pineapple (static, no animation for now)
+            {
+                MatrixPair staticPineappleData;
+                XMStoreFloat4x4(&staticPineappleData.world, XMMatrixTranspose(pineappleWorld));
+                XMStoreFloat4x4(&staticPineappleData.viewProj, XMMatrixTranspose(VIEW_PROJ));
+                constantBuffer.UpdateBuffer(immediateContext, &staticPineappleData);
+
+                if (pineAppleMesh)
+                {
+                    pineAppleMesh->BindMeshBuffers(immediateContext);
+                    for (size_t i = 0; i < pineAppleMesh->GetNrOfSubMeshes(); ++i)
+                    {
+                        // Material buffer update not needed here, using static pineapple material
+
+                        // Bind diffuse texture for this submesh (t0).
+                        ID3D11ShaderResourceView* subDiffuse = pineAppleMesh->GetDiffuseSRV(i);
+                        ID3D11ShaderResourceView* toBind = subDiffuse ? subDiffuse : whiteTexView;
+                        immediateContext->PSSetShaderResources(0, 1, &toBind);
+
+                        pineAppleMesh->PerformSubMeshDrawCall(immediateContext, i);
+
+                        // Optional: unbind after draw to avoid keeping resource bound
+                        ID3D11ShaderResourceView* nullSRV = nullptr;
+                        immediateContext->PSSetShaderResources(0, 1, &nullSRV);
                     }
                 }
             }
@@ -533,6 +638,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     if (lightingTex)  lightingTex->Release();
     if (lightingCS)   lightingCS->Release();
 
+    if (whiteTexView) whiteTexView->Release();
     textureView->Release();
     texture->Release();
     pShader->Release();
