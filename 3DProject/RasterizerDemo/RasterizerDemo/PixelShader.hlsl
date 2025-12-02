@@ -46,21 +46,28 @@ PS_OUTPUT main(PS_INPUT input)
 {
     PS_OUTPUT o;
 
-    // 1) Albedo = textur * materialDiffuse
+    // Diffus färg = textur * materialets diffuse-komponent
     float3 texColor = shaderTexture.Sample(samplerState, input.uv).rgb;
-    float3 albedo = texColor * materialDiffuse;
+    float3 diffuseColor = texColor * materialDiffuse;
+
+    // Beräkna "styrka" för ambient och specular från materialfärgerna.
+    // Här tar vi medelvärdet av RGB som ett enkelt mått i intervallet 0..1.
+    float ambientStrength = saturate(dot(materialAmbient, float3(0.333f, 0.333f, 0.333f)));
+    float specularStrength = saturate(dot(materialSpecular, float3(0.333f, 0.333f, 0.333f)));
 
     // Packa specularPower (t.ex. 0..256) in i alpha [0,1]
     float specPacked = saturate(specularPower / 256.0f);
 
-    o.Albedo = float4(albedo, specPacked);
+    // RT0: diffus färg + ambient-styrka i alpha
+    o.Albedo = float4(diffuseColor, ambientStrength);
 
-    // 2) Normal: [-1,1] -> [0,1]
+    // RT1: packad normal + specular-styrka i alpha
     float3 n = normalize(input.normal);
-    o.Normal = float4(n * 0.5f + 0.5f, 1.0f);
+    o.Normal = float4(n * 0.5f + 0.5f, specularStrength);
 
-    // 3) Extra: world position
-    o.Extra = float4(input.worldPos, 1.0f);
+    // RT2: world position + shininess-packning i alpha
+    o.Extra = float4(input.worldPos, specPacked);
 
     return o;
 }
+

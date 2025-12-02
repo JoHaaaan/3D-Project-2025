@@ -18,8 +18,8 @@ void GBufferD3D11::Initialize(ID3D11Device* device,
         DXGI_FORMAT_R8G8B8A8_UNORM,
         true);
 
-    // Specular/Gloss – också RGBA8 för enkelhetens skull
-    specRT.Initialize(device,
+    // Position – också RGBA8 för enkelhetens skull
+    positionRT.Initialize(device,
         width,
         height,
         DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -33,7 +33,7 @@ void GBufferD3D11::SetAsRenderTargets(ID3D11DeviceContext* context,
     {
         albedoRT.GetRTV(),
         normalRT.GetRTV(),
-        specRT.GetRTV()
+        positionRT.GetRTV()
     };
 
     context->OMSetRenderTargets(3, rtvs, dsv);
@@ -44,7 +44,7 @@ void GBufferD3D11::Clear(ID3D11DeviceContext* context,
 {
     context->ClearRenderTargetView(albedoRT.GetRTV(), clearColor);
     context->ClearRenderTargetView(normalRT.GetRTV(), clearColor);
-    context->ClearRenderTargetView(specRT.GetRTV(), clearColor);
+    context->ClearRenderTargetView(positionRT.GetRTV(), clearColor);
 }
 
 ID3D11ShaderResourceView* GBufferD3D11::GetAlbedoSRV() const
@@ -59,5 +59,5 @@ ID3D11ShaderResourceView* GBufferD3D11::GetNormalSRV() const
 
 ID3D11ShaderResourceView* GBufferD3D11::GetSpecSRV() const
 {
-    return specRT.GetSRV();
+    return positionRT.GetSRV();
 }

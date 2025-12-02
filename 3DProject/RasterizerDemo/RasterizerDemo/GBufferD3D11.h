@@ -9,7 +9,7 @@ private:
     // Våra olika G-buffer render targets
     RenderTargetD3D11 albedoRT;  // färg
     RenderTargetD3D11 normalRT;  // normal
-    RenderTargetD3D11 specRT;    // specular/gloss
+    RenderTargetD3D11 positionRT;    // Position
 
 public:
     GBufferD3D11() = default;
@@ -36,6 +36,6 @@ public:
     // Om du vill kunna debug-kopiera dem direkt till backbuffer
     ID3D11RenderTargetView* GetAlbedoRTV() const { return albedoRT.GetRTV(); }
     ID3D11RenderTargetView* GetNormalRTV() const { return normalRT.GetRTV(); }
-    ID3D11RenderTargetView* GetSpecRTV()   const { return specRT.GetRTV(); }
+    ID3D11RenderTargetView* GetPositionRTV() const { return positionRT.GetRTV(); }
 };
 #pragma once
