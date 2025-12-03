@@ -215,14 +215,15 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     // Matrix constant buffer
     constantBuffer.Initialize(device, sizeof(MatrixPair));
-
+    
     // Light buffer
-    Light lightData{ XMFLOAT3(1.0f, 1.0f, 4.0f), 1.0f, XMFLOAT3(1.0f, 1.0f, 1.0f), 0.0f };
+    Light lightData{ XMFLOAT3(0.0f, 0.0f, 4.0f), 1.0f, XMFLOAT3(1.0f, 1.0f, 1.0f), 0.0f };
     lightBuffer.Initialize(device, sizeof(Light), &lightData);
 
     // Mesh
     const MeshD3D11* cubeMesh = GetMesh("cube.obj", device);
     const MeshD3D11* pineAppleMesh = GetMesh("pineapple2.obj", device);
+    const MeshD3D11* simpleCubeMesh = GetMesh("SimpleCube.obj", device);
 
     // Material buffer (still used in geometry pass / PS)
     Material mat{};
@@ -254,7 +255,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     // Camera setup
     ProjectionInfo proj{ FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE };
-    camera.Initialize(device, proj, XMFLOAT3(0.0f, 0.0f, -4.0f));
+    camera.Initialize(device, proj, XMFLOAT3(0.0f, 0.0f, 4.0f));
 
     // Create a white 1x1 fallback texture (used when material has no map_Kd)
     ID3D11Texture2D* whiteTex = nullptr;
@@ -310,7 +311,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11ShaderResourceView* pineappleTexView = nullptr;
     {
         int wTex, hTex, channels;
-        unsigned char* imageData = stbi_load("pineapple2.jpeg", &wTex, &hTex, &channels, 4);
+        unsigned char* imageData = stbi_load("image.png", &wTex, &hTex, &channels, 4);
         
         if (imageData)
         {
@@ -378,10 +379,13 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
     const float mouseSens = 0.1f;
 
     // Static cube world matrix
-    XMMATRIX staticCubeWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+    XMMATRIX staticCubeWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(30.0f, 1.0f, 0.0f);
 
     // Pineapple world matrix (at position 10, 0, 0)
-    XMMATRIX pineappleWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(10.0f, 0.0f, 0.0f);
+    XMMATRIX pineappleWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, -14.0f);
+
+    // SimpleCube world matrix (at origin)
+    XMMATRIX simpleCubeWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-2.0f, 0.0f, 0.0f);
 
     // Toggle key state
     static bool key1Prev = false;
@@ -588,6 +592,9 @@ subDiffuse,
 
             // Pineapple (static, no animation for now)
             {
+                // Debug flag for first frame output
+                static bool pineappleDebugFirstFrame = true;
+
                 MatrixPair staticPineappleData;
                 XMStoreFloat4x4(&staticPineappleData.world, XMMatrixTranspose(pineappleWorld));
                 XMStoreFloat4x4(&staticPineappleData.viewProj, XMMatrixTranspose(VIEW_PROJ));
@@ -601,17 +608,104 @@ subDiffuse,
                         // Update material buffer for pineapple submesh
                         updateMaterialBufferForSubMesh(pineAppleMesh, i);
 
+                        // Debug: print the material being used
+                        if (pineappleDebugFirstFrame)
+                        {
+                            const auto& matData = pineAppleMesh->GetMaterial(i);
+                            char matBuf[512];
+                            sprintf_s(matBuf, "Pineapple Material %zu: Kd=(%.3f, %.3f, %.3f), Ks=(%.3f, %.3f, %.3f), Ns=%.3f\n",
+                                i, matData.diffuse.x, matData.diffuse.y, matData.diffuse.z,
+                                matData.specular.x, matData.specular.y, matData.specular.z,
+                                matData.specularPower);
+                            OutputDebugStringA(matBuf);
+                        }
+
                         // Bind texture from MTL file (just like the cube does)
-      ID3D11ShaderResourceView* subDiffuse = pineAppleMesh->GetDiffuseSRV(i);
-         ID3D11ShaderResourceView* toBind = subDiffuse ? subDiffuse : whiteTexView;
-  immediateContext->PSSetShaderResources(0, 1, &toBind);
+                        ID3D11ShaderResourceView* subDiffuse = pineAppleMesh->GetDiffuseSRV(i);
+                        ID3D11ShaderResourceView* toBind = subDiffuse ? subDiffuse : whiteTexView;
+
+                        // Debug output to see what texture is being used
+                        if (pineappleDebugFirstFrame)
+                        {
+                            char buf[256];
+                            sprintf_s(buf, "Pineapple submesh %zu: diffuseSRV = %p, using %s texture\n",
+                                i,
+                                subDiffuse,
+                                subDiffuse ? "LOADED" : "WHITE FALLBACK");
+                            OutputDebugStringA(buf);
+                        }
+
+                        immediateContext->PSSetShaderResources(0, 1, &toBind);
 
                         pineAppleMesh->PerformSubMeshDrawCall(immediateContext, i);
 
-                         // Unbind after draw
-          ID3D11ShaderResourceView* nullSRV = nullptr;
-     immediateContext->PSSetShaderResources(0, 1, &nullSRV);
+                        // Unbind after draw
+                        ID3D11ShaderResourceView* nullSRV = nullptr;
+                        immediateContext->PSSetShaderResources(0, 1, &nullSRV);
                     }
+                    pineappleDebugFirstFrame = false;
+                }
+            }
+
+            // SimpleCube (at origin)
+            {
+                // Debug flag for first frame output
+                static bool simpleCubeDebugFirstFrame = true;
+
+                MatrixPair simpleCubeData;
+                XMStoreFloat4x4(&simpleCubeData.world, XMMatrixTranspose(simpleCubeWorld));
+                XMStoreFloat4x4(&simpleCubeData.viewProj, XMMatrixTranspose(VIEW_PROJ));
+                constantBuffer.UpdateBuffer(immediateContext, &simpleCubeData);
+
+                if (simpleCubeMesh)
+                {
+                    simpleCubeMesh->BindMeshBuffers(immediateContext);
+                    for (size_t i = 0; i < simpleCubeMesh->GetNrOfSubMeshes(); ++i)
+                    {
+                        // Debug: print the material being used
+                        if (simpleCubeDebugFirstFrame)
+                        {
+                            const auto& matData = simpleCubeMesh->GetMaterial(i);
+                            char matBuf[512];
+                            sprintf_s(matBuf, "SimpleCube Material %zu: Kd=(%.3f, %.3f, %.3f), Ks=(%.3f, %.3f, %.3f), Ns=%.3f\n",
+                                i, matData.diffuse.x, matData.diffuse.y, matData.diffuse.z,
+                                matData.specular.x, matData.specular.y, matData.specular.z,
+                                matData.specularPower);
+                            OutputDebugStringA(matBuf);
+                        }
+
+                        // TEMPORARY: Force a good material for testing
+                        Material testMaterial{
+                            XMFLOAT3(0.2f, 0.2f, 0.2f), 0.f,  // ambient
+                            XMFLOAT3(0.8f, 0.8f, 0.8f), 0.f,  // diffuse
+                            XMFLOAT3(1.0f, 1.0f, 1.0f), 100.f // specular with high power
+                        };
+                        materialBuffer.UpdateBuffer(immediateContext, &testMaterial);
+
+                        // Bind texture from MTL file
+                        ID3D11ShaderResourceView* subDiffuse = simpleCubeMesh->GetDiffuseSRV(i);
+                        ID3D11ShaderResourceView* toBind = subDiffuse ? subDiffuse : whiteTexView;
+
+                        // Debug output to see what texture is being used
+                        if (simpleCubeDebugFirstFrame)
+                        {
+                            char buf[256];
+                            sprintf_s(buf, "SimpleCube submesh %zu: diffuseSRV = %p, using %s texture\n",
+                                i,
+                                subDiffuse,
+                                subDiffuse ? "LOADED" : "WHITE FALLBACK");
+                            OutputDebugStringA(buf);
+                        }
+
+                        immediateContext->PSSetShaderResources(0, 1, &toBind);
+
+                        simpleCubeMesh->PerformSubMeshDrawCall(immediateContext, i);
+
+                        // Unbind after draw
+                        ID3D11ShaderResourceView* nullSRV = nullptr;
+                        immediateContext->PSSetShaderResources(0, 1, &nullSRV);
+                    }
+                    simpleCubeDebugFirstFrame = false;
                 }
             }
         }

@@ -310,7 +310,7 @@ void ParseNormal(const std::string& dataSection, ParseData& data)
     float y = GetLineFloat(dataSection, pos);
     ++pos; // skip space
     float z = GetLineFloat(dataSection, pos);
-    data.normals.push_back({ x, y, -z }); // Invert Z for left-handed coordinate system
+    data.normals.push_back({ x, y, z });
 }
 struct VertexData
 {
