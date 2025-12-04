@@ -1,14 +1,14 @@
 #include "CameraD3D11.h"
 #include <d3d11_4.h>
 #include <DirectXMath.h>
+#include <cmath>
 
 using namespace DirectX;
 
-// Helper struct matching the shader's camera constant buffer layout
 namespace {
     struct CameraBufferType {
         XMFLOAT3 position;
-        float    padding;  // Padding for 16-byte alignment
+        float    padding;
     };
 }
 
@@ -19,9 +19,9 @@ CameraD3D11::CameraD3D11(ID3D11Device* device,
     forward(0.0f, 0.0f, 1.0f),
     right(1.0f, 0.0f, 0.0f),
     up(0.0f, 1.0f, 0.0f),
-    projInfo(projectionInfo)
+    projInfo(projectionInfo),
+    pitch(0.0f)
 {
-    // Initialize the GPU constant buffer with the starting position
     CameraBufferType cb{ position, 0.0f };
     cameraBuffer.Initialize(device, sizeof(CameraBufferType), &cb);
 }
@@ -35,12 +35,12 @@ void CameraD3D11::Initialize(ID3D11Device* device,
     right = XMFLOAT3(1.0f, 0.0f, 0.0f);
     up = XMFLOAT3(0.0f, 1.0f, 0.0f);
     projInfo = projectionInfo;
+    pitch = 0.0f;
 
     CameraBufferType cb{ position, 0.0f };
     cameraBuffer.Initialize(device, sizeof(CameraBufferType), &cb);
 }
 
-// Move the camera along a given direction vector
 void CameraD3D11::MoveInDirection(float amount, const XMFLOAT3& direction)
 {
     XMVECTOR pos = XMLoadFloat3(&position);
@@ -61,7 +61,10 @@ void CameraD3D11::MoveRight(float amount)
 
 void CameraD3D11::MoveUp(float amount)
 {
-    MoveInDirection(amount, up);
+    XMVECTOR pos = XMLoadFloat3(&position);
+    XMVECTOR worldUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    pos = XMVectorAdd(pos, XMVectorScale(worldUp, amount));
+    XMStoreFloat3(&position, pos);
 }
 
 // Rotate the camera around a given axis
@@ -72,7 +75,6 @@ void CameraD3D11::RotateAroundAxis(float amount, const XMFLOAT3& axis)
 
     XMVECTOR f = XMVector3Rotate(XMLoadFloat3(&forward), q);
     XMVECTOR u = XMVector3Rotate(XMLoadFloat3(&up), q);
-    // Use up x forward for left-handed coordinate system
     XMVECTOR r = XMVector3Cross(u, f);
 
     XMStoreFloat3(&forward, XMVector3Normalize(f));
@@ -82,12 +84,31 @@ void CameraD3D11::RotateAroundAxis(float amount, const XMFLOAT3& axis)
 
 void CameraD3D11::RotateForward(float amount)
 {
+    const float maxPitch = XM_PIDIV2;
+
+    float newPitch = pitch + amount;
+
+    if (newPitch > maxPitch)
+    {
+        amount = maxPitch - pitch;
+        pitch = maxPitch;
+    }
+    else if (newPitch < -maxPitch)
+    {
+        amount = -maxPitch - pitch;
+        pitch = -maxPitch;
+    }
+    else
+    {
+        pitch = newPitch;
+    }
+
     RotateAroundAxis(amount, right);
 }
 
 void CameraD3D11::RotateRight(float amount)
 {
-    RotateAroundAxis(amount, up);
+    RotateAroundAxis(amount, XMFLOAT3(0.0f, 1.0f, 0.0f));
 }
 
 void CameraD3D11::RotateUp(float amount)
