@@ -31,7 +31,7 @@ public:
     // SRVs till lighting-pass (compute shader senare)
     ID3D11ShaderResourceView* GetAlbedoSRV() const;
     ID3D11ShaderResourceView* GetNormalSRV() const;
-    ID3D11ShaderResourceView* GetSpecSRV() const;
+    ID3D11ShaderResourceView* GetPositionSRV() const;
 
     // Om du vill kunna debug-kopiera dem direkt till backbuffer
     ID3D11RenderTargetView* GetAlbedoRTV() const { return albedoRT.GetRTV(); }

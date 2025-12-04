@@ -719,8 +719,8 @@ subDiffuse,
                 OutputDebugStringA("GBuffer Albedo SRV is NULL!\n");
             if (!gbuffer.GetNormalSRV())
                 OutputDebugStringA("GBuffer Normal SRV is NULL!\n");
-            if (!gbuffer.GetSpecSRV())
-                OutputDebugStringA("GBuffer Spec SRV is NULL!\n");
+            if (!gbuffer.GetPositionSRV())
+                OutputDebugStringA("GBuffer Position SRV is NULL!\n");
 
             // Unbind RTs before using as SRV in compute
             {
@@ -733,7 +733,7 @@ subDiffuse,
             {
                 gbuffer.GetAlbedoSRV(), // t0
                 gbuffer.GetNormalSRV(), // t1
-                gbuffer.GetSpecSRV()    // t2 (world pos)
+                gbuffer.GetPositionSRV()    // t2 (world pos)
             };
             immediateContext->CSSetShaderResources(0, 3, srvs);
 

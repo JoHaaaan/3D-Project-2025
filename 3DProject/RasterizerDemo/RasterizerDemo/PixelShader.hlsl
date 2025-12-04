@@ -1,10 +1,3 @@
-cbuffer LightBuffer : register(b1)
-{
-    float3 lightPosition;
-    float lightIntensity;
-    float3 lightColor;
-    float padding_Light;
-};
 
 cbuffer MaterialBuffer : register(b2)
 {
@@ -16,12 +9,6 @@ cbuffer MaterialBuffer : register(b2)
 
     float3 materialSpecular;
     float specularPower; // t.ex. upp till ~256
-};
-
-cbuffer CameraBuffer : register(b3)
-{
-    float3 cameraPosition;
-    float padding_Camera;
 };
 
 struct PS_INPUT

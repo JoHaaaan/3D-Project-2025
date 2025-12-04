@@ -8,21 +8,21 @@ void GBufferD3D11::Initialize(ID3D11Device* device,
     albedoRT.Initialize(device,
         width,
         height,
-        DXGI_FORMAT_R8G8B8A8_UNORM,
+        DXGI_FORMAT_R16G16B16A16_FLOAT,
         true); // hasSRV = true, vi vill läsa i lighting-pass
 
     // Normal – också RGBA8, vi packar normal i RGB (och ev. något i A)
     normalRT.Initialize(device,
         width,
         height,
-        DXGI_FORMAT_R8G8B8A8_UNORM,
+        DXGI_FORMAT_R16G16B16A16_FLOAT,
         true);
 
     // Position – också RGBA8 för enkelhetens skull
     positionRT.Initialize(device,
         width,
         height,
-        DXGI_FORMAT_R8G8B8A8_UNORM,
+        DXGI_FORMAT_R16G16B16A16_FLOAT,
         true);
 }
 
@@ -57,7 +57,7 @@ ID3D11ShaderResourceView* GBufferD3D11::GetNormalSRV() const
     return normalRT.GetSRV();
 }
 
-ID3D11ShaderResourceView* GBufferD3D11::GetSpecSRV() const
+ID3D11ShaderResourceView* GBufferD3D11::GetPositionSRV() const
 {
     return positionRT.GetSRV();
 }
