@@ -3,7 +3,7 @@ Ka 1.0 1.0 1.0
 Kd 1.0 1.0 1.0
 Ks 1.0 1.0 1.0
 d 1.0
-Ns 200.0
+Ns 64.0
 illum 0
 
 newmtl pineapple2
@@ -11,7 +11,7 @@ Ka 1.0 1.0 1.0
 Kd 1.0 1.0 1.0
 Ks 1.0 1.0 1.0
 d 1.0
-Ns 200.0
+Ns 64.0
 illum 0
 map_Kd pineapple2.jpeg
 
