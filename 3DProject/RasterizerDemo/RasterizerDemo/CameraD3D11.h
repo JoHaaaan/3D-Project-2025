@@ -22,6 +22,8 @@ private:
 	DirectX::XMFLOAT3 up = { 0.0f, 1.0f, 0.0f };
 	ProjectionInfo projInfo;
 
+	float pitch = 0.0f;
+
 	ConstantBufferD3D11 cameraBuffer;
 
 	void MoveInDirection(float amount, const DirectX::XMFLOAT3& direction);
