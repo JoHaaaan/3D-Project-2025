@@ -256,6 +256,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     // Camera setup
     ProjectionInfo proj{ FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE };
     camera.Initialize(device, proj, XMFLOAT3(0.0f, 0.0f, 4.0f));
+    
+    // Rotate camera 180 degrees (PI radians) around Y-axis at spawn
+    camera.RotateRight(XM_PI);
 
     // Create a white 1x1 fallback texture (used when material has no map_Kd)
     ID3D11Texture2D* whiteTex = nullptr;
@@ -385,7 +388,7 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
     XMMATRIX pineappleWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, -14.0f);
 
     // SimpleCube world matrix (at origin)
-    XMMATRIX simpleCubeWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-2.0f, 0.0f, 0.0f);
+    XMMATRIX simpleCubeWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-2.0f, 2.0f, 0.0f);
 
     // Toggle key state
     static bool key1Prev = false;
