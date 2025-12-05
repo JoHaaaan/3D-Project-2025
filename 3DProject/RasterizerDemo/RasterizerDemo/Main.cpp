@@ -20,6 +20,8 @@
 #include "OBJParser.h"
 #include "MeshD3D11.h"
 #include "GBufferD3D11.h"
+#include "GameObject.h"
+
 
 using namespace DirectX;
 #define STB_IMAGE_IMPLEMENTATION
@@ -378,17 +380,25 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
 
     auto previousTime = std::chrono::high_resolution_clock::now();
     float rotationAngle = 90.f;
-
     const float mouseSens = 0.1f;
 
-    // Static cube world matrix
-    XMMATRIX staticCubeWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(30.0f, 1.0f, 0.0f);
-
-    // Pineapple world matrix (at position 10, 0, 0)
-    XMMATRIX pineappleWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, -14.0f);
-
-    // SimpleCube world matrix (at origin)
-    XMMATRIX simpleCubeWorld = XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-2.0f, 2.0f, 0.0f);
+    // Create GameObjects
+    std::vector<GameObject> gameObjects;
+    
+    // Rotating cube with image quad
+    gameObjects.emplace_back(cubeMesh);
+    
+    // Static cube  
+    gameObjects.emplace_back(cubeMesh);
+    gameObjects[1].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(30.0f, 1.0f, 0.0f));
+    
+    // Pineapple
+    gameObjects.emplace_back(pineAppleMesh);
+    gameObjects[2].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, -14.0f));
+    
+    // SimpleCube
+    gameObjects.emplace_back(simpleCubeMesh);
+    gameObjects[3].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-2.0f, 2.0f, 0.0f));
 
     // Toggle key state
     static bool key1Prev = false;
@@ -414,11 +424,6 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
         float armLength = 0.7f;
         float x = armLength * cosf(rotationAngle);
         float z = armLength * sinf(rotationAngle);
-
-        XMMATRIX translation = XMMatrixTranslation(x, 0.f, z);
-        XMVECTOR  objectPos = XMVectorSet(x, 0.f, z, 1.f);
-        XMMATRIX  lookAtMatrix = XMMatrixLookAtLH(objectPos, XMVectorZero(), XMVectorSet(0.f, 1.f, 0.f, 0.f));
-        XMMATRIX  worldMatrix = XMMatrixTranspose(lookAtMatrix) * translation;
 
         // --- Toggle handling (1,2,3) ---
         short k1 = GetAsyncKeyState('1');
@@ -476,15 +481,13 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
         XMFLOAT4X4 vp = camera.GetViewProjectionMatrix();
         VIEW_PROJ = XMLoadFloat4x4(&vp);
 
-        // Debug camera position
-        /*
-        {
-            XMFLOAT3 p = camera.GetPosition();
-            char buf[128];
-            sprintf_s(buf, "Camera Pos: X=%.3f  Y=%.3f  Z=%.3f\n", p.x, p.y, p.z);
-            OutputDebugStringA(buf);
-        }
-        */
+        // Update rotating cube (GameObject 0)
+        XMMATRIX translation = XMMatrixTranslation(x, 0.f, z);
+        XMVECTOR objectPos = XMVectorSet(x, 0.f, z, 1.f);
+        XMMATRIX lookAtMatrix = XMMatrixLookAtLH(objectPos, XMVectorZero(), XMVectorSet(0.f, 1.f, 0.f, 0.f));
+        XMMATRIX worldMatrix = XMMatrixTranspose(lookAtMatrix) * translation;
+        gameObjects[0].SetWorldMatrix(worldMatrix);
+
         ID3D11DepthStencilView* myDSV = depthBuffer.GetDSV(0);
 
         // ----- GEOMETRY PASS TO G-BUFFER -----
@@ -510,206 +513,37 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
             immediateContext->PSSetShader(pShader, nullptr, 0);
 
             ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
-          immediateContext->VSSetConstantBuffers(0, 1, &cb0);
-            // Don't bind a global texture here - let each object bind its own texture
+            immediateContext->VSSetConstantBuffers(0, 1, &cb0);
+            
             ID3D11SamplerState* samplerPtr = samplerState.GetSamplerState();
             immediateContext->PSSetSamplers(0, 1, &samplerPtr);
 
-            // Rotating cube
+            // Render rotating quad with imageQuadVB
             {
                 MatrixPair rotatingData;
-                XMStoreFloat4x4(&rotatingData.world, XMMatrixTranspose(worldMatrix));
+                XMMATRIX worldMat = gameObjects[0].GetWorldMatrix();
+                XMStoreFloat4x4(&rotatingData.world, XMMatrixTranspose(worldMat));
                 XMStoreFloat4x4(&rotatingData.viewProj, XMMatrixTranspose(VIEW_PROJ));
                 constantBuffer.UpdateBuffer(immediateContext, &rotatingData);
 
-                // Rotating image plane (quad with pineapple2.jpeg texture for testing)
                 UINT stride = sizeof(SimpleVertex);
                 UINT offset = 0;
                 ID3D11Buffer* quadVB = imageQuadVB.GetBuffer();
                 immediateContext->IASetVertexBuffers(0, 1, &quadVB, &stride, &offset);
-  
-                // Bind the pineapple texture for testing
                 immediateContext->PSSetShaderResources(0, 1, &pineappleTexView);
-    
-                // Draw the quad (6 vertices = 2 triangles)
                 immediateContext->Draw(6, 0);
-            
-                // Unbind texture§
+                
                 ID3D11ShaderResourceView* nullSRV = nullptr;
                 immediateContext->PSSetShaderResources(0, 1, &nullSRV);
-   }
-
-            // Static cube
-            {
-     // Debug flag for first frame output
-          static bool cubeDebugFirstFrame = true;
-     
-MatrixPair staticData;
-      XMStoreFloat4x4(&staticData.world, XMMatrixTranspose(staticCubeWorld));
-         XMStoreFloat4x4(&staticData.viewProj, XMMatrixTranspose(VIEW_PROJ));
-       constantBuffer.UpdateBuffer(immediateContext, &staticData);
-
-     if (cubeMesh)
-     {
-           cubeMesh->BindMeshBuffers(immediateContext);
-  for (size_t i = 0; i < cubeMesh->GetNrOfSubMeshes(); ++i)
-        {
-   updateMaterialBufferForSubMesh(cubeMesh, i);
-
-  // Debug: print the material being used
-        if (cubeDebugFirstFrame)
-              {
-      const auto& matData = cubeMesh->GetMaterial(i);
-              char matBuf[512];
-     sprintf_s(matBuf, "  Material %zu: Kd=(%.3f, %.3f, %.3f)\n",
-      i, matData.diffuse.x, matData.diffuse.y, matData.diffuse.z);
-           OutputDebugStringA(matBuf);
-         }
-
-       // Bind diffuse texture for this submesh (t0).
-       ID3D11ShaderResourceView* subDiffuse = cubeMesh->GetDiffuseSRV(i);
-       ID3D11ShaderResourceView* toBind = subDiffuse ? subDiffuse : whiteTexView;
-
-      // Debug output to see what texture is being used
-   if (cubeDebugFirstFrame)
-       {
-         char buf[256];
-sprintf_s(buf, "Cube submesh %zu: diffuseSRV = %p, using %s texture\n", 
-    i, 
-subDiffuse, 
-    subDiffuse ? "LOADED" : "WHITE FALLBACK");
-       OutputDebugStringA(buf);
-    }
-        
-            immediateContext->PSSetShaderResources(0, 1, &toBind);
-
-     cubeMesh->PerformSubMeshDrawCall(immediateContext, i);
-
-             // Optional: unbind after draw to avoid keeping resource bound
-  ID3D11ShaderResourceView* nullSRV = nullptr;
-        immediateContext->PSSetShaderResources(0, 1, &nullSRV);
-        }
-        cubeDebugFirstFrame = false;
-       }
-     }
-
-            // Pineapple (static, no animation for now)
-            {
-                // Debug flag for first frame output
-                static bool pineappleDebugFirstFrame = true;
-
-                MatrixPair staticPineappleData;
-                XMStoreFloat4x4(&staticPineappleData.world, XMMatrixTranspose(pineappleWorld));
-                XMStoreFloat4x4(&staticPineappleData.viewProj, XMMatrixTranspose(VIEW_PROJ));
-                constantBuffer.UpdateBuffer(immediateContext, &staticPineappleData);
-
-                if (pineAppleMesh)
-                {
-                    pineAppleMesh->BindMeshBuffers(immediateContext);
-                    for (size_t i = 0; i < pineAppleMesh->GetNrOfSubMeshes(); ++i)
-                    {
-                        // Update material buffer for pineapple submesh
-                        updateMaterialBufferForSubMesh(pineAppleMesh, i);
-
-                        // Debug: print the material being used
-                        if (pineappleDebugFirstFrame)
-                        {
-                            const auto& matData = pineAppleMesh->GetMaterial(i);
-                            char matBuf[512];
-                            sprintf_s(matBuf, "Pineapple Material %zu: Kd=(%.3f, %.3f, %.3f), Ks=(%.3f, %.3f, %.3f), Ns=%.3f\n",
-                                i, matData.diffuse.x, matData.diffuse.y, matData.diffuse.z,
-                                matData.specular.x, matData.specular.y, matData.specular.z,
-                                matData.specularPower);
-                            OutputDebugStringA(matBuf);
-                        }
-
-                        // Bind texture from MTL file (just like the cube does)
-                        ID3D11ShaderResourceView* subDiffuse = pineAppleMesh->GetDiffuseSRV(i);
-                        ID3D11ShaderResourceView* toBind = subDiffuse ? subDiffuse : whiteTexView;
-
-                        // Debug output to see what texture is being used
-                        if (pineappleDebugFirstFrame)
-                        {
-                            char buf[256];
-                            sprintf_s(buf, "Pineapple submesh %zu: diffuseSRV = %p, using %s texture\n",
-                                i,
-                                subDiffuse,
-                                subDiffuse ? "LOADED" : "WHITE FALLBACK");
-                            OutputDebugStringA(buf);
-                        }
-
-                        immediateContext->PSSetShaderResources(0, 1, &toBind);
-
-                        pineAppleMesh->PerformSubMeshDrawCall(immediateContext, i);
-
-                        // Unbind after draw
-                        ID3D11ShaderResourceView* nullSRV = nullptr;
-                        immediateContext->PSSetShaderResources(0, 1, &nullSRV);
-                    }
-                    pineappleDebugFirstFrame = false;
-                }
             }
 
-            // SimpleCube (at origin)
+            // Render all GameObjects
+            for (auto& gameObject : gameObjects)
             {
-                // Debug flag for first frame output
-                static bool simpleCubeDebugFirstFrame = true;
-
-                MatrixPair simpleCubeData;
-                XMStoreFloat4x4(&simpleCubeData.world, XMMatrixTranspose(simpleCubeWorld));
-                XMStoreFloat4x4(&simpleCubeData.viewProj, XMMatrixTranspose(VIEW_PROJ));
-                constantBuffer.UpdateBuffer(immediateContext, &simpleCubeData);
-
-                if (simpleCubeMesh)
-                {
-                    simpleCubeMesh->BindMeshBuffers(immediateContext);
-                    for (size_t i = 0; i < simpleCubeMesh->GetNrOfSubMeshes(); ++i)
-                    {
-                        // Debug: print the material being used
-                        if (simpleCubeDebugFirstFrame)
-                        {
-                            const auto& matData = simpleCubeMesh->GetMaterial(i);
-                            char matBuf[512];
-                            sprintf_s(matBuf, "SimpleCube Material %zu: Kd=(%.3f, %.3f, %.3f), Ks=(%.3f, %.3f, %.3f), Ns=%.3f\n",
-                                i, matData.diffuse.x, matData.diffuse.y, matData.diffuse.z,
-                                matData.specular.x, matData.specular.y, matData.specular.z,
-                                matData.specularPower);
-                            OutputDebugStringA(matBuf);
-                        }
-
-                        // TEMPORARY: Force a good material for testing
-                        Material testMaterial{
-                            XMFLOAT3(0.2f, 0.2f, 0.2f), 0.f,  // ambient
-                            XMFLOAT3(0.8f, 0.8f, 0.8f), 0.f,  // diffuse
-                            XMFLOAT3(1.0f, 1.0f, 1.0f), 100.f // specular with high power
-                        };
-                        materialBuffer.UpdateBuffer(immediateContext, &testMaterial);
-
-                        // Bind texture from MTL file
-                        ID3D11ShaderResourceView* subDiffuse = simpleCubeMesh->GetDiffuseSRV(i);
-                        ID3D11ShaderResourceView* toBind = subDiffuse ? subDiffuse : whiteTexView;
-
-                        // Debug output to see what texture is being used
-                        if (simpleCubeDebugFirstFrame)
-                        {
-                            char buf[256];
-                            sprintf_s(buf, "SimpleCube submesh %zu: diffuseSRV = %p, using %s texture\n",
-                                i,
-                                subDiffuse,
-                                subDiffuse ? "LOADED" : "WHITE FALLBACK");
-                            OutputDebugStringA(buf);
-                        }
-
-                        immediateContext->PSSetShaderResources(0, 1, &toBind);
-
-                        simpleCubeMesh->PerformSubMeshDrawCall(immediateContext, i);
-
-                        // Unbind after draw
-                        ID3D11ShaderResourceView* nullSRV = nullptr;
-                        immediateContext->PSSetShaderResources(0, 1, &nullSRV);
-                    }
-                    simpleCubeDebugFirstFrame = false;
-                }
+                gameObject.Draw(immediateContext, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
+                
+                ID3D11ShaderResourceView* nullSRV = nullptr;
+                immediateContext->PSSetShaderResources(0, 1, &nullSRV);
             }
         }
 
