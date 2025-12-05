@@ -21,7 +21,8 @@
 #include "MeshD3D11.h"
 #include "GBufferD3D11.h"
 #include "GameObject.h"
-
+#include "ShadowMapD3D11.h"
+#include "StructuredBufferD3D11.h"
 
 using namespace DirectX;
 #define STB_IMAGE_IMPLEMENTATION
@@ -45,6 +46,22 @@ struct Light
     float    padding;
 };
 
+// Update this struct in your C++ code
+struct LightData
+{
+    DirectX::XMFLOAT4X4 viewProj; // 64 bytes (The light's "camera" matrix)
+    DirectX::XMFLOAT3 position;   // 12 bytes
+    float intensity;              // 4 bytes
+    DirectX::XMFLOAT3 direction;  // 12 bytes
+    float range;                  // 4 bytes
+    DirectX::XMFLOAT3 color;      // 12 bytes
+    float spotAngle;              // 4 bytes (for spot lights)
+    int type;                     // 4 bytes (0 = Directional, 1 = Spot)
+    int enabled;                  // 4 bytes
+    float padding[2];             // 8 bytes (Align to 16 bytes if necessary)
+};
+// Total size must be a multiple of 16 bytes for StructuredBuffers
+
 struct Material
 {
     XMFLOAT3 ambient;
@@ -58,8 +75,8 @@ struct Material
 struct LightingToggles
 {
     int showAlbedoOnly; // 1 = show only albedo
-    int enableDiffuse;  // 1 = enable diffuse
-    int enableSpecular; // 1 = enable specular
+    int enableDiffuse;  // 2 = enable diffuse
+    int enableSpecular; // 3 = enable specular
     int padding;        // unused, for 16-byte alignment
 };
 
