@@ -630,7 +630,7 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
 
     if (pineappleTexView && pineappleTexView != whiteTexView) pineappleTexView->Release();
     if (whiteTexView) whiteTexView->Release();
-textureView->Release();
+    textureView->Release();
     texture->Release();
     pShader->Release();
     vShader->Release();
