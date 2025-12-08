@@ -167,6 +167,7 @@
     <ClCompile Include="SamplerD3D11.cpp" />
     <ClCompile Include="ShaderD3D11.cpp" />
     <ClCompile Include="ShaderResourceTextureD3D11.cpp" />
+    <ClCompile Include="ShadowMapD3D11.cpp" />
     <ClCompile Include="SpotLightCollectionD3D11.cpp" />
     <ClCompile Include="StructuredBufferD3D11.cpp" />
     <ClCompile Include="SubMeshD3D11.cpp" />
@@ -220,6 +221,7 @@
     <ClInclude Include="SamplerD3D11.h" />
     <ClInclude Include="ShaderD3D11.h" />
     <ClInclude Include="ShaderResourceTextureD3D11.h" />
+    <ClInclude Include="ShadowMapD3D11.h" />
     <ClInclude Include="SpotLightCollectionD3D11.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="StructuredBufferD3D11.h" />

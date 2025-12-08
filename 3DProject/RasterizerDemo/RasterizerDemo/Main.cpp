@@ -23,6 +23,7 @@
 #include "GameObject.h"
 #include "ShadowMapD3D11.h"
 #include "StructuredBufferD3D11.h"
+#include "SpotLightCollectionD3D11.h"
 
 using namespace DirectX;
 #define STB_IMAGE_IMPLEMENTATION
@@ -36,31 +37,6 @@ static const float FAR_PLANE = 100.0f;
 
 XMMATRIX PROJECTION = XMMatrixPerspectiveFovLH(FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE);
 XMMATRIX VIEW_PROJ;
-
-// Structures
-struct Light
-{
-    XMFLOAT3 position;
-    float    intensity;
-    XMFLOAT3 color;
-    float    padding;
-};
-
-// Update this struct in your C++ code
-struct LightData
-{
-    DirectX::XMFLOAT4X4 viewProj; // 64 bytes (The light's "camera" matrix)
-    DirectX::XMFLOAT3 position;   // 12 bytes
-    float intensity;              // 4 bytes
-    DirectX::XMFLOAT3 direction;  // 12 bytes
-    float range;                  // 4 bytes
-    DirectX::XMFLOAT3 color;      // 12 bytes
-    float spotAngle;              // 4 bytes (for spot lights)
-    int type;                     // 4 bytes (0 = Directional, 1 = Spot)
-    int enabled;                  // 4 bytes
-    float padding[2];             // 8 bytes (Align to 16 bytes if necessary)
-};
-// Total size must be a multiple of 16 bytes for StructuredBuffers
 
 struct Material
 {
@@ -107,9 +83,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11Texture2D* texture = nullptr;
     ID3D11ShaderResourceView* textureView = nullptr;
     SamplerD3D11 samplerState;
-    ConstantBufferD3D11 lightBuffer;
     ConstantBufferD3D11 materialBuffer;
-    ConstantBufferD3D11 lightingToggleCB; // NEW constant buffer for toggles
+    ConstantBufferD3D11 lightingToggleCB;
     CameraD3D11 camera;
 
     // Compute related
@@ -128,6 +103,108 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     // G-buffer
     GBufferD3D11 gbuffer;
     gbuffer.Initialize(device, WIDTH, HEIGHT);
+
+    // --- SHADOW MAPPING SETUP ---
+
+    // 1. Create Shadow Map Resources
+    ShadowMapD3D11 shadowMap;
+    // 2048x2048 resolution, 4 slices (for 4 lights)
+    if (!shadowMap.Initialize(device, 2048, 2048, 4))
+    {
+        OutputDebugStringA("Failed to initialize Shadow Map!\n");
+        return -1;
+    }
+
+    // 2. Define Lights (At least 4 required: 1 Directional + 1 Spot minimum)
+    std::vector<LightData> lights;
+    lights.resize(4);
+
+    // Light 0: Directional Light (The Sun)
+    {
+        lights[0].type = 0; // Directional
+        lights[0].enabled = 1;
+        lights[0].color = XMFLOAT3(1.0f, 0.9f, 0.8f);
+        lights[0].intensity = 2.0f; // Increased from 1.0
+        lights[0].position = XMFLOAT3(20.0f, 30.0f, -20.0f); // Position only needed for shadow matrix
+        lights[0].direction = XMFLOAT3(-1.0f, -1.0f, 1.0f); // Pointing down-inward
+
+        // View Matrix (Look at origin)
+        XMVECTOR lightPos = XMLoadFloat3(&lights[0].position);
+        XMVECTOR lightDir = XMLoadFloat3(&lights[0].direction);
+        XMMATRIX view = XMMatrixLookToLH(lightPos, lightDir, XMVectorSet(0, 1, 0, 0));
+
+        // Projection Matrix (Orthographic for Directional Lights)
+        // Width/Height covers the scene size (e.g., 50x50 units)
+        XMMATRIX proj = XMMatrixOrthographicLH(60.0f, 60.0f, 1.0f, 100.0f);
+
+        // Store Transposed ViewProj
+        XMStoreFloat4x4(&lights[0].viewProj, XMMatrixTranspose(view * proj));
+    }
+
+    // Light 1: Spot Light (Green)
+    {
+        lights[1].type = 1; // Spot
+        lights[1].enabled = 1;
+        lights[1].color = XMFLOAT3(0.0f, 1.0f, 0.0f);
+        lights[1].intensity = 10.0f; // Increased from 2.0
+        lights[1].position = XMFLOAT3(0.0f, 10.0f, 0.0f); // Above center
+        lights[1].direction = XMFLOAT3(0.0f, -1.0f, 0.0f); // Pointing down
+        lights[1].range = 50.0f; // Increased from 30.0
+        lights[1].spotAngle = XMConvertToRadians(60.0f); // Wider cone
+
+        // View Matrix
+        XMVECTOR lightPos = XMLoadFloat3(&lights[1].position);
+        XMVECTOR lightDir = XMLoadFloat3(&lights[1].direction);
+        XMMATRIX view = XMMatrixLookToLH(lightPos, lightDir, XMVectorSet(1, 0, 0, 0)); // Up vector X if looking down Y
+
+        // Projection Matrix (Perspective for Spot Lights)
+        XMMATRIX proj = XMMatrixPerspectiveFovLH(lights[1].spotAngle, 1.0f, 0.5f, 50.0f);
+
+        XMStoreFloat4x4(&lights[1].viewProj, XMMatrixTranspose(view * proj));
+    }
+
+    // Light 2: Spot Light (Red)
+    {
+        lights[2] = lights[1]; // Copy settings
+        lights[2].color = XMFLOAT3(1.0f, 0.0f, 0.0f);
+        lights[2].position = XMFLOAT3(-10.0f, 5.0f, -5.0f);
+        lights[2].direction = XMFLOAT3(1.0f, -0.5f, 1.0f);
+
+        XMVECTOR lightPos = XMLoadFloat3(&lights[2].position);
+        XMVECTOR lightDir = XMLoadFloat3(&lights[2].direction);
+        XMMATRIX view = XMMatrixLookToLH(lightPos, lightDir, XMVectorSet(0, 1, 0, 0));
+        XMMATRIX proj = XMMatrixPerspectiveFovLH(lights[2].spotAngle, 1.0f, 0.5f, 50.0f);
+        XMStoreFloat4x4(&lights[2].viewProj, XMMatrixTranspose(view * proj));
+    }
+
+    // Light 3: Spot Light (Blue)
+    {
+        lights[3] = lights[1]; // Copy settings
+        lights[3].color = XMFLOAT3(0.0f, 0.0f, 1.0f);
+        lights[3].position = XMFLOAT3(10.0f, 5.0f, -5.0f);
+        lights[3].direction = XMFLOAT3(-1.0f, -0.5f, 1.0f);
+
+        XMVECTOR lightPos = XMLoadFloat3(&lights[3].position);
+        XMVECTOR lightDir = XMLoadFloat3(&lights[3].direction);
+        XMMATRIX view = XMMatrixLookToLH(lightPos, lightDir, XMVectorSet(0, 1, 0, 0));
+        XMMATRIX proj = XMMatrixPerspectiveFovLH(lights[3].spotAngle, 1.0f, 0.5f, 50.0f);
+        XMStoreFloat4x4(&lights[3].viewProj, XMMatrixTranspose(view * proj));
+    }
+
+    // 3. Create Structured Buffer for Lights
+    StructuredBufferD3D11 lightStructuredBuffer;
+    lightStructuredBuffer.Initialize(device, sizeof(LightData), (UINT)lights.size(), lights.data());
+    
+    OutputDebugStringA("Light Structured Buffer created with 4 lights:\n");
+    char debugBuf[256];
+    for (size_t i = 0; i < lights.size(); ++i)
+    {
+        sprintf_s(debugBuf, "  Light %zu: Type=%d, Enabled=%d, Color=(%.2f,%.2f,%.2f), Intensity=%.2f\n",
+            i, lights[i].type, lights[i].enabled, 
+            lights[i].color.x, lights[i].color.y, lights[i].color.z,
+            lights[i].intensity);
+        OutputDebugStringA(debugBuf);
+    }
 
     // Create compute output texture + UAV
     {
@@ -182,10 +259,14 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             {
                 OutputDebugStringA("Failed to create compute shader!\n");
             }
+            else
+            {
+                OutputDebugStringA("Successfully loaded LightingCS.cso and created compute shader!\n");
+            }
         }
         else
         {
-            OutputDebugStringA("Could not open LightingCS.cso\n");
+            OutputDebugStringA("Could not open LightingCS.cso - FILE NOT FOUND!\n");
         }
     }
 
@@ -234,10 +315,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     // Matrix constant buffer
     constantBuffer.Initialize(device, sizeof(MatrixPair));
-    
-    // Light buffer
-    Light lightData{ XMFLOAT3(0.0f, 0.0f, 4.0f), 1.0f, XMFLOAT3(1.0f, 1.0f, 1.0f), 0.0f };
-    lightBuffer.Initialize(device, sizeof(Light), &lightData);
+
 
     // Mesh
     const MeshD3D11* cubeMesh = GetMesh("cube.obj", device);
@@ -274,10 +352,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     // Camera setup
     ProjectionInfo proj{ FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE };
-    camera.Initialize(device, proj, XMFLOAT3(0.0f, 0.0f, 4.0f));
+    camera.Initialize(device, proj, XMFLOAT3(0.0f, 5.0f, -10.0f));
     
-    // Rotate camera 180 degrees (PI radians) around Y-axis at spawn
-    camera.RotateRight(XM_PI);
+    // Rotate camera to look at origin
+    camera.RotateForward(XMConvertToRadians(-20.0f));
 
     // Create a white 1x1 fallback texture (used when material has no map_Kd)
     ID3D11Texture2D* whiteTex = nullptr;
@@ -367,12 +445,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     samplerState.Initialize(device, D3D11_TEXTURE_ADDRESS_WRAP);
 
-    ID3D11Buffer* lightCB = lightBuffer.GetBuffer();
     ID3D11Buffer* materialCB = materialBuffer.GetBuffer();
     ID3D11Buffer* cameraCB = camera.GetConstantBuffer();
 
-    // Still bound to PS for geometry pass
-    immediateContext->PSSetConstantBuffers(1, 1, &lightCB);
+    // Bind material and camera to PS for geometry pass
     immediateContext->PSSetConstantBuffers(2, 1, &materialCB);
     immediateContext->PSSetConstantBuffers(3, 1, &cameraCB);
 
@@ -392,7 +468,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
       matData.specular, matData.specularPower
             };
 
-materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
+    materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
    };
 
     auto previousTime = std::chrono::high_resolution_clock::now();
@@ -566,57 +642,88 @@ materialBuffer.UpdateBuffer(immediateContext, &currentMaterial);
 
         // ----- LIGHTING PASS (COMPUTE SHADER) -----
         {
-            if (!gbuffer.GetAlbedoSRV())
-                OutputDebugStringA("GBuffer Albedo SRV is NULL!\n");
-            if (!gbuffer.GetNormalSRV())
-                OutputDebugStringA("GBuffer Normal SRV is NULL!\n");
-            if (!gbuffer.GetPositionSRV())
-                OutputDebugStringA("GBuffer Position SRV is NULL!\n");
-
-            // Unbind RTs before using as SRV in compute
+            if (!lightingCS)
             {
-                ID3D11RenderTargetView* nullRTVs[3] = { nullptr, nullptr, nullptr };
-                immediateContext->OMSetRenderTargets(3, nullRTVs, nullptr);
+                OutputDebugStringA("ERROR: NO COMPUTE SHADER - Skipping lighting pass!\n");
+                // Copy albedo directly to output as fallback
+                if (lightingTex && gbuffer.GetAlbedoSRV())
+                {
+                    ID3D11Resource* albedoResource = nullptr;
+                    gbuffer.GetAlbedoSRV()->GetResource(&albedoResource);
+                    if (albedoResource)
+                    {
+                        immediateContext->CopyResource(lightingTex, (ID3D11Texture2D*)albedoResource);
+                        albedoResource->Release();
+                    }
+                }
             }
-
-            // Bind G-buffer SRVs t0,t1,t2
-            ID3D11ShaderResourceView* srvs[3] =
+            else
             {
-                gbuffer.GetAlbedoSRV(), // t0
-                gbuffer.GetNormalSRV(), // t1
-                gbuffer.GetPositionSRV()    // t2 (world pos)
-            };
-            immediateContext->CSSetShaderResources(0, 3, srvs);
+                if (!gbuffer.GetAlbedoSRV())
+                    OutputDebugStringA("GBuffer Albedo SRV is NULL!\n");
+                if (!gbuffer.GetNormalSRV())
+                    OutputDebugStringA("GBuffer Normal SRV is NULL!\n");
+                if (!gbuffer.GetPositionSRV())
+                    OutputDebugStringA("GBuffer Position SRV is NULL!\n");
+                
+                if (!lightStructuredBuffer.GetSRV())
+                    OutputDebugStringA("ERROR: Light structured buffer SRV is NULL!\n");
 
-            // Bind light + camera to b1,b2
-            ID3D11Buffer* csCBs[2] = { lightCB, cameraCB };
-            immediateContext->CSSetConstantBuffers(1, 2, csCBs);
+                // Unbind RTs before using as SRV in compute
+                {
+                    ID3D11RenderTargetView* nullRTVs[3] = { nullptr, nullptr, nullptr };
+                    immediateContext->OMSetRenderTargets(3, nullRTVs, nullptr);
+                }
 
-            // Bind toggle buffer to b4
-            ID3D11Buffer* toggleCBBuf = lightingToggleCB.GetBuffer();
-            immediateContext->CSSetConstantBuffers(4, 1, &toggleCBBuf);
+                // Bind G-buffer SRVs t0,t1,t2
+                ID3D11ShaderResourceView* srvs[3] =
+                {
+                    gbuffer.GetAlbedoSRV(), // t0
+                    gbuffer.GetNormalSRV(), // t1
+                    gbuffer.GetPositionSRV()    // t2 (world pos)
+                };
+                immediateContext->CSSetShaderResources(0, 3, srvs);
 
-            // Bind UAV
-            ID3D11UnorderedAccessView* uavs[1] = { lightingUAV };
-            UINT initialCounts[1] = { 0 };
-            immediateContext->CSSetUnorderedAccessViews(0, 1, uavs, initialCounts);
+                // Bind light structured buffer t4 and camera to b2
+                ID3D11ShaderResourceView* lightSRV = lightStructuredBuffer.GetSRV();
+                immediateContext->CSSetShaderResources(4, 1, &lightSRV);
+                immediateContext->CSSetConstantBuffers(2, 1, &cameraCB);
 
-            // Run compute
-            immediateContext->CSSetShader(lightingCS, nullptr, 0);
+                // Bind toggle buffer to b4
+                ID3D11Buffer* toggleCBBuf = lightingToggleCB.GetBuffer();
+                immediateContext->CSSetConstantBuffers(4, 1, &toggleCBBuf);
 
-            UINT groupsX = (WIDTH + 15) / 16;
-            UINT groupsY = (HEIGHT + 15) / 16;
-            immediateContext->Dispatch(groupsX, groupsY, 1);
+                // Bind UAV
+                ID3D11UnorderedAccessView* uavs[1] = { lightingUAV };
+                UINT initialCounts[1] = { 0 };
+                immediateContext->CSSetUnorderedAccessViews(0, 1, uavs, initialCounts);
 
-            // Cleanup bindings
-            ID3D11ShaderResourceView* nullSRVs[3] = { nullptr, nullptr, nullptr };
-            immediateContext->CSSetShaderResources(0, 3, nullSRVs);
+                // Run compute
+                immediateContext->CSSetShader(lightingCS, nullptr, 0);
 
-            ID3D11UnorderedAccessView* nullUAVs[1] = { nullptr };
-            UINT zeros[1] = { 0 };
-            immediateContext->CSSetUnorderedAccessViews(0, 1, nullUAVs, zeros);
+                UINT groupsX = (WIDTH + 15) / 16;
+                UINT groupsY = (HEIGHT + 15) / 16;
+                immediateContext->Dispatch(groupsX, groupsY, 1);
+                
+                static bool firstFrame = true;
+                if (firstFrame)
+                {
+                    char buf[128];
+                    sprintf_s(buf, "Dispatching compute shader: %dx%d groups\n", groupsX, groupsY);
+                    OutputDebugStringA(buf);
+                    firstFrame = false;
+                }
 
-            immediateContext->CSSetShader(nullptr, nullptr, 0);
+                // Cleanup bindings
+                ID3D11ShaderResourceView* nullSRVs[5] = { nullptr, nullptr, nullptr, nullptr, nullptr };
+                immediateContext->CSSetShaderResources(0, 5, nullSRVs);
+
+                ID3D11UnorderedAccessView* nullUAVs[1] = { nullptr };
+                UINT zeros[1] = { 0 };
+                immediateContext->CSSetUnorderedAccessViews(0, 1, nullUAVs, zeros);
+
+                immediateContext->CSSetShader(nullptr, nullptr, 0);
+            }
         }
 
         // Copy compute result to backbuffer

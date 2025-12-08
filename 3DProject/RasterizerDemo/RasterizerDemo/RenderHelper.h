@@ -5,7 +5,21 @@
 #include <DirectXMath.h>
 using namespace DirectX;
 
+// In RenderHelper.h
 
+struct LightData
+{
+    DirectX::XMFLOAT4X4 viewProj; // 64 bytes - The light's view-projection matrix
+    DirectX::XMFLOAT3 position;   // 12 bytes
+    float intensity;              // 4 bytes
+    DirectX::XMFLOAT3 direction;  // 12 bytes
+    float range;                  // 4 bytes
+    DirectX::XMFLOAT3 color;      // 12 bytes
+    float spotAngle;              // 4 bytes
+    int type;                     // 4 bytes (0 = Directional, 1 = Spot)
+    int enabled;                  // 4 bytes
+    float padding[2];             // 8 bytes (Total size = 128 bytes, 16-byte aligned)
+};
 
 struct MatrixPair {
     XMFLOAT4X4 world;
