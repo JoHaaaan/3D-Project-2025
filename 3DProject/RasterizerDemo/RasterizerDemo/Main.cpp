@@ -445,6 +445,31 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     samplerState.Initialize(device, D3D11_TEXTURE_ADDRESS_WRAP);
 
+    // Create shadow comparison sampler for PCF
+    ID3D11SamplerState* shadowSampler = nullptr;
+    {
+        D3D11_SAMPLER_DESC desc = {};
+        desc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+        desc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+        desc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+        desc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+        desc.BorderColor[0] = 1.0f; // Outside shadow = fully lit
+        desc.BorderColor[1] = 1.0f;
+        desc.BorderColor[2] = 1.0f;
+        desc.BorderColor[3] = 1.0f;
+        desc.ComparisonFunc = D3D11_COMPARISON_LESS_EQUAL;
+        
+        HRESULT hr = device->CreateSamplerState(&desc, &shadowSampler);
+        if (FAILED(hr))
+        {
+            OutputDebugStringA("Failed to create shadow sampler!\n");
+        }
+        else
+        {
+            OutputDebugStringA("Shadow sampler created successfully!\n");
+        }
+    }
+
     ID3D11Buffer* materialCB = materialBuffer.GetBuffer();
     ID3D11Buffer* cameraCB = camera.GetConstantBuffer();
 
@@ -481,7 +506,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     // Rotating cube with image quad
     gameObjects.emplace_back(cubeMesh);
     
-    // Static cube  
+  // Static cube  
     gameObjects.emplace_back(cubeMesh);
     gameObjects[1].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(30.0f, 1.0f, 0.0f));
     
@@ -489,9 +514,17 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     gameObjects.emplace_back(pineAppleMesh);
     gameObjects[2].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(0.0f, 0.0f, -14.0f));
     
-    // SimpleCube
+    // SimpleCube 1
     gameObjects.emplace_back(simpleCubeMesh);
     gameObjects[3].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-2.0f, 2.0f, 0.0f));
+    
+    // SimpleCube 2 (NEW - next to SimpleCube 1)
+    gameObjects.emplace_back(simpleCubeMesh);
+    gameObjects[4].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(2.0f, 2.0f, 0.0f));
+    
+    // SimpleCube 3 (NEW - on the ground to catch shadows)
+    gameObjects.emplace_back(simpleCubeMesh);
+    gameObjects[5].SetWorldMatrix(XMMatrixScaling(5.0f, 0.2f, 5.0f) * XMMatrixTranslation(0.0f, -1.0f, 0.0f)); // Flat ground plane
 
     // Toggle key state
     static bool key1Prev = false;
@@ -582,6 +615,98 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         gameObjects[0].SetWorldMatrix(worldMatrix);
 
         ID3D11DepthStencilView* myDSV = depthBuffer.GetDSV(0);
+
+  // ----- SHADOW PASS (Render depth from each light's perspective) -----
+        {
+      static bool firstShadowFrame = true;
+            if (firstShadowFrame)
+ {
+  OutputDebugStringA("\n=== SHADOW PASS START (First Frame) ===\n");
+            }
+ 
+          // Set up for depth-only rendering
+     immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
+            immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            immediateContext->VSSetShader(vShader, nullptr, 0);
+            immediateContext->PSSetShader(nullptr, nullptr, 0); // No pixel shader for depth-only
+       
+   ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
+  immediateContext->VSSetConstantBuffers(0, 1, &cb0);
+            
+     // Render shadow map for each light
+  for (size_t lightIndex = 0; lightIndex < lights.size(); ++lightIndex)
+     {
+     if (firstShadowFrame)
+  {
+          char debugBuf[256];
+     sprintf_s(debugBuf, "  Light %zu: type=%d, enabled=%d, position=(%.2f,%.2f,%.2f), direction=(%.2f,%.2f,%.2f)\n", 
+           lightIndex, lights[lightIndex].type, lights[lightIndex].enabled,
+            lights[lightIndex].position.x, lights[lightIndex].position.y, lights[lightIndex].position.z,
+         lights[lightIndex].direction.x, lights[lightIndex].direction.y, lights[lightIndex].direction.z);
+        OutputDebugStringA(debugBuf);
+        }
+                
+     // Bind shadow map DSV for this light
+    ID3D11DepthStencilView* shadowDSV = shadowMap.GetDSV(static_cast<UINT>(lightIndex));
+         if (!shadowDSV)
+      {
+        OutputDebugStringA("    ERROR: Shadow DSV is NULL!\n");
+            continue;
+          }
+ 
+       // Clear depth
+  immediateContext->ClearDepthStencilView(shadowDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+                
+      // Set shadow map viewport
+                D3D11_VIEWPORT shadowViewport = shadowMap.GetViewport();
+  immediateContext->RSSetViewports(1, &shadowViewport);
+       
+        // Bind shadow DSV (no color target)
+                ID3D11RenderTargetView* nullRTV = nullptr;
+                immediateContext->OMSetRenderTargets(1, &nullRTV, shadowDSV);
+        
+     // Load light's view-projection matrix
+        XMMATRIX lightVP = XMLoadFloat4x4(&lights[lightIndex].viewProj);
+    
+        // Render all game objects from light's perspective
+            int objectCount = 0;
+        for (auto& gameObject : gameObjects)
+   {
+      MatrixPair shadowData;
+              XMMATRIX worldMat = gameObject.GetWorldMatrix();
+  
+         XMStoreFloat4x4(&shadowData.world, XMMatrixTranspose(worldMat));
+   XMStoreFloat4x4(&shadowData.viewProj, XMMatrixTranspose(lightVP));
+ 
+                constantBuffer.UpdateBuffer(immediateContext, &shadowData);
+   
+             // Draw depth only (no textures or material updates needed)
+         const MeshD3D11* mesh = gameObject.GetMesh();
+        if (mesh)
+  {
+            mesh->BindMeshBuffers(immediateContext);
+      for (size_t i = 0; i < mesh->GetNrOfSubMeshes(); ++i)
+     {
+                  mesh->PerformSubMeshDrawCall(immediateContext, i);
+          }
+       objectCount++;
+           }
+    }
+          
+          if (firstShadowFrame)
+      {
+         char debugBuf[128];
+       sprintf_s(debugBuf, "    Rendered %d objects to shadow map %zu\n", objectCount, lightIndex);
+            OutputDebugStringA(debugBuf);
+                }
+          }
+        
+     if (firstShadowFrame)
+  {
+          OutputDebugStringA("=== SHADOW PASS END ===\n\n");
+       firstShadowFrame = false;
+      }
+        }
 
         // ----- GEOMETRY PASS TO G-BUFFER -----
         {
@@ -684,6 +809,24 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                 };
                 immediateContext->CSSetShaderResources(0, 3, srvs);
 
+                // Bind shadow map array at t3
+                ID3D11ShaderResourceView* shadowSRV = shadowMap.GetSRV();
+                if (shadowSRV)
+                {
+                    immediateContext->CSSetShaderResources(3, 1, &shadowSRV);
+    
+                    static bool firstLightingFrame = true;
+  if (firstLightingFrame)
+     {
+    OutputDebugStringA("Shadow map SRV bound to t3 (VERIFIED)\n");
+   firstLightingFrame = false;
+ }
+       }
+         else
+    {
+     OutputDebugStringA("WARNING: Shadow map SRV is NULL!\n");
+}
+
                 // Bind light structured buffer t4 and camera to b2
                 ID3D11ShaderResourceView* lightSRV = lightStructuredBuffer.GetSRV();
                 immediateContext->CSSetShaderResources(4, 1, &lightSRV);
@@ -692,6 +835,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                 // Bind toggle buffer to b4
                 ID3D11Buffer* toggleCBBuf = lightingToggleCB.GetBuffer();
                 immediateContext->CSSetConstantBuffers(4, 1, &toggleCBBuf);
+
+                // Bind shadow sampler at s1
+                if (shadowSampler)
+   {
+          immediateContext->CSSetSamplers(1, 1, &shadowSampler);
+   OutputDebugStringA("Shadow sampler bound to s1\n");
+   }
 
                 // Bind UAV
                 ID3D11UnorderedAccessView* uavs[1] = { lightingUAV };
@@ -718,7 +868,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                 ID3D11ShaderResourceView* nullSRVs[5] = { nullptr, nullptr, nullptr, nullptr, nullptr };
                 immediateContext->CSSetShaderResources(0, 5, nullSRVs);
 
-                ID3D11UnorderedAccessView* nullUAVs[1] = { nullptr };
+                ID3D11SamplerState* nullSampler = nullptr;
+    immediateContext->CSSetSamplers(1, 1, &nullSampler);
+
+           ID3D11UnorderedAccessView* nullUAVs[1] = { nullptr };
                 UINT zeros[1] = { 0 };
                 immediateContext->CSSetUnorderedAccessViews(0, 1, nullUAVs, zeros);
 
@@ -751,9 +904,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     if (lightingUAV)  lightingUAV->Release();
     if (lightingTex)  lightingTex->Release();
     if (lightingCS)   lightingCS->Release();
+    if (shadowSampler) shadowSampler->Release();
 
     if (pineappleTexView && pineappleTexView != whiteTexView) pineappleTexView->Release();
-    if (whiteTexView) whiteTexView->Release();
+
+    whiteTexView->Release();
     textureView->Release();
     texture->Release();
     pShader->Release();

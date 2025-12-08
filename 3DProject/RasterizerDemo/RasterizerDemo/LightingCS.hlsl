@@ -34,10 +34,14 @@ cbuffer LightingToggleBuffer : register(b4)
 Texture2D gAlbedo : register(t0);           // Albedo + ambient strength
 Texture2D gNormal : register(t1);           // Normal + specular strength
 Texture2D gWorldPos : register(t2);         // World position + shininess
+Texture2DArray shadowMaps : register(t3);   // Shadow depth maps (NEW!)
 
 StructuredBuffer<LightData> lights : register(t4);  // Light data
 
 RWTexture2D<float4> outColor : register(u0);
+
+// ==== Shadow Sampler ====
+SamplerComparisonState shadowSampler : register(s1);
 
 // ==== Spotlight Attenuation ====
 float CalculateSpotlight(float3 lightDir, float3 spotDirection, float spotAngle)
@@ -51,6 +55,37 @@ float CalculateSpotlight(float3 lightDir, float3 spotDirection, float spotAngle)
     float attenuation = saturate((cosAngle - cosOuter) / epsilon);
     
     return attenuation * attenuation; // Square for smoother falloff
+}
+
+// ==== Shadow Calculation ====
+float CalculateShadow(float3 worldPos, float4x4 lightViewProj, uint lightIndex)
+{
+    // Transform world position to light's clip space
+    float4 lightSpacePos = mul(float4(worldPos, 1.0f), lightViewProj);
+    
+    // Perspective divide
+    lightSpacePos.xyz /= lightSpacePos.w;
+    
+    // Convert to texture coordinates [0,1]
+    float2 shadowUV;
+    shadowUV.x = lightSpacePos.x * 0.5f + 0.5f;
+    shadowUV.y = -lightSpacePos.y * 0.5f + 0.5f;
+    
+    // Check if position is within shadow map bounds
+    if (shadowUV.x < 0.0f || shadowUV.x > 1.0f || shadowUV.y < 0.0f || shadowUV.y > 1.0f)
+  return 1.0f; // Outside shadow map = fully lit
+    
+    float depth = lightSpacePos.z;
+    
+    // Check if depth is valid
+    if (depth < 0.0f || depth > 1.0f)
+        return 1.0f;
+  
+    // Sample shadow map with PCF (Percentage Closer Filtering)
+    // SampleCmpLevelZero does hardware PCF and returns 0 (in shadow) or 1 (lit)
+ float shadow = shadowMaps.SampleCmpLevelZero(shadowSampler, float3(shadowUV, lightIndex), depth);
+    
+    return shadow;
 }
 
 [numthreads(16, 16, 1)]
@@ -129,26 +164,29 @@ void main(uint3 DTid : SV_DispatchThreadID)
         }
         
         if (attenuation < 0.001f)
-            continue;
+         continue;
+        
+   // Calculate shadow factor
+  float shadow = CalculateShadow(worldPos, light.viewProj, i);
         
         // Blinn-Phong lighting
         float3 halfVec = normalize(lightDir + viewDir);
         
         // Diffuse
         if (enableDiffuse != 0)
-        {
+     {
             float diffuseFactor = max(dot(normal, lightDir), 0.0f);
             float3 diffuse = diffuseFactor * light.intensity * light.color * materialDiffuse;
-            lighting += diffuse * attenuation;
-        }
-        
+     lighting += diffuse * attenuation * shadow; // Apply shadow
+   }
+    
         // Specular
-        if (enableSpecular != 0)
+if (enableSpecular != 0)
         {
-            float specAngle = max(dot(normal, halfVec), 0.0f);
+float specAngle = max(dot(normal, halfVec), 0.0f);
             float specularFactor = pow(specAngle, specularPower);
-            float3 specular = specularFactor * light.intensity * light.color * materialSpecular;
-            lighting += specular * attenuation;
+  float3 specular = specularFactor * light.intensity * light.color * materialSpecular;
+      lighting += specular * attenuation * shadow; // Apply shadow
         }
     }
     

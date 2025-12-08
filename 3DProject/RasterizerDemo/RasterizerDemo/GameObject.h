@@ -13,6 +13,9 @@ public:
     void SetWorldMatrix(const DirectX::XMMATRIX& world);
     DirectX::XMMATRIX GetWorldMatrix() const;
 
+    // Get the mesh pointer
+    const MeshD3D11* GetMesh() const { return m_mesh; }
+
     // The Draw method handles the boilerplate of binding buffers and materials
     void Draw(ID3D11DeviceContext* context,
         ConstantBufferD3D11& matrixBuffer,
