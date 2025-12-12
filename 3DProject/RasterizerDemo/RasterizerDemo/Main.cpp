@@ -1,3 +1,7 @@
+#include <d3dcompiler.h>
+#pragma comment(lib, "d3dcompiler.lib")
+
+
 #include <Windows.h>
 #include <iostream>
 #include <fstream>
@@ -73,7 +77,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11Device* device = nullptr;
     ID3D11DeviceContext* immediateContext = nullptr;
     IDXGISwapChain* swapChain = nullptr;
-    ID3D11RenderTargetView* rtv = nullptr; // not really used now
+    ID3D11RenderTargetView* rtv = nullptr;
     D3D11_VIEWPORT viewport;
     ID3D11VertexShader* vShader = nullptr;
     ID3D11PixelShader* pShader = nullptr;
@@ -92,10 +96,123 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11Texture2D* lightingTex = nullptr;
     ID3D11UnorderedAccessView* lightingUAV = nullptr;
 
+    // Tessellation shaders
+    ID3D11VertexShader* tessVS = nullptr;
+    ID3D11HullShader* tessHS = nullptr;
+    ID3D11DomainShader* tessDS = nullptr;
+    std::string tessVSByteCode;
+    bool tessellationEnabled = false;
+
+    // Rasterizer states for wireframe
+    ID3D11RasterizerState* solidRasterizerState = nullptr;
+    ID3D11RasterizerState* wireframeRasterizerState = nullptr;
+    bool wireframeEnabled = false;
+
     SetupD3D11(WIDTH, HEIGHT, window, device, immediateContext, swapChain, rtv, viewport);
+
+    // Create rasterizer states
+    {
+        D3D11_RASTERIZER_DESC rastDesc = {};
+        rastDesc.FillMode = D3D11_FILL_SOLID;
+        rastDesc.CullMode = D3D11_CULL_BACK;
+        rastDesc.FrontCounterClockwise = FALSE;
+        rastDesc.DepthClipEnable = TRUE;
+        
+        HRESULT hr = device->CreateRasterizerState(&rastDesc, &solidRasterizerState);
+        if (FAILED(hr))
+        {
+            OutputDebugStringA("Failed to create solid rasterizer state!\n");
+        }
+
+        rastDesc.FillMode = D3D11_FILL_WIREFRAME;
+        hr = device->CreateRasterizerState(&rastDesc, &wireframeRasterizerState);
+        if (FAILED(hr))
+        {
+            OutputDebugStringA("Failed to create wireframe rasterizer state!\n");
+        }
+        else
+        {
+            OutputDebugStringA("Wireframe rasterizer state created successfully!\n");
+        }
+    }
 
     std::string vShaderByteCode;
     SetupPipeline(device, vertexBuffer, vShader, pShader, vShaderByteCode);
+
+    // Load tessellation shaders
+    {
+        auto loadShader = [](const std::string& filename) -> std::vector<char>
+        {
+            std::ifstream reader(filename, std::ios::binary | std::ios::ate);
+            if (!reader)
+            {
+                return {};
+            }
+            size_t size = static_cast<size_t>(reader.tellg());
+            std::vector<char> buffer(size);
+            reader.seekg(0);
+            reader.read(buffer.data(), size);
+            return buffer;
+        };
+
+        // Load Tessellation Vertex Shader
+        auto tessVSData = loadShader("TessellationVS.cso");
+        if (!tessVSData.empty())
+        {
+            HRESULT hr = device->CreateVertexShader(tessVSData.data(), tessVSData.size(), nullptr, &tessVS);
+            if (SUCCEEDED(hr))
+            {
+                tessVSByteCode.assign(tessVSData.begin(), tessVSData.end());
+                OutputDebugStringA("Tessellation VS loaded successfully!\n");
+            }
+            else
+            {
+                OutputDebugStringA("Failed to create tessellation VS!\n");
+            }
+        }
+        else
+        {
+            OutputDebugStringA("TessellationVS.cso not found!\n");
+        }
+
+        // Load Tessellation Hull Shader
+        auto tessHSData = loadShader("TessellationHS.cso");
+        if (!tessHSData.empty())
+        {
+            HRESULT hr = device->CreateHullShader(tessHSData.data(), tessHSData.size(), nullptr, &tessHS);
+            if (SUCCEEDED(hr))
+            {
+                OutputDebugStringA("Tessellation HS loaded successfully!\n");
+            }
+            else
+            {
+                OutputDebugStringA("Failed to create tessellation HS!\n");
+            }
+        }
+        else
+        {
+            OutputDebugStringA("TessellationHS.cso not found!\n");
+        }
+
+        // Load Tessellation Domain Shader
+        auto tessDSData = loadShader("TessellationDS.cso");
+        if (!tessDSData.empty())
+        {
+            HRESULT hr = device->CreateDomainShader(tessDSData.data(), tessDSData.size(), nullptr, &tessDS);
+            if (SUCCEEDED(hr))
+            {
+                OutputDebugStringA("Tessellation DS loaded successfully!\n");
+            }
+            else
+            {
+                OutputDebugStringA("Failed to create tessellation DS!\n");
+            }
+        }
+        else
+        {
+            OutputDebugStringA("TessellationDS.cso not found!\n");
+        }
+    }
 
     // Depth buffer
     DepthBufferD3D11 depthBuffer(device, WIDTH, HEIGHT, false);
@@ -530,6 +647,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     static bool key1Prev = false;
     static bool key2Prev = false;
     static bool key3Prev = false;
+    static bool key4Prev = false;
+    static bool key5Prev = false; // For tessellation toggle
 
     MSG msg = {};
     while (!(GetKeyState(VK_ESCAPE) & 0x8000) && msg.message != WM_QUIT)
@@ -551,14 +670,18 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         float x = armLength * cosf(rotationAngle);
         float z = armLength * sinf(rotationAngle);
 
-        // --- Toggle handling (1,2,3) ---
+        // --- Toggle handling (1,2,3,4,5) ---
         short k1 = GetAsyncKeyState('1');
         short k2 = GetAsyncKeyState('2');
         short k3 = GetAsyncKeyState('3');
+        short k4 = GetAsyncKeyState('4');
+        short k5 = GetAsyncKeyState('5');
 
         bool key1Now = (k1 & 0x8000) != 0;
         bool key2Now = (k2 & 0x8000) != 0;
         bool key3Now = (k3 & 0x8000) != 0;
+        bool key4Now = (k4 & 0x8000) != 0;
+        bool key5Now = (k5 & 0x8000) != 0;
 
         if (key1Now && !key1Prev)
         {
@@ -583,6 +706,20 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             OutputDebugStringA(toggleData.enableSpecular ? "Specular: ON\n" : "Specular: OFF\n");
         }
         key3Prev = key3Now;
+
+        if (key4Now && !key4Prev)
+        {
+            wireframeEnabled = !wireframeEnabled;
+            OutputDebugStringA(wireframeEnabled ? "Wireframe: ON\n" : "Wireframe: OFF\n");
+        }
+        key4Prev = key4Now;
+
+        if (key5Now && !key5Prev)
+        {
+            tessellationEnabled = !tessellationEnabled;
+            OutputDebugStringA(tessellationEnabled ? "Tessellation: ON\n" : "Tessellation: OFF\n");
+        }
+        key5Prev = key5Now;
 
         // --- Camera movement + mouselook ---
         const float camSpeed = 3.0f;
@@ -724,17 +861,38 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
             immediateContext->RSSetViewports(1, &viewport);
 
+            // Set rasterizer state based on wireframe toggle
+            ID3D11RasterizerState* currentRasterizerState = wireframeEnabled ? wireframeRasterizerState : solidRasterizerState;
+            immediateContext->RSSetState(currentRasterizerState);
+
             immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
-            immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-            immediateContext->VSSetShader(vShader, nullptr, 0);
-            immediateContext->PSSetShader(pShader, nullptr, 0);
-
+            
             ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
             immediateContext->VSSetConstantBuffers(0, 1, &cb0);
             
             ID3D11SamplerState* samplerPtr = samplerState.GetSamplerState();
             immediateContext->PSSetSamplers(0, 1, &samplerPtr);
+
+            // Choose pipeline based on tessellation toggle
+            if (tessellationEnabled && tessVS && tessHS && tessDS)
+            {
+                // TESSELLATION PIPELINE
+                immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+                immediateContext->VSSetShader(tessVS, nullptr, 0);
+                immediateContext->HSSetShader(tessHS, nullptr, 0);
+                immediateContext->DSSetShader(tessDS, nullptr, 0);
+                immediateContext->DSSetConstantBuffers(0, 1, &cb0);
+                immediateContext->PSSetShader(pShader, nullptr, 0);
+            }
+            else
+            {
+                // NORMAL PIPELINE (No Tessellation)
+                immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+                immediateContext->VSSetShader(vShader, nullptr, 0);
+                immediateContext->HSSetShader(nullptr, nullptr, 0);
+                immediateContext->DSSetShader(nullptr, nullptr, 0);
+                immediateContext->PSSetShader(pShader, nullptr, 0);
+            }
 
             // Render rotating quad with imageQuadVB
             {
@@ -901,10 +1059,15 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     }
 
     // Cleanup
+    if (tessVS) tessVS->Release();
+    if (tessHS) tessHS->Release();
+    if (tessDS) tessDS->Release();
     if (lightingUAV)  lightingUAV->Release();
     if (lightingTex)  lightingTex->Release();
     if (lightingCS)   lightingCS->Release();
     if (shadowSampler) shadowSampler->Release();
+    if (solidRasterizerState) solidRasterizerState->Release();
+    if (wireframeRasterizerState) wireframeRasterizerState->Release();
 
     if (pineappleTexView && pineappleTexView != whiteTexView) pineappleTexView->Release();
 

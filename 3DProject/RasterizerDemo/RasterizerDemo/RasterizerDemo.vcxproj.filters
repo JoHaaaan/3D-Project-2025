@@ -93,6 +93,9 @@
       <Filter>Resource Files</Filter>
     </FxCompile>
     <FxCompile Include="LightingCS.hlsl" />
+    <FxCompile Include="TessellationVS.hlsl" />
+    <FxCompile Include="TessellationHS.hlsl" />
+    <FxCompile Include="TessellationDS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WindowHelper.h">
