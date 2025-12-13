@@ -753,98 +753,97 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
         ID3D11DepthStencilView* myDSV = depthBuffer.GetDSV(0);
 
-  // ----- SHADOW PASS (Render depth from each light's perspective) -----
+        // ----- SHADOW PASS (Render depth from each light's perspective) -----
         {
-      static bool firstShadowFrame = true;
+            static bool firstShadowFrame = true;
             if (firstShadowFrame)
- {
-  OutputDebugStringA("\n=== SHADOW PASS START (First Frame) ===\n");
+            {
+                OutputDebugStringA("\n=== SHADOW PASS START (First Frame) ===\n");
             }
  
-          // Set up for depth-only rendering
-     immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
+            // Set up for depth-only rendering
+            immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
             immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             immediateContext->VSSetShader(vShader, nullptr, 0);
             immediateContext->PSSetShader(nullptr, nullptr, 0); // No pixel shader for depth-only
        
-   ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
-  immediateContext->VSSetConstantBuffers(0, 1, &cb0);
+            ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
+            immediateContext->VSSetConstantBuffers(0, 1, &cb0);
             
-     // Render shadow map for each light
-  for (size_t lightIndex = 0; lightIndex < lights.size(); ++lightIndex)
-     {
-     if (firstShadowFrame)
-  {
-          char debugBuf[256];
-     sprintf_s(debugBuf, "  Light %zu: type=%d, enabled=%d, position=(%.2f,%.2f,%.2f), direction=(%.2f,%.2f,%.2f)\n", 
-           lightIndex, lights[lightIndex].type, lights[lightIndex].enabled,
-            lights[lightIndex].position.x, lights[lightIndex].position.y, lights[lightIndex].position.z,
-         lights[lightIndex].direction.x, lights[lightIndex].direction.y, lights[lightIndex].direction.z);
-        OutputDebugStringA(debugBuf);
-        }
+            // Render shadow map for each light
+            for (size_t lightIndex = 0; lightIndex < lights.size(); ++lightIndex)
+            {
+                if (firstShadowFrame)
+                {
+                    char debugBuf[256];
+                    sprintf_s(debugBuf, "  Light %zu: type=%d, enabled=%d, position=(%.2f,%.2f,%.2f), direction=(%.2f,%.2f,%.2f)\n", 
+                        lightIndex, lights[lightIndex].type, lights[lightIndex].enabled,
+                        lights[lightIndex].position.x, lights[lightIndex].position.y, lights[lightIndex].position.z,
+                        lights[lightIndex].direction.x, lights[lightIndex].direction.y, lights[lightIndex].direction.z);
+                    OutputDebugStringA(debugBuf);
+                }
                 
-     // Bind shadow map DSV for this light
-    ID3D11DepthStencilView* shadowDSV = shadowMap.GetDSV(static_cast<UINT>(lightIndex));
-         if (!shadowDSV)
-      {
-        OutputDebugStringA("    ERROR: Shadow DSV is NULL!\n");
-            continue;
-          }
+                // Bind shadow map DSV for this light
+                ID3D11DepthStencilView* shadowDSV = shadowMap.GetDSV(static_cast<UINT>(lightIndex));
+                if (!shadowDSV)
+                {
+                    OutputDebugStringA("    ERROR: Shadow DSV is NULL!\n");
+                    continue;
+                }
  
-       // Clear depth
-  immediateContext->ClearDepthStencilView(shadowDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
+                // Clear depth
+                immediateContext->ClearDepthStencilView(shadowDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
                 
-      // Set shadow map viewport
+                // Set shadow map viewport
                 D3D11_VIEWPORT shadowViewport = shadowMap.GetViewport();
-  immediateContext->RSSetViewports(1, &shadowViewport);
+                immediateContext->RSSetViewports(1, &shadowViewport);
        
-        // Bind shadow DSV (no color target)
+                // Bind shadow DSV (no color target)
                 ID3D11RenderTargetView* nullRTV = nullptr;
                 immediateContext->OMSetRenderTargets(1, &nullRTV, shadowDSV);
         
-     // Load light's view-projection matrix
-        XMMATRIX lightVP = XMLoadFloat4x4(&lights[lightIndex].viewProj);
+                // Load light's view-projection matrix
+                XMMATRIX lightVP = XMLoadFloat4x4(&lights[lightIndex].viewProj);
     
-        // Render all game objects from light's perspective
-            int objectCount = 0;
-        for (auto& gameObject : gameObjects)
-   {
-      MatrixPair shadowData;
-              XMMATRIX worldMat = gameObject.GetWorldMatrix();
+                // Render all game objects from light's perspective
+                int objectCount = 0;
+                for (auto& gameObject : gameObjects)
+                {
+                    MatrixPair shadowData;
+                    XMMATRIX worldMat = gameObject.GetWorldMatrix();
   
-         XMStoreFloat4x4(&shadowData.world, XMMatrixTranspose(worldMat));
-   XMStoreFloat4x4(&shadowData.viewProj, XMMatrixTranspose(lightVP));
+                    XMStoreFloat4x4(&shadowData.world, XMMatrixTranspose(worldMat));
+                    XMStoreFloat4x4(&shadowData.viewProj, XMMatrixTranspose(lightVP));
  
-                constantBuffer.UpdateBuffer(immediateContext, &shadowData);
+                    constantBuffer.UpdateBuffer(immediateContext, &shadowData);
    
-             // Draw depth only (no textures or material updates needed)
-         const MeshD3D11* mesh = gameObject.GetMesh();
-        if (mesh)
-  {
-            mesh->BindMeshBuffers(immediateContext);
-      for (size_t i = 0; i < mesh->GetNrOfSubMeshes(); ++i)
-     {
-                  mesh->PerformSubMeshDrawCall(immediateContext, i);
-          }
-       objectCount++;
-           }
-    }
-          
-          if (firstShadowFrame)
-      {
-         char debugBuf[128];
-       sprintf_s(debugBuf, "    Rendered %d objects to shadow map %zu\n", objectCount, lightIndex);
-            OutputDebugStringA(debugBuf);
+                    // Draw depth only (no textures or material updates needed)
+                    const MeshD3D11* mesh = gameObject.GetMesh();
+                    if (mesh)
+                    {
+                        mesh->BindMeshBuffers(immediateContext);
+                        for (size_t i = 0; i < mesh->GetNrOfSubMeshes(); ++i)
+                        {
+                            mesh->PerformSubMeshDrawCall(immediateContext, i);
+                        }
+                        objectCount++;
+                    }
                 }
-          }
+          
+                if (firstShadowFrame)
+                {
+                    char debugBuf[128];
+                    sprintf_s(debugBuf, "    Rendered %d objects to shadow map %zu\n", objectCount, lightIndex);
+                    OutputDebugStringA(debugBuf);
+                }
+            }
         
-     if (firstShadowFrame)
-  {
-          OutputDebugStringA("=== SHADOW PASS END ===\n\n");
-       firstShadowFrame = false;
-      }
+            if (firstShadowFrame)
+            {
+                OutputDebugStringA("=== SHADOW PASS END ===\n\n");
+                firstShadowFrame = false;
+            }
         }
-
         // ----- GEOMETRY PASS TO G-BUFFER -----
         {
             gbuffer.SetAsRenderTargets(immediateContext, myDSV);
@@ -974,16 +973,16 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                     immediateContext->CSSetShaderResources(3, 1, &shadowSRV);
     
                     static bool firstLightingFrame = true;
-  if (firstLightingFrame)
-     {
-    OutputDebugStringA("Shadow map SRV bound to t3 (VERIFIED)\n");
-   firstLightingFrame = false;
- }
-       }
-         else
-    {
-     OutputDebugStringA("WARNING: Shadow map SRV is NULL!\n");
-}
+                    if (firstLightingFrame)
+                    {
+                        OutputDebugStringA("Shadow map SRV bound to t3 (VERIFIED)\n");
+                        firstLightingFrame = false;
+                    }
+                }
+                else
+                {
+                    OutputDebugStringA("WARNING: Shadow map SRV is NULL!\n");
+                }
 
                 // Bind light structured buffer t4 and camera to b2
                 ID3D11ShaderResourceView* lightSRV = lightStructuredBuffer.GetSRV();
@@ -996,10 +995,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
                 // Bind shadow sampler at s1
                 if (shadowSampler)
-   {
-          immediateContext->CSSetSamplers(1, 1, &shadowSampler);
-   OutputDebugStringA("Shadow sampler bound to s1\n");
-   }
+                {
+                    immediateContext->CSSetSamplers(1, 1, &shadowSampler);
+                    OutputDebugStringA("Shadow sampler bound to s1\n");
+                }
 
                 // Bind UAV
                 ID3D11UnorderedAccessView* uavs[1] = { lightingUAV };
@@ -1027,9 +1026,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                 immediateContext->CSSetShaderResources(0, 5, nullSRVs);
 
                 ID3D11SamplerState* nullSampler = nullptr;
-    immediateContext->CSSetSamplers(1, 1, &nullSampler);
+                immediateContext->CSSetSamplers(1, 1, &nullSampler);
 
-           ID3D11UnorderedAccessView* nullUAVs[1] = { nullptr };
+                ID3D11UnorderedAccessView* nullUAVs[1] = { nullptr };
                 UINT zeros[1] = { 0 };
                 immediateContext->CSSetUnorderedAccessViews(0, 1, nullUAVs, zeros);
 

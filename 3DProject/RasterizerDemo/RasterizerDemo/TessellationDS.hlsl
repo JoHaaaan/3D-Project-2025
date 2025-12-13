@@ -1,6 +1,7 @@
-cbuffer Camera : register(b0)
+cbuffer MatrixBuffer : register(b0)
 {
-    float4x4 vp;
+    float4x4 worldMatrix;
+    float4x4 viewProjMatrix;
 };
 
 struct VertexShaderOutput
@@ -34,23 +35,15 @@ struct DomainShaderOutput
 };
 
 [domain("tri")]
-DomainShaderOutput main(HS_CONSTANT_DATA_OUTPUT input, float3 barycentric : SV_DomainLocation, const OutputPatch<HullShaderOutput, NUM_CONTROL_POINTS> ip)
+DomainShaderOutput main(HS_CONSTANT_DATA_OUTPUT input, float3 barycentric : SV_DomainLocation, const OutputPatch<HullShaderOutput, NUM_CONTROL_POINTS> patch)
 {
     DomainShaderOutput output;
-    
-    output.worldPos = ip[0].worldPos * barycentric.x + 
-                      ip[1].worldPos * barycentric.y + 
-                      ip[2].worldPos * barycentric.z;
-    
-    output.normal = normalize(ip[0].normal * barycentric.x + 
-                              ip[1].normal * barycentric.y + 
-                              ip[2].normal * barycentric.z);
-    
-    output.uv = ip[0].uv * barycentric.x + 
-                ip[1].uv * barycentric.y + 
-                ip[2].uv * barycentric.z;
-    
-    output.position = mul(float4(output.worldPos, 1.0f), vp);
-    
+
+    output.worldPos = patch[0].worldPos * barycentric.x + patch[1].worldPos * barycentric.y + patch[2].worldPos * barycentric.z;
+    output.normal = normalize(patch[0].normal * barycentric.x + patch[1].normal * barycentric.y + patch[2].normal * barycentric.z);
+    output.uv = patch[0].uv * barycentric.x + patch[1].uv * barycentric.y + patch[2].uv * barycentric.z;
+
+    output.position = mul(float4(output.worldPos, 1), viewProjMatrix);
+
     return output;
 }
