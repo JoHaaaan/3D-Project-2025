@@ -762,9 +762,12 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             }
  
             // Set up for depth-only rendering
+            // ALWAYS use non-tessellation pipeline for shadow pass
             immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
             immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             immediateContext->VSSetShader(vShader, nullptr, 0);
+            immediateContext->HSSetShader(nullptr, nullptr, 0);
+            immediateContext->DSSetShader(nullptr, nullptr, 0);
             immediateContext->PSSetShader(nullptr, nullptr, 0); // No pixel shader for depth-only
        
             ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
