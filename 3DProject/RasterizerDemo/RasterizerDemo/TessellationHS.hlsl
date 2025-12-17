@@ -1,3 +1,16 @@
+// Camera buffer for LOD calculation
+cbuffer CameraBuffer : register(b3)
+{
+    float3 cameraPosition;
+    float padding_Camera;
+};
+
+// LOD Settings - adjusted for less detail up close and faster falloff
+static const float MIN_TESS_DISTANCE = 3.0f;   // Close distance (max tessellation) - reduced range
+static const float MAX_TESS_DISTANCE = 25.0f;  // Far distance (min tessellation) - reduced range for faster falloff
+static const float MAX_TESS_FACTOR = 16.0f;  // Maximum tessellation - reduced from 64 to 16
+static const float MIN_TESS_FACTOR = 1.0f;     // Minimum tessellation
+
 struct HSInput
 {
     float3 worldPos : WORLD_POS;
@@ -20,13 +33,45 @@ struct PatchConstantOutput
 
 #define NUM_CONTROL_POINTS 3
 
+// Calculate tessellation factor based on distance from camera
+float CalculateTessellationFactor(float3 worldPos)
+{
+    // Calculate distance from camera to vertex
+    float distance = length(cameraPosition - worldPos);
+    
+    // Clamp distance to our range
+    distance = clamp(distance, MIN_TESS_DISTANCE, MAX_TESS_DISTANCE);
+  
+    // Linear interpolation from max to min tessellation
+    // Close = MAX_TESS_FACTOR, Far = MIN_TESS_FACTOR
+float t = (distance - MIN_TESS_DISTANCE) / (MAX_TESS_DISTANCE - MIN_TESS_DISTANCE);
+    float tessFactor = lerp(MAX_TESS_FACTOR, MIN_TESS_FACTOR, t);
+    
+    return tessFactor;
+}
+
 PatchConstantOutput PatchConstantFunc(InputPatch<HSInput, NUM_CONTROL_POINTS> patch, uint patchID : SV_PrimitiveID)
 {
     PatchConstantOutput output;
     
-    // Set tessellation factors (adjustable)
-    output.edges[0] = output.edges[1] = output.edges[2] = 16.0f;
-    output.inside = 16.0f;
+    // Calculate tessellation factor for each edge based on the midpoint
+    // This gives smoother transitions between tessellation levels
+    
+    // Edge 0: between vertex 0 and 1
+ float3 edge0Midpoint = (patch[0].worldPos + patch[1].worldPos) * 0.5f;
+    output.edges[0] = CalculateTessellationFactor(edge0Midpoint);
+    
+    // Edge 1: between vertex 1 and 2
+    float3 edge1Midpoint = (patch[1].worldPos + patch[2].worldPos) * 0.5f;
+    output.edges[1] = CalculateTessellationFactor(edge1Midpoint);
+    
+    // Edge 2: between vertex 2 and 0
+    float3 edge2Midpoint = (patch[2].worldPos + patch[0].worldPos) * 0.5f;
+    output.edges[2] = CalculateTessellationFactor(edge2Midpoint);
+    
+    // Inside tessellation: use average of the triangle's center
+    float3 triangleCenter = (patch[0].worldPos + patch[1].worldPos + patch[2].worldPos) / 3.0f;
+    output.inside = CalculateTessellationFactor(triangleCenter);
     
     return output;
 }

@@ -884,6 +884,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                 immediateContext->HSSetShader(tessHS, nullptr, 0);
                 immediateContext->DSSetShader(tessDS, nullptr, 0);
                 immediateContext->DSSetConstantBuffers(0, 1, &cb0);
+                
+                // IMPORTANT: Bind camera buffer to Hull Shader at slot b3 for distance-based LOD
+                immediateContext->HSSetConstantBuffers(3, 1, &cameraCB);
+                
                 immediateContext->PSSetShader(pShader, nullptr, 0);
             }
             else
