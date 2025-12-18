@@ -438,6 +438,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     const MeshD3D11* cubeMesh = GetMesh("cube.obj", device);
     const MeshD3D11* pineAppleMesh = GetMesh("pineapple2.obj", device);
     const MeshD3D11* simpleCubeMesh = GetMesh("SimpleCube.obj", device);
+    const MeshD3D11* sphereMesh = GetMesh("sphere.obj", device);
 
     // Material buffer (still used in geometry pass / PS)
     Material mat{};
@@ -623,7 +624,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     // Rotating cube with image quad
     gameObjects.emplace_back(cubeMesh);
     
-  // Static cube  
+    // Static cube  
     gameObjects.emplace_back(cubeMesh);
     gameObjects[1].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(30.0f, 1.0f, 0.0f));
     
@@ -642,6 +643,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     // SimpleCube 3 (NEW - on the ground to catch shadows)
     gameObjects.emplace_back(simpleCubeMesh);
     gameObjects[5].SetWorldMatrix(XMMatrixScaling(5.0f, 0.2f, 5.0f) * XMMatrixTranslation(0.0f, -1.0f, 0.0f)); // Flat ground plane
+
+    // Sphere (NEW - positioned in the scene)
+    gameObjects.emplace_back(sphereMesh);
+    gameObjects[6].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(5.0f, 3.0f, 5.0f));
 
     // Toggle key state
     static bool key1Prev = false;

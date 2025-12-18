@@ -5,11 +5,11 @@ cbuffer CameraBuffer : register(b3)
     float padding_Camera;
 };
 
-// LOD Settings - adjusted for less detail up close and faster falloff
-static const float MIN_TESS_DISTANCE = 3.0f;   // Close distance (max tessellation) - reduced range
-static const float MAX_TESS_DISTANCE = 25.0f;  // Far distance (min tessellation) - reduced range for faster falloff
-static const float MAX_TESS_FACTOR = 16.0f;  // Maximum tessellation - reduced from 64 to 16
-static const float MIN_TESS_FACTOR = 1.0f;     // Minimum tessellation
+// LOD Settings - adjusted for better visual feedback
+static const float MIN_TESS_DISTANCE = 1.0f;   // Close distance (max tessellation)
+static const float MAX_TESS_DISTANCE = 10.0f;  // Far distance (min tessellation) - much longer range
+static const float MAX_TESS_FACTOR = 4.0f;// Maximum tessellation - very low for clear visibility
+static const float MIN_TESS_FACTOR = 1.0f;  // Minimum tessellation
 
 struct HSInput
 {
