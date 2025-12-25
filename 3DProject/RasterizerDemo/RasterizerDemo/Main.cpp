@@ -28,6 +28,7 @@
 #include "ShadowMapD3D11.h"
 #include "StructuredBufferD3D11.h"
 #include "SpotLightCollectionD3D11.h"
+#include "TextureCubeD3D11.h"
 
 using namespace DirectX;
 #define STB_IMAGE_IMPLEMENTATION
@@ -231,6 +232,15 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         OutputDebugStringA("Failed to initialize Shadow Map!\n");
         return -1;
     }
+
+    // --- ENVIRONMENT CUBE MAP SETUP ---
+    TextureCubeD3D11 envCubeMap;
+    if (!envCubeMap.Initialize(device, 512, 512)) // 512x512 per face
+    {
+        OutputDebugStringA("Failed to initialize environment cube map!\n");
+        return -1;
+    }
+    OutputDebugStringA("Environment cube map created successfully!\n");
 
     // 2. Define Lights (At least 4 required: 1 Directional + 1 Spot minimum)
     std::vector<LightData> lights;

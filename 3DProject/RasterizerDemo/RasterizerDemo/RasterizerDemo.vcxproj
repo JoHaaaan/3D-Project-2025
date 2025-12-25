@@ -171,6 +171,7 @@
     <ClCompile Include="SpotLightCollectionD3D11.cpp" />
     <ClCompile Include="StructuredBufferD3D11.cpp" />
     <ClCompile Include="SubMeshD3D11.cpp" />
+    <ClCompile Include="TextureCubeD3D11.cpp" />
     <ClCompile Include="VertexBufferD3D11.cpp" />
     <ClCompile Include="WindowHelper.cpp" />
   </ItemGroup>
@@ -258,6 +259,7 @@
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="StructuredBufferD3D11.h" />
     <ClInclude Include="SubMeshD3D11.h" />
+    <ClInclude Include="TextureCubeD3D11.h" />
     <ClInclude Include="VertexBufferD3D11.h" />
     <ClInclude Include="WindowHelper.h" />
   </ItemGroup>
