@@ -1,5 +1,6 @@
 #include "TextureCubeD3D11.h"
 #include <Windows.h>
+#include <stdexcept>
 
 TextureCubeD3D11::~TextureCubeD3D11()
 {
@@ -14,61 +15,59 @@ TextureCubeD3D11::~TextureCubeD3D11()
     }
 }
 
-bool TextureCubeD3D11::Initialize(ID3D11Device* device, UINT width, UINT height)
+bool TextureCubeD3D11::Initialize(ID3D11Device* device, UINT width, UINT height, bool needsSRV)
 {
     m_width = width;
     m_height = height;
 
-    // Create the texture cube
-    D3D11_TEXTURE2D_DESC texDesc = {};
-    texDesc.Width = width;
-    texDesc.Height = height;
-    texDesc.MipLevels = 1;
-    texDesc.ArraySize = 6; // 6 faces for the cube
-    texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    texDesc.SampleDesc.Count = 1;
-    texDesc.SampleDesc.Quality = 0;
-    texDesc.Usage = D3D11_USAGE_DEFAULT;
-    texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-    texDesc.CPUAccessFlags = 0;
-    texDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE; // Important: Mark as texture cube
+    // Creating the textures
+    D3D11_TEXTURE2D_DESC desc;
+  ZeroMemory(&desc, sizeof(desc));
+    desc.Width = width;
+    desc.Height = height;
+    desc.MipLevels = 1;
+    desc.ArraySize = 6;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.SampleDesc.Count = 1;
+    desc.SampleDesc.Quality = 0;
+    desc.Usage = D3D11_USAGE_DEFAULT;
+  desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+    desc.BindFlags |= needsSRV ? D3D11_BIND_SHADER_RESOURCE : 0;
+    desc.CPUAccessFlags = 0;
+    desc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
 
-    HRESULT hr = device->CreateTexture2D(&texDesc, nullptr, &m_textureCube);
+    HRESULT hr = device->CreateTexture2D(&desc, nullptr, &m_textureCube);
+
     if (FAILED(hr))
     {
-    OutputDebugStringA("Failed to create texture cube!\n");
-        return false;
+        throw std::runtime_error("Could not create texture cube");
     }
 
-    // Create Shader Resource View for the entire cube
-    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Format = texDesc.Format;
-    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-    srvDesc.TextureCube.MipLevels = 1;
-    srvDesc.TextureCube.MostDetailedMip = 0;
-
-    hr = device->CreateShaderResourceView(m_textureCube, &srvDesc, &m_srv);
-    if (FAILED(hr))
-    {
-        OutputDebugStringA("Failed to create texture cube SRV!\n");
-        return false;
-    }
-
-    // Create Render Target Views for each face
-    D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-    rtvDesc.Format = texDesc.Format;
+    // Creating the required resource views for the texture cube
+    D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
+ rtvDesc.Format = desc.Format;
     rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+    rtvDesc.Texture2DArray.ArraySize = 1;
     rtvDesc.Texture2DArray.MipSlice = 0;
-    rtvDesc.Texture2DArray.ArraySize = 1; // One face at a time
 
-    for (UINT i = 0; i < 6; ++i)
+    for (int i = 0; i < 6; ++i)
     {
         rtvDesc.Texture2DArray.FirstArraySlice = i;
         hr = device->CreateRenderTargetView(m_textureCube, &rtvDesc, &m_rtvs[i]);
+
         if (FAILED(hr))
         {
-         OutputDebugStringA("Failed to create RTV for cube face!\n");
-         return false;
+          throw std::runtime_error("Could not create texture cube rtv");
+        }
+    }
+
+    if (needsSRV == true)
+    {
+        hr = device->CreateShaderResourceView(m_textureCube, nullptr, &m_srv);
+
+  if (FAILED(hr))
+        {
+            throw std::runtime_error("Could not create texture cube srv");
         }
     }
 
@@ -76,7 +75,7 @@ bool TextureCubeD3D11::Initialize(ID3D11Device* device, UINT width, UINT height)
     D3D11_TEXTURE2D_DESC depthDesc = {};
     depthDesc.Width = width;
     depthDesc.Height = height;
-    depthDesc.MipLevels = 1;
+  depthDesc.MipLevels = 1;
     depthDesc.ArraySize = 1;
     depthDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
     depthDesc.SampleDesc.Count = 1;
@@ -90,7 +89,7 @@ bool TextureCubeD3D11::Initialize(ID3D11Device* device, UINT width, UINT height)
     if (FAILED(hr))
     {
         OutputDebugStringA("Failed to create depth buffer for texture cube!\n");
-    return false;
+        return false;
     }
 
     D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
@@ -102,7 +101,7 @@ bool TextureCubeD3D11::Initialize(ID3D11Device* device, UINT width, UINT height)
     if (FAILED(hr))
     {
         OutputDebugStringA("Failed to create DSV for texture cube!\n");
-        return false;
+    return false;
     }
 
     OutputDebugStringA("Texture cube initialized successfully!\n");

@@ -22,7 +22,7 @@ public:
     TextureCubeD3D11& operator=(const TextureCubeD3D11&) = delete;
 
     // Initialize the texture cube with specified resolution
-    bool Initialize(ID3D11Device* device, UINT width, UINT height);
+    bool Initialize(ID3D11Device* device, UINT width, UINT height, bool needsSRV = true);
 
     // Getters for the views
     ID3D11ShaderResourceView* GetSRV() const { return m_srv; }

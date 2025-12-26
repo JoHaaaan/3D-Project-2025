@@ -34,6 +34,16 @@ using namespace DirectX;
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+enum TEXTURE_CUBE_FACE_INDEX
+{
+    POSITIVE_X = 0,
+    NEGATIVE_X = 1,
+    POSITIVE_Y = 2,
+    NEGATIVE_Y = 3,
+    POSITIVE_Z = 4,
+    NEGATIVE_Z = 5
+};
+
 // Transformation parameters
 static const float FOV = XMConvertToRadians(45.0f);
 static const float ASPECT_RATIO = 1280.0f / 720.0f;
@@ -103,6 +113,12 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     ID3D11DomainShader* tessDS = nullptr;
     std::string tessVSByteCode;
     bool tessellationEnabled = false;
+
+    // Reflection shader for environment mapping
+    ID3D11PixelShader* reflectionPS = nullptr;
+
+    // Simple forward pixel shader for cube map rendering
+    ID3D11PixelShader* cubeMapPS = nullptr;
 
     // Rasterizer states for wireframe
     ID3D11RasterizerState* solidRasterizerState = nullptr;
@@ -215,6 +231,76 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         }
     }
 
+    // Load Reflection Pixel Shader
+    {
+        auto loadShader = [](const std::string& filename) -> std::vector<char>
+        {
+            std::ifstream reader(filename, std::ios::binary | std::ios::ate);
+            if (!reader)
+         {
+                return {};
+         }
+            size_t size = static_cast<size_t>(reader.tellg());
+       std::vector<char> buffer(size);
+      reader.seekg(0);
+       reader.read(buffer.data(), size);
+        return buffer;
+     };
+
+     auto reflectionPSData = loadShader("ReflectionPS.cso");
+        if (!reflectionPSData.empty())
+        {
+   HRESULT hr = device->CreatePixelShader(reflectionPSData.data(), reflectionPSData.size(), nullptr, &reflectionPS);
+    if (SUCCEEDED(hr))
+          {
+OutputDebugStringA("Reflection PS loaded successfully!\n");
+            }
+       else
+   {
+  OutputDebugStringA("Failed to create reflection PS!\n");
+  }
+    }
+     else
+        {
+ OutputDebugStringA("ReflectionPS.cso not found!\n");
+   }
+    }
+
+    // Load Cube Map Pixel Shader (for rendering scene to cube map faces)
+    {
+        auto loadShader = [](const std::string& filename) -> std::vector<char>
+        {
+  std::ifstream reader(filename, std::ios::binary | std::ios::ate);
+          if (!reader)
+            {
+   return {};
+            }
+         size_t size = static_cast<size_t>(reader.tellg());
+std::vector<char> buffer(size);
+          reader.seekg(0);
+            reader.read(buffer.data(), size);
+            return buffer;
+        };
+
+        auto cubeMapPSData = loadShader("CubeMapPS.cso");
+     if (!cubeMapPSData.empty())
+        {
+       HRESULT hr = device->CreatePixelShader(cubeMapPSData.data(), cubeMapPSData.size(), nullptr, &cubeMapPS);
+            if (SUCCEEDED(hr))
+     {
+      OutputDebugStringA("CubeMap PS loaded successfully!\n");
+       }
+            else
+ {
+     OutputDebugStringA("Failed to create CubeMap PS!\n");
+   }
+        }
+  else
+        {
+      OutputDebugStringA("CubeMapPS.cso not found!\n");
+        }
+    }
+
     // Depth buffer
     DepthBufferD3D11 depthBuffer(device, WIDTH, HEIGHT, false);
 
@@ -241,6 +327,25 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         return -1;
     }
     OutputDebugStringA("Environment cube map created successfully!\n");
+
+    // Environment "cameras"
+    CameraD3D11 cameras[6];
+    ProjectionInfo projectionInfo;
+    projectionInfo.fovAngleY = DirectX::XM_PIDIV2; // 90 degree
+    projectionInfo.aspectRatio = 1.0f; // width == height
+    projectionInfo.nearZ = 0.1f;
+    projectionInfo.farZ = 100.0f;
+    
+    float upRotations[6] = { DirectX::XM_PIDIV2, -DirectX::XM_PIDIV2, 0.0f, 0.0f, 0.0f, 0.0f }; // Rotations around local up vector
+    float rightRotations[6] = { 0.0f, 0.0f, DirectX::XM_PIDIV2, -DirectX::XM_PIDIV2, 0.0f, DirectX::XM_PI }; // Rotations around local right vector
+    
+    for (int i = 0; i < 6; ++i)
+    {
+        // Creates an internal buffer with necessary information about the camera
+        cameras[i].Initialize(device, projectionInfo, DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f));
+        cameras[i].RotateUp(upRotations[i]);
+        cameras[i].RotateRight(rightRotations[i]);
+    }
 
     // 2. Define Lights (At least 4 required: 1 Directional + 1 Spot minimum)
     std::vector<LightData> lights;
@@ -656,7 +761,96 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     // Sphere (NEW - positioned in the scene)
     gameObjects.emplace_back(sphereMesh);
-    gameObjects[6].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(5.0f, 3.0f, 5.0f));
+    gameObjects[6].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(2.0f, 3.0f, -3.0f));
+
+    // Function to render the reflective object (sphere with environment map)
+    auto RenderReflectiveObject = [&]()
+    {
+        // Get the reflective object's world position (GameObject 3 - SimpleCube 1)
+  XMFLOAT3 reflectiveObjPos;
+        XMMATRIX reflectiveObjWorld = gameObjects[3].GetWorldMatrix();
+        XMStoreFloat3(&reflectiveObjPos, reflectiveObjWorld.r[3]); // Extract translation from world matrix
+    
+     // Update all 6 camera positions to be at the reflective object's location
+     for (int i = 0; i < 6; ++i)
+{
+   cameras[i].Initialize(device, projectionInfo, reflectiveObjPos);
+         cameras[i].RotateUp(upRotations[i]);
+            cameras[i].RotateRight(rightRotations[i]);
+        }
+        
+        // Render relevant objects for each of the six sides in the texture cube
+        for (int i = 0; i < 6; ++i)
+     {
+          // Bind the RTV for this cube face
+            ID3D11RenderTargetView* cubeRTV = envCubeMap.GetRTV(i);
+       ID3D11DepthStencilView* cubeDSV = envCubeMap.GetDSV();
+    immediateContext->OMSetRenderTargets(1, &cubeRTV, cubeDSV);
+       
+        // Clear the cube face
+            float clearColor[4] = { 0.1f, 0.1f, 0.1f, 1.0f };
+  envCubeMap.ClearFace(immediateContext, i, clearColor);
+            
+            // Set the viewport for the cube face
+        D3D11_VIEWPORT cubeViewport = envCubeMap.GetViewport();
+            immediateContext->RSSetViewports(1, &cubeViewport);
+      
+    // Set up the pipeline for normal rendering (no tessellation in cube map)
+            immediateContext->IASetInputLayout(inputLayout.GetInputLayout());
+     immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            immediateContext->VSSetShader(vShader, nullptr, 0);
+     immediateContext->HSSetShader(nullptr, nullptr, 0);
+            immediateContext->DSSetShader(nullptr, nullptr, 0);
+     
+  // Use CubeMapPS for forward rendering (outputs single color, not G-Buffer)
+            if (cubeMapPS)
+            {
+             immediateContext->PSSetShader(cubeMapPS, nullptr, 0);
+     }
+else
+            {
+            immediateContext->PSSetShader(pShader, nullptr, 0);
+            }
+        
+  // Bind constant buffers
+            ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
+       immediateContext->VSSetConstantBuffers(0, 1, &cb0);
+            
+    // Bind material buffer for CubeMapPS
+            ID3D11Buffer* matCB = materialBuffer.GetBuffer();
+          immediateContext->PSSetConstantBuffers(2, 1, &matCB);
+        
+    // Update camera constant buffer for this face
+        cameras[i].UpdateInternalConstantBuffer(immediateContext);
+  ID3D11Buffer* cubeCameraCB = cameras[i].GetConstantBuffer();
+         immediateContext->PSSetConstantBuffers(3, 1, &cubeCameraCB);
+  
+     // Bind sampler
+          ID3D11SamplerState* samplerPtr = samplerState.GetSamplerState();
+      immediateContext->PSSetSamplers(0, 1, &samplerPtr);
+ 
+       // Get the view-projection matrix for this camera
+     XMFLOAT4X4 cubeVP = cameras[i].GetViewProjectionMatrix();
+        XMMATRIX cubeViewProj = XMLoadFloat4x4(&cubeVP);
+        
+  // Render all game objects from this cube face's perspective
+    for (size_t objIdx = 0; objIdx < gameObjects.size(); ++objIdx)
+            {
+    // Skip the reflective object itself to avoid self-reflection (now GameObject 3)
+      if (objIdx == 3)
+        continue;
+     
+       gameObjects[objIdx].Draw(immediateContext, constantBuffer, materialBuffer, cubeViewProj, whiteTexView);
+   
+ ID3D11ShaderResourceView* nullSRV = nullptr;
+           immediateContext->PSSetShaderResources(0, 1, &nullSRV);
+            }
+        }
+        
+        // Unbind the cube map RTV and restore normal rendering state
+        ID3D11RenderTargetView* nullRTV = nullptr;
+        immediateContext->OMSetRenderTargets(1, &nullRTV, nullptr);
+    };
 
     // Toggle key state
     static bool key1Prev = false;
@@ -862,7 +1056,17 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                 firstShadowFrame = false;
             }
         }
-        // ----- GEOMETRY PASS TO G-BUFFER -----
+
+        // ----- ENVIRONMENT CUBE MAP PASS -----
+        // Render the scene to the environment cube map from all 6 perspectives
+        RenderReflectiveObject();
+        
+     // Restore main camera constant buffer after cube map rendering
+        camera.UpdateInternalConstantBuffer(immediateContext);
+        ID3D11Buffer* mainCameraCB = camera.GetConstantBuffer();
+        immediateContext->PSSetConstantBuffers(3, 1, &mainCameraCB);
+
+      // ----- GEOMETRY PASS TO G-BUFFER -----
         {
             gbuffer.SetAsRenderTargets(immediateContext, myDSV);
 
@@ -935,12 +1139,43 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
             }
 
             // Render all GameObjects
-            for (auto& gameObject : gameObjects)
+            for (size_t objIdx = 0; objIdx < gameObjects.size(); ++objIdx)
             {
-                gameObject.Draw(immediateContext, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
-                
-                ID3D11ShaderResourceView* nullSRV = nullptr;
-                immediateContext->PSSetShaderResources(0, 1, &nullSRV);
+  auto& gameObject = gameObjects[objIdx];
+
+ // Check if this is the reflective cube (GameObject 3 - SimpleCube 1)
+        if (objIdx == 3 && reflectionPS)
+        {
+       // Switch to reflection shader for the cube
+ immediateContext->PSSetShader(reflectionPS, nullptr, 0);
+       
+  // Bind environment cube map texture
+  ID3D11ShaderResourceView* envSRV = envCubeMap.GetSRV();
+        immediateContext->PSSetShaderResources(0, 1, &envSRV);
+   
+// Bind sampler
+ID3D11SamplerState* samplerPtr = samplerState.GetSamplerState();
+            immediateContext->PSSetSamplers(0, 1, &samplerPtr);
+   
+            // Camera constant buffer is already bound at slot 3
+   // Draw the cube with environment map
+  gameObject.Draw(immediateContext, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
+    
+        // Unbind environment map
+     ID3D11ShaderResourceView* nullSRV = nullptr;
+         immediateContext->PSSetShaderResources(0, 1, &nullSRV);
+
+ // Switch back to normal pixel shader
+       immediateContext->PSSetShader(pShader, nullptr, 0);
+                }
+             else
+      {
+    // Regular rendering for non-reflective objects
+          gameObject.Draw(immediateContext, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
+     }
+     
+   ID3D11ShaderResourceView* nullSRV = nullptr;
+       immediateContext->PSSetShaderResources(0, 1, &nullSRV);
             }
         }
 
@@ -1080,6 +1315,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     }
 
     // Cleanup
+    if (cubeMapPS) cubeMapPS->Release();
+    if (reflectionPS) reflectionPS->Release();
     if (tessVS) tessVS->Release();
     if (tessHS) tessHS->Release();
     if (tessDS) tessDS->Release();
