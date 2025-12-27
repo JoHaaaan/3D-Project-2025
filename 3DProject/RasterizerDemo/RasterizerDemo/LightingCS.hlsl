@@ -166,27 +166,27 @@ void main(uint3 DTid : SV_DispatchThreadID)
         if (attenuation < 0.001f)
          continue;
         
-   // Calculate shadow factor
-  float shadow = CalculateShadow(worldPos, light.viewProj, i);
+        // Calculate shadow factor
+        float shadow = CalculateShadow(worldPos, light.viewProj, i);
         
         // Blinn-Phong lighting
         float3 halfVec = normalize(lightDir + viewDir);
         
         // Diffuse
         if (enableDiffuse != 0)
-     {
+        {
             float diffuseFactor = max(dot(normal, lightDir), 0.0f);
             float3 diffuse = diffuseFactor * light.intensity * light.color * materialDiffuse;
-     lighting += diffuse * attenuation * shadow; // Apply shadow
-   }
+            lighting += diffuse * attenuation * shadow; // Apply shadow
+        }
     
         // Specular
-if (enableSpecular != 0)
+        if (enableSpecular != 0)
         {
-float specAngle = max(dot(normal, halfVec), 0.0f);
+            float specAngle = max(dot(normal, halfVec), 0.0f);
             float specularFactor = pow(specAngle, specularPower);
-  float3 specular = specularFactor * light.intensity * light.color * materialSpecular;
-      lighting += specular * attenuation * shadow; // Apply shadow
+            float3 specular = specularFactor * light.intensity * light.color * materialSpecular;
+            lighting += specular * attenuation * shadow; // Apply shadow
         }
     }
     

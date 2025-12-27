@@ -161,28 +161,28 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
         
         int w = 0, h = 0, channels = 0;
         unsigned char* imageData = stbi_load(fullPath.c_str(), &w, &h, &channels, 4);
-      if (!imageData)
+        if (!imageData)
         {
             // failed to load image
- std::string errorMsg = "FAILED to load texture: " + fullPath + "\n";
-      OutputDebugStringA(errorMsg.c_str());
+            std::string errorMsg = "FAILED to load texture: " + fullPath + "\n";
+            OutputDebugStringA(errorMsg.c_str());
             return nullptr;
-      }
+        }
 
         std::string successMsg = "SUCCESS: Loaded texture " + fullPath + " (" + std::to_string(w) + "x" + std::to_string(h) + ")\n";
-    OutputDebugStringA(successMsg.c_str());
+        OutputDebugStringA(successMsg.c_str());
 
         D3D11_TEXTURE2D_DESC desc = {};
-  desc.Width = static_cast<UINT>(w);
+        desc.Width = static_cast<UINT>(w);
         desc.Height = static_cast<UINT>(h);
-    desc.MipLevels = 1;
+        desc.MipLevels = 1;
         desc.ArraySize = 1;
         desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         desc.SampleDesc.Count = 1;
         desc.Usage = D3D11_USAGE_DEFAULT;
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    desc.CPUAccessFlags = 0;
-    desc.MiscFlags = 0;
+        desc.CPUAccessFlags = 0;
+        desc.MiscFlags = 0;
 
         D3D11_SUBRESOURCE_DATA texData = {};
         texData.pSysMem = imageData;
@@ -190,12 +190,12 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
 
         ID3D11Texture2D* tex = nullptr;
         HRESULT hr = device->CreateTexture2D(&desc, &texData, &tex);
- stbi_image_free(imageData);
+        stbi_image_free(imageData);
 
         if (FAILED(hr) || !tex)
- {
+        {
             if (tex) tex->Release();
-          OutputDebugStringA("FAILED to create D3D11 texture\n");
+                OutputDebugStringA("FAILED to create D3D11 texture\n");
             return nullptr;
         }
 
@@ -204,14 +204,14 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
         // We can release the local texture; the SRV holds a reference.
         tex->Release();
 
-  if (FAILED(hr))
-      {
-   if (srv) srv->Release();
-            OutputDebugStringA("FAILED to create SRV for texture\n");
-    return nullptr;
+        if (FAILED(hr))
+        {
+            if (srv) srv->Release();
+                OutputDebugStringA("FAILED to create SRV for texture\n");
+            return nullptr;
         }
 
-   OutputDebugStringA("SUCCESS: Created SRV for texture\n");
+        OutputDebugStringA("SUCCESS: Created SRV for texture\n");
         return srv;
     };
 
@@ -230,30 +230,30 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
         sm.material.ambient = material.ambient;
         sm.material.diffuse = material.diffuse;
         sm.material.specular = material.specular;
-     sm.material.specularPower = material.specularPower;
+        sm.material.specularPower = material.specularPower;
 
         // Debug: Print material info
-{
+        {
             char buf[512];
-    sprintf_s(buf, "Submesh %zu: Material '%s', map_Kd='%s'\n",
-  meshInfo.subMeshInfo.size(),
-             material.name.c_str(),
-     material.mapKd.c_str());
-         OutputDebugStringA(buf);
-   }
+            sprintf_s(buf, "Submesh %zu: Material '%s', map_Kd='%s'\n",
+            meshInfo.subMeshInfo.size(),
+            material.name.c_str(),
+            material.mapKd.c_str());
+            OutputDebugStringA(buf);
+        }
 
-   // If material references a diffuse texture, try loading it.
-if (!material.mapKd.empty())
-  {
-  ID3D11ShaderResourceView* diffuseSRV = LoadTextureSRV(material.mapKd);
-    sm.diffuseTextureSRV = diffuseSRV; // may be nullptr on failure
+        // If material references a diffuse texture, try loading it.
+        if (!material.mapKd.empty())
+        {
+            ID3D11ShaderResourceView* diffuseSRV = LoadTextureSRV(material.mapKd);
+            sm.diffuseTextureSRV = diffuseSRV; // may be nullptr on failure
         }
         else
         {
-  OutputDebugStringA("  -> No map_Kd specified for this material\n");
+            OutputDebugStringA("  -> No map_Kd specified for this material\n");
         }
 
- meshInfo.subMeshInfo.push_back(sm);
+        meshInfo.subMeshInfo.push_back(sm);
     }
 
     // 5. Initialize the mesh - use new to create on heap since move is deleted
@@ -495,7 +495,7 @@ void ParseUseMtl(const std::string& dataSection, ParseData& data)
     if (data.indexData.size() > data.currentSubmeshStartIndex)
     {
         PushBackCurrentSubmesh(data);
-   data.currentSubmeshStartIndex = data.indexData.size();
+        data.currentSubmeshStartIndex = data.indexData.size();
     }
 
     // Find material index in data.parsedMaterials matching mtlName
@@ -505,10 +505,10 @@ void ParseUseMtl(const std::string& dataSection, ParseData& data)
     {
         if (data.parsedMaterials[i].name == mtlName)
         {
-  materialIndex = i;
+            materialIndex = i;
             found = true;
-  break;
-    }
+            break;
+        }
     }
     
     if (!found)
@@ -516,13 +516,13 @@ void ParseUseMtl(const std::string& dataSection, ParseData& data)
         std::string debugMsg = "  WARNING: Material '" + mtlName + "' not found in parsed materials!\n";
         OutputDebugStringA(debugMsg.c_str());
       
-      // Print all available materials
-   OutputDebugStringA("  Available materials:\n");
+        // Print all available materials
+        OutputDebugStringA("  Available materials:\n");
         for (size_t i = 0; i < data.parsedMaterials.size(); ++i)
         {
-    std::string matDebug = "    [" + std::to_string(i) + "] '" + data.parsedMaterials[i].name + "'\n";
-    OutputDebugStringA(matDebug.c_str());
-     }
+            std::string matDebug = "    [" + std::to_string(i) + "] '" + data.parsedMaterials[i].name + "'\n";
+            OutputDebugStringA(matDebug.c_str());
+        }
     }
     
     data.currentSubMeshMaterial = materialIndex;

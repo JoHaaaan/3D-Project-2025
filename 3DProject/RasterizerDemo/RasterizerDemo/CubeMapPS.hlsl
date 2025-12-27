@@ -50,7 +50,7 @@ float4 main(PS_INPUT input) : SV_Target
     float3 diffuse = NdotL * lightColor * diffuseColor;
   
     // Calculate specular (Blinn-Phong)
-float3 viewDir = normalize(cameraPos - input.worldPos);
+    float3 viewDir = normalize(cameraPos - input.worldPos);
     float3 halfDir = normalize(-lightDir + viewDir);
     float NdotH = max(dot(normal, halfDir), 0.0f);
     float spec = pow(NdotH, max(specularPower, 1.0f));

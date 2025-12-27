@@ -15,7 +15,7 @@ public:
     // Initialize default lights (directional + spotlights)
     void InitializeDefaultLights(ID3D11Device* device);
 
-  // Getters
+    // Getters
     std::vector<LightData>& GetLights() { return m_lights; }
     const std::vector<LightData>& GetLights() const { return m_lights; }
     ID3D11ShaderResourceView* GetLightBufferSRV() const { return m_lightBuffer.GetSRV(); }
@@ -26,7 +26,7 @@ public:
 
 private:
     void SetupDirectionalLight(LightData& light);
-    void SetupSpotLight(LightData& light, const DirectX::XMFLOAT3& color, 
+    void SetupSpotLight(LightData& light, const DirectX::XMFLOAT3& color,
         const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT3& direction);
 
     std::vector<LightData> m_lights;

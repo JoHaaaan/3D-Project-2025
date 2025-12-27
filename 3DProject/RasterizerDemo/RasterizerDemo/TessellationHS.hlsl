@@ -44,7 +44,7 @@ float CalculateTessellationFactor(float3 worldPos)
   
     // Linear interpolation from max to min tessellation
     // Close = MAX_TESS_FACTOR, Far = MIN_TESS_FACTOR
-float t = (distance - MIN_TESS_DISTANCE) / (MAX_TESS_DISTANCE - MIN_TESS_DISTANCE);
+    float t = (distance - MIN_TESS_DISTANCE) / (MAX_TESS_DISTANCE - MIN_TESS_DISTANCE);
     float tessFactor = lerp(MAX_TESS_FACTOR, MIN_TESS_FACTOR, t);
     
     return tessFactor;
@@ -58,7 +58,7 @@ PatchConstantOutput PatchConstantFunc(InputPatch<HSInput, NUM_CONTROL_POINTS> pa
     // This gives smoother transitions between tessellation levels
     
     // Edge 0: between vertex 0 and 1
- float3 edge0Midpoint = (patch[0].worldPos + patch[1].worldPos) * 0.5f;
+    float3 edge0Midpoint = (patch[0].worldPos + patch[1].worldPos) * 0.5f;
     output.edges[0] = CalculateTessellationFactor(edge0Midpoint);
     
     // Edge 1: between vertex 1 and 2

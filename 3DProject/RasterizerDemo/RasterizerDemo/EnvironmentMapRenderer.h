@@ -21,20 +21,20 @@ public:
     // Render the environment map for a reflective object
     void RenderEnvironmentMap(
         ID3D11DeviceContext* context,
-   ID3D11Device* device,
-const DirectX::XMFLOAT3& objectPosition,
-    std::vector<GameObject>& gameObjects,
+        ID3D11Device* device,
+        const DirectX::XMFLOAT3& objectPosition,
+        std::vector<GameObject>& gameObjects,
         size_t reflectiveObjectIndex,
         ID3D11VertexShader* vertexShader,
         ID3D11PixelShader* cubeMapPixelShader,
         ID3D11InputLayout* inputLayout,
-   ConstantBufferD3D11& constantBuffer,
+        ConstantBufferD3D11& constantBuffer,
         ConstantBufferD3D11& materialBuffer,
         SamplerD3D11& sampler,
-     ID3D11ShaderResourceView* fallbackTexture
+        ID3D11ShaderResourceView* fallbackTexture
     );
 
-  // Get the cube map SRV for sampling in the reflection shader
+    // Get the cube map SRV for sampling in the reflection shader
     ID3D11ShaderResourceView* GetEnvironmentSRV() const { return m_cubeMap.GetSRV(); }
 
 private:
@@ -43,15 +43,15 @@ private:
     TextureCubeD3D11 m_cubeMap;
     CameraD3D11 m_cameras[6];
     ProjectionInfo m_projInfo;
-    
+
     // Camera rotation values for each face
-    float m_upRotations[6] = { 
-        DirectX::XM_PIDIV2, -DirectX::XM_PIDIV2, 
-        0.0f, 0.0f, 0.0f, 0.0f 
+    float m_upRotations[6] = {
+        DirectX::XM_PIDIV2, -DirectX::XM_PIDIV2,
+        0.0f, 0.0f, 0.0f, 0.0f
     };
-    float m_rightRotations[6] = { 
-        0.0f, 0.0f, 
-        DirectX::XM_PIDIV2, -DirectX::XM_PIDIV2, 
-        0.0f, DirectX::XM_PI 
+    float m_rightRotations[6] = {
+        0.0f, 0.0f,
+        DirectX::XM_PIDIV2, -DirectX::XM_PIDIV2,
+        0.0f, DirectX::XM_PI
     };
 };

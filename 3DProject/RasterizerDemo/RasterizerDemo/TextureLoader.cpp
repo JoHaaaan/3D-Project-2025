@@ -10,8 +10,8 @@ extern "C" {
 ID3D11ShaderResourceView* TextureLoader::LoadTexture(ID3D11Device* device, const std::string& filename)
 {
     int width, height, channels;
-unsigned char* imageData = stbi_load(filename.c_str(), &width, &height, &channels, 4);
-    
+    unsigned char* imageData = stbi_load(filename.c_str(), &width, &height, &channels, 4);
+
     if (!imageData)
     {
         std::string msg = "Failed to load texture: " + filename + "\n";
@@ -37,32 +37,32 @@ unsigned char* imageData = stbi_load(filename.c_str(), &width, &height, &channel
     HRESULT hr = device->CreateTexture2D(&texDesc, &texData, &texture);
     stbi_image_free(imageData);
 
- if (FAILED(hr))
+    if (FAILED(hr))
     {
         std::string msg = "Failed to create texture: " + filename + "\n";
         OutputDebugStringA(msg.c_str());
-    return nullptr;
+        return nullptr;
     }
 
     ID3D11ShaderResourceView* srv = nullptr;
     hr = device->CreateShaderResourceView(texture, nullptr, &srv);
-    texture->Release(); // SRV holds reference
+    texture->Release();
 
     if (FAILED(hr))
     {
-      std::string msg = "Failed to create SRV for texture: " + filename + "\n";
+        std::string msg = "Failed to create SRV for texture: " + filename + "\n";
         OutputDebugStringA(msg.c_str());
         return nullptr;
     }
 
     std::string msg = "Texture loaded: " + filename + "\n";
-  OutputDebugStringA(msg.c_str());
+    OutputDebugStringA(msg.c_str());
     return srv;
 }
 
 ID3D11ShaderResourceView* TextureLoader::CreateSolidColorTexture(ID3D11Device* device, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 {
-  unsigned char pixel[4] = { r, g, b, a };
+    unsigned char pixel[4] = { r, g, b, a };
 
     D3D11_TEXTURE2D_DESC texDesc = {};
     texDesc.Width = 1;
@@ -74,17 +74,17 @@ ID3D11ShaderResourceView* TextureLoader::CreateSolidColorTexture(ID3D11Device* d
     texDesc.Usage = D3D11_USAGE_DEFAULT;
     texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 
-  D3D11_SUBRESOURCE_DATA texData = {};
+    D3D11_SUBRESOURCE_DATA texData = {};
     texData.pSysMem = pixel;
     texData.SysMemPitch = 4;
 
     ID3D11Texture2D* texture = nullptr;
     HRESULT hr = device->CreateTexture2D(&texDesc, &texData, &texture);
- 
+
     if (FAILED(hr))
     {
         OutputDebugStringA("Failed to create solid color texture\n");
-    return nullptr;
+        return nullptr;
     }
 
     ID3D11ShaderResourceView* srv = nullptr;
@@ -92,10 +92,10 @@ ID3D11ShaderResourceView* TextureLoader::CreateSolidColorTexture(ID3D11Device* d
     texture->Release();
 
     if (FAILED(hr))
-  {
-     OutputDebugStringA("Failed to create SRV for solid color texture\n");
+    {
+        OutputDebugStringA("Failed to create SRV for solid color texture\n");
         return nullptr;
- }
+    }
 
     return srv;
 }

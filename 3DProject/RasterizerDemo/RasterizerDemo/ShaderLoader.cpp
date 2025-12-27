@@ -12,7 +12,7 @@ std::vector<char> ShaderLoader::LoadCompiledShader(const std::string& filename)
         return {};
     }
 
- size_t size = static_cast<size_t>(reader.tellg());
+    size_t size = static_cast<size_t>(reader.tellg());
     std::vector<char> buffer(size);
     reader.seekg(0);
     reader.read(buffer.data(), size);
@@ -23,16 +23,16 @@ ID3D11VertexShader* ShaderLoader::CreateVertexShader(ID3D11Device* device, const
 {
     auto data = LoadCompiledShader(filename);
     if (data.empty())
-      return nullptr;
+        return nullptr;
 
-ID3D11VertexShader* shader = nullptr;
+    ID3D11VertexShader* shader = nullptr;
     HRESULT hr = device->CreateVertexShader(data.data(), data.size(), nullptr, &shader);
-    
+
     if (FAILED(hr))
-{
-      std::string msg = "Failed to create vertex shader: " + filename + "\n";
-  OutputDebugStringA(msg.c_str());
-      return nullptr;
+    {
+        std::string msg = "Failed to create vertex shader: " + filename + "\n";
+        OutputDebugStringA(msg.c_str());
+        return nullptr;
     }
 
     if (outByteCode)
@@ -49,11 +49,11 @@ ID3D11PixelShader* ShaderLoader::CreatePixelShader(ID3D11Device* device, const s
 {
     auto data = LoadCompiledShader(filename);
     if (data.empty())
-        return nullptr;
+    return nullptr;
 
     ID3D11PixelShader* shader = nullptr;
-HRESULT hr = device->CreatePixelShader(data.data(), data.size(), nullptr, &shader);
-    
+    HRESULT hr = device->CreatePixelShader(data.data(), data.size(), nullptr, &shader);
+
     if (FAILED(hr))
     {
         std::string msg = "Failed to create pixel shader: " + filename + "\n";
@@ -74,17 +74,17 @@ ID3D11HullShader* ShaderLoader::CreateHullShader(ID3D11Device* device, const std
 
     ID3D11HullShader* shader = nullptr;
     HRESULT hr = device->CreateHullShader(data.data(), data.size(), nullptr, &shader);
-    
+
     if (FAILED(hr))
     {
-  std::string msg = "Failed to create hull shader: " + filename + "\n";
+        std::string msg = "Failed to create hull shader: " + filename + "\n";
         OutputDebugStringA(msg.c_str());
-   return nullptr;
+        return nullptr;
     }
 
     std::string msg = "Hull shader loaded: " + filename + "\n";
     OutputDebugStringA(msg.c_str());
-return shader;
+    return shader;
 }
 
 ID3D11DomainShader* ShaderLoader::CreateDomainShader(ID3D11Device* device, const std::string& filename)
@@ -95,11 +95,11 @@ ID3D11DomainShader* ShaderLoader::CreateDomainShader(ID3D11Device* device, const
 
     ID3D11DomainShader* shader = nullptr;
     HRESULT hr = device->CreateDomainShader(data.data(), data.size(), nullptr, &shader);
-    
+
     if (FAILED(hr))
     {
-  std::string msg = "Failed to create domain shader: " + filename + "\n";
-   OutputDebugStringA(msg.c_str());
+        std::string msg = "Failed to create domain shader: " + filename + "\n";
+        OutputDebugStringA(msg.c_str());
         return nullptr;
     }
 
@@ -116,10 +116,10 @@ ID3D11ComputeShader* ShaderLoader::CreateComputeShader(ID3D11Device* device, con
 
     ID3D11ComputeShader* shader = nullptr;
     HRESULT hr = device->CreateComputeShader(data.data(), data.size(), nullptr, &shader);
-    
+
     if (FAILED(hr))
     {
-      std::string msg = "Failed to create compute shader: " + filename + "\n";
+        std::string msg = "Failed to create compute shader: " + filename + "\n";
         OutputDebugStringA(msg.c_str());
         return nullptr;
     }

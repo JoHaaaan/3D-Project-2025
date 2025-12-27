@@ -56,14 +56,14 @@ DomainShaderOutput main(HS_CONSTANT_DATA_OUTPUT input, float3 barycentric : SV_D
 
     // Standard linear interpolation (what we had before)
     float3 linearPos = patch[0].worldPos * barycentric.x + 
-   patch[1].worldPos * barycentric.y + 
-  patch[2].worldPos * barycentric.z;
+    patch[1].worldPos * barycentric.y + 
+    patch[2].worldPos * barycentric.z;
     
     // Phong Tessellation: Project the linear position onto the three planes
     // defined by each vertex position and normal
     
     // Project onto plane 0 (defined by vertex 0 and its normal)
-float3 proj0 = ProjectToPlane(linearPos, patch[0].worldPos, patch[0].normal);
+    float3 proj0 = ProjectToPlane(linearPos, patch[0].worldPos, patch[0].normal);
     
     // Project onto plane 1 (defined by vertex 1 and its normal)
     float3 proj1 = ProjectToPlane(linearPos, patch[1].worldPos, patch[1].normal);
@@ -73,23 +73,23 @@ float3 proj0 = ProjectToPlane(linearPos, patch[0].worldPos, patch[0].normal);
     
     // Interpolate the projected positions using barycentric coordinates
     float3 phongPos = proj0 * barycentric.x + 
-     proj1 * barycentric.y + 
-        proj2 * barycentric.z;
+    proj1 * barycentric.y + 
+    proj2 * barycentric.z;
     
     // Blend between linear interpolation and Phong projection
     // PhongAlpha = 0: pure linear (flat triangles)
-// PhongAlpha = 1: full Phong projection (smoothest)
+    // PhongAlpha = 1: full Phong projection (smoothest)
     output.worldPos = lerp(linearPos, phongPos, PhongAlpha);
     
     // Interpolate normal (same as before)
     output.normal = normalize(patch[0].normal * barycentric.x + 
-      patch[1].normal * barycentric.y + 
-  patch[2].normal * barycentric.z);
+    patch[1].normal * barycentric.y + 
+    patch[2].normal * barycentric.z);
     
     // Interpolate UV (same as before)
     output.uv = patch[0].uv * barycentric.x + 
-      patch[1].uv * barycentric.y + 
-     patch[2].uv * barycentric.z;
+    patch[1].uv * barycentric.y + 
+    patch[2].uv * barycentric.z;
 
     // Transform to clip space
     output.position = mul(float4(output.worldPos, 1), viewProjMatrix);
