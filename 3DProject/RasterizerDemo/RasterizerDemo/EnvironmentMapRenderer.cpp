@@ -50,9 +50,7 @@ void EnvironmentMapRenderer::RenderEnvironmentMap(
     // Update all 6 camera positions to be at the object's location
     for (int i = 0; i < 6; ++i)
     {
-        m_cameras[i].Initialize(device, m_projInfo, objectPosition);
-        m_cameras[i].RotateUp(m_upRotations[i]);
-        m_cameras[i].RotateRight(m_rightRotations[i]);
+        m_cameras[i].SetPosition(objectPosition);
     }
 
     // Render scene from each of the 6 cube face perspectives

@@ -461,13 +461,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                 {
                     context->PSSetShader(reflectionPS, nullptr, 0);
                     ID3D11ShaderResourceView* envSRV = envMapRenderer.GetEnvironmentSRV();
-                    context->PSSetShaderResources(0, 1, &envSRV);
+                    context->PSSetShaderResources(1, 1, &envSRV);
                     context->PSSetSamplers(0, 1, &samplerPtr);
 
                     gameObjects[objIdx].Draw(context, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
 
                     ID3D11ShaderResourceView* nullSRV = nullptr;
-                    context->PSSetShaderResources(0, 1, &nullSRV);
+                    context->PSSetShaderResources(1, 1, &nullSRV);
                     context->PSSetShader(pShader, nullptr, 0);
                 }
                 else

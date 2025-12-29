@@ -5,7 +5,7 @@ struct PixelShaderInput
     float3 normal : NORMAL;
 };
 
-TextureCube reflectionTexture : register(t0);
+TextureCube reflectionTexture : register(t1);
 sampler standardSampler : register(s0);
 
 cbuffer CameraInfo : register(b3)

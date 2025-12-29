@@ -13,9 +13,9 @@ struct VertexInput
 
 struct VSOutput
 {
-    float3 worldPos : WORLD_POS;
+    float3 worldPos : WORLD_POSITION;
     float3 normal : NORMAL;
-    float2 uv : UV;
+    float2 uv : TEXCOORD0;
 };
 
 VSOutput main(VertexInput input)

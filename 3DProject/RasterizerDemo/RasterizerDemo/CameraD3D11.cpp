@@ -48,7 +48,10 @@ void CameraD3D11::MoveInDirection(float amount, const XMFLOAT3& direction)
     pos = XMVectorAdd(pos, XMVectorScale(XMVector3Normalize(dir), amount));
     XMStoreFloat3(&position, pos);
 }
-
+void CameraD3D11::SetPosition(const DirectX::XMFLOAT3& p)
+{
+    position = p;
+}
 void CameraD3D11::MoveForward(float amount)
 {
     MoveInDirection(amount, forward);

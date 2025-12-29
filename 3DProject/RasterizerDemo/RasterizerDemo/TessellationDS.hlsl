@@ -21,17 +21,17 @@ struct HS_CONSTANT_DATA_OUTPUT
 
 struct HullShaderOutput
 {
-    float3 worldPos : WORLD_POS;
+    float3 worldPos : WORLD_POSITION;
     float3 normal : NORMAL;
-    float2 uv : UV;
+    float2 uv : TEXCOORD0;
 };
 
 struct DomainShaderOutput
 {
     float4 position : SV_POSITION;
-    float3 worldPos : WORLD_POS;
+    float3 worldPos : WORLD_POSITION;
     float3 normal : NORMAL;
-    float2 uv : UV;
+    float2 uv : TEXCOORD0;
 };
 
 // Phong tessellation parameter (0 = linear interpolation, 1 = full Phong projection)
