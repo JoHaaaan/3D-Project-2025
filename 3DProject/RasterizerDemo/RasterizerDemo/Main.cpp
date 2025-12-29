@@ -171,8 +171,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     GBufferD3D11 gbuffer;
     gbuffer.Initialize(device, WIDTH, HEIGHT);
     ConstantBufferD3D11 constantBuffer(device, sizeof(MatrixPair));
-    ConstantBufferD3D11 materialBuffer;
-    ConstantBufferD3D11 lightingToggleCB;
 
     // Compute output
     ID3D11Texture2D* lightingTex = nullptr;
@@ -219,11 +217,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         mat.specular = matData.specular;
         mat.specularPower = matData.specularPower;
     }
-    materialBuffer.Initialize(device, sizeof(Material), &mat);
+    // Initialize materialBuffer with the material data
+    ConstantBufferD3D11 materialBuffer(device, sizeof(Material), &mat);
 
     // Lighting toggles
     LightingToggles toggleData = { 0, 1, 1, 0 };
-    lightingToggleCB.Initialize(device, sizeof(LightingToggles), &toggleData);
+    // Initialize lightingToggleCB with the toggle data
+    ConstantBufferD3D11 lightingToggleCB(device, sizeof(LightingToggles), &toggleData);
 
     // Camera
     ProjectionInfo proj{ FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE };
