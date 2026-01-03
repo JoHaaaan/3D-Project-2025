@@ -99,9 +99,6 @@
     <ClCompile Include="EnvironmentMapRenderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ParticleSystemD3D11.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="VertexShader.hlsl">
@@ -116,10 +113,6 @@
     <FxCompile Include="TessellationDS.hlsl" />
     <FxCompile Include="ReflectionPS.hlsl" />
     <FxCompile Include="CubeMapPS.hlsl" />
-    <FxCompile Include="ParticleVS.hlsl" />
-    <FxCompile Include="ParticleUpdateCS.hlsl" />
-    <FxCompile Include="ParticleGS.hlsl" />
-    <FxCompile Include="ParticlePS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WindowHelper.h">
@@ -207,9 +200,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="QuadTree.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ParticleSystemD3D11.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
