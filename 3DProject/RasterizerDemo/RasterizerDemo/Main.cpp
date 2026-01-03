@@ -22,6 +22,7 @@
 #include "TextureLoader.h"
 #include "LightManager.h"
 #include "EnvironmentMapRenderer.h"
+#include "QuadTree.h"
 
 using namespace DirectX;
 
@@ -36,6 +37,9 @@ static const float FAR_PLANE = 100.0f;
 
 // Global VIEW_PROJ matrix (required by RenderHelper)
 XMMATRIX VIEW_PROJ;
+
+// Debug culling parameters
+static float DEBUG_CULLING_FOV_MULTIPLIER = 0.6f;  // Makes the frustum 60% of the camera FOV
 
 struct Material
 {
@@ -273,14 +277,48 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     const size_t REFLECTIVE_OBJECT_INDEX = 3;
 
-    // State
+    // Initialize QuadTree for frustum culling
+    // Define world bounds covering the entire scene
+    DirectX::BoundingBox worldBoundingBox(
+  DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f),      // Center
+        DirectX::XMFLOAT3(50.0f, 25.0f, 50.0f)    // Extents (half-width, half-height, half-depth)
+    );
+    QuadTree<GameObject*> sceneTree(worldBoundingBox, 5, 8);
+
+    // Insert all game objects into the QuadTree
+    for (auto& obj : gameObjects)
+    {
+     DirectX::BoundingBox worldBox = obj.GetWorldBoundingBox();
+  sceneTree.Insert(&obj, worldBox);
+    }
+
+    // Output control instructions
+    OutputDebugStringA("===========================================\n");
+    OutputDebugStringA("CONTROLS:\n");
+    OutputDebugStringA("===========================================\n");
+    OutputDebugStringA("WASD/QE   - Camera movement\n");
+    OutputDebugStringA("Mouse- Camera rotation\n");
+    OutputDebugStringA("1         - Toggle albedo only\n");
+    OutputDebugStringA("2         - Toggle diffuse lighting\n");
+    OutputDebugStringA("3         - Toggle specular lighting\n");
+    OutputDebugStringA("4         - Toggle wireframe mode\n");
+    OutputDebugStringA("5      - Toggle tessellation\n");
+    OutputDebugStringA("6         - Toggle DEBUG CULLING (smaller frustum)\n");
+    OutputDebugStringA("ESC       - Exit\n");
+    OutputDebugStringA("===========================================\n");
+    OutputDebugStringA("QuadTree initialized with frustum culling!\n");
+    OutputDebugStringA("Press '6' to see culling in action.\n");
+    OutputDebugStringA("===========================================\n");
+
+ // State
     bool tessellationEnabled = false;
     bool wireframeEnabled = false;
+    bool debugCullingEnabled = false;  // Toggle for debug culling visualization
     auto previousTime = std::chrono::high_resolution_clock::now();
     float rotationAngle = 90.f;
     const float mouseSens = 0.1f;
 
-    bool key1Prev = false, key2Prev = false, key3Prev = false, key4Prev = false, key5Prev = false;
+    bool key1Prev = false, key2Prev = false, key3Prev = false, key4Prev = false, key5Prev = false, key6Prev = false;
 
     // Main loop
     MSG msg = {};
@@ -306,13 +344,15 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         bool key3Now = (GetAsyncKeyState('3') & 0x8000) != 0;
         bool key4Now = (GetAsyncKeyState('4') & 0x8000) != 0;
         bool key5Now = (GetAsyncKeyState('5') & 0x8000) != 0;
+        bool key6Now = (GetAsyncKeyState('6') & 0x8000) != 0;
 
         if (key1Now && !key1Prev) { toggleData.showAlbedoOnly = !toggleData.showAlbedoOnly; lightingToggleCB.UpdateBuffer(context, &toggleData); }
         if (key2Now && !key2Prev) { toggleData.enableDiffuse = !toggleData.enableDiffuse; lightingToggleCB.UpdateBuffer(context, &toggleData); }
         if (key3Now && !key3Prev) { toggleData.enableSpecular = !toggleData.enableSpecular; lightingToggleCB.UpdateBuffer(context, &toggleData); }
         if (key4Now && !key4Prev) { wireframeEnabled = !wireframeEnabled; }
         if (key5Now && !key5Prev) { tessellationEnabled = !tessellationEnabled; }
-        key1Prev = key1Now; key2Prev = key2Now; key3Prev = key3Now; key4Prev = key4Now; key5Prev = key5Now;
+        if (key6Now && !key6Prev) { debugCullingEnabled = !debugCullingEnabled; }
+        key1Prev = key1Now; key2Prev = key2Now; key3Prev = key3Now; key4Prev = key4Now; key5Prev = key5Now; key6Prev = key6Now;
 
         // Camera movement
         const float camSpeed = 3.0f;
@@ -341,9 +381,18 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
         XMMATRIX lookAtMatrix = XMMatrixLookAtLH(objectPos, XMVectorZero(), XMVectorSet(0.f, 1.f, 0.f, 0.f));
         gameObjects[0].SetWorldMatrix(XMMatrixTranspose(lookAtMatrix) * XMMatrixTranslation(x, 0.f, z));
 
-        ID3D11DepthStencilView* myDSV = depthBuffer.GetDSV(0);
-        ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
-        ID3D11Buffer* cameraCB = camera.GetConstantBuffer();
+        // Update QuadTree for moving objects
+        // Since the rotating cube moves, we need to rebuild the tree each frame
+        sceneTree.Clear();
+  for (auto& obj : gameObjects)
+        {
+  DirectX::BoundingBox worldBox = obj.GetWorldBoundingBox();
+        sceneTree.Insert(&obj, worldBox);
+        }
+
+    ID3D11DepthStencilView* myDSV = depthBuffer.GetDSV(0);
+    ID3D11Buffer* cb0 = constantBuffer.GetBuffer();
+    ID3D11Buffer* cameraCB = camera.GetConstantBuffer();
 
         // ----- SHADOW PASS -----
         {
@@ -369,21 +418,35 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
                 XMMATRIX lightVP = lightManager.GetLightViewProj(lightIdx);
 
-                for (auto& obj : gameObjects)
-                {
-                    MatrixPair shadowData;
-                    XMStoreFloat4x4(&shadowData.world, XMMatrixTranspose(obj.GetWorldMatrix()));
-                    XMStoreFloat4x4(&shadowData.viewProj, XMMatrixTranspose(lightVP));
-                    constantBuffer.UpdateBuffer(context, &shadowData);
+                // Create light frustum for culling
+     XMMATRIX lightProj = XMMatrixPerspectiveFovLH(XMConvertToRadians(90.0f), 1.0f, 0.1f, 100.0f);
+     DirectX::BoundingFrustum lightFrustum(lightProj);
+           
+      // Transform to world space (simplified - you may need to extract actual light view matrix)
+         XMMATRIX invLightView = XMMatrixInverse(nullptr, lightVP * XMMatrixInverse(nullptr, lightProj));
+     DirectX::BoundingFrustum worldLightFrustum;
+                lightFrustum.Transform(worldLightFrustum, invLightView);
 
-                    const MeshD3D11* mesh = obj.GetMesh();
-                    if (mesh)
-                    {
-                        mesh->BindMeshBuffers(context);
-                        for (size_t i = 0; i < mesh->GetNrOfSubMeshes(); ++i)
-                            mesh->PerformSubMeshDrawCall(context, i);
-                    }
-                }
+       // Query visible objects for this light
+            std::vector<GameObject*> shadowCasters;
+      sceneTree.Query(worldLightFrustum, shadowCasters);
+
+     // Render shadow casters
+     for (GameObject* objPtr : shadowCasters)
+           {
+           MatrixPair shadowData;
+      XMStoreFloat4x4(&shadowData.world, XMMatrixTranspose(objPtr->GetWorldMatrix()));
+   XMStoreFloat4x4(&shadowData.viewProj, XMMatrixTranspose(lightVP));
+         constantBuffer.UpdateBuffer(context, &shadowData);
+
+     const MeshD3D11* mesh = objPtr->GetMesh();
+      if (mesh)
+    {
+      mesh->BindMeshBuffers(context);
+       for (size_t i = 0; i < mesh->GetNrOfSubMeshes(); ++i)
+        mesh->PerformSubMeshDrawCall(context, i);
+       }
+   }
             }
         }
 
@@ -454,27 +517,74 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
                 context->PSSetShaderResources(0, 1, &nullSRV);
             }
 
-            // Render game objects
-            for (size_t objIdx = 0; objIdx < gameObjects.size(); ++objIdx)
+  // *** FRUSTUM CULLING WITH QUADTREE ***
+     // Create the culling frustum (debug mode uses a smaller frustum)
+      DirectX::BoundingFrustum cullingFrustum;
+ if (debugCullingEnabled)
             {
-                if (objIdx == REFLECTIVE_OBJECT_INDEX && reflectionPS)
-                {
-                    context->PSSetShader(reflectionPS, nullptr, 0);
-                    ID3D11ShaderResourceView* envSRV = envMapRenderer.GetEnvironmentSRV();
-                    context->PSSetShaderResources(1, 1, &envSRV);
-                    context->PSSetSamplers(0, 1, &samplerPtr);
+     // Create a smaller frustum for debug visualization
+   float debugFOV = FOV * DEBUG_CULLING_FOV_MULTIPLIER;
+   XMMATRIX debugProj = XMMatrixPerspectiveFovLH(debugFOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE);
+   cullingFrustum = DirectX::BoundingFrustum(debugProj);
+                
+          // Transform to world space
+    XMFLOAT3 camPos = camera.GetPosition();
+                XMFLOAT3 camForward = camera.GetForward();
+   XMFLOAT3 camUp = camera.GetUp();
+      XMVECTOR posV = XMLoadFloat3(&camPos);
+         XMVECTOR lookAtV = XMVectorAdd(posV, XMLoadFloat3(&camForward));
+   XMVECTOR upV = XMLoadFloat3(&camUp);
+XMMATRIX view = XMMatrixLookAtLH(posV, lookAtV, upV);
+     XMMATRIX invView = XMMatrixInverse(nullptr, view);
+          
+  DirectX::BoundingFrustum worldFrustum;
+           cullingFrustum.Transform(worldFrustum, invView);
+     cullingFrustum = worldFrustum;
+    }
+            else
+            {
+    // Use the full camera frustum for culling
+           cullingFrustum = camera.GetBoundingFrustum();
+      }
 
-                    gameObjects[objIdx].Draw(context, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
+            // Query visible objects from QuadTree
+            std::vector<GameObject*> visibleObjects;
+          sceneTree.Query(cullingFrustum, visibleObjects);
 
-                    ID3D11ShaderResourceView* nullSRV = nullptr;
-                    context->PSSetShaderResources(1, 1, &nullSRV);
-                    context->PSSetShader(pShader, nullptr, 0);
-                }
-                else
-                {
-                    gameObjects[objIdx].Draw(context, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
-                }
-            }
+            // Render visible game objects
+    for (GameObject* objPtr : visibleObjects)
+            {
+      // Find the index for special handling (reflective object)
+      size_t objIdx = objPtr - &gameObjects[0];
+
+     if (objIdx == REFLECTIVE_OBJECT_INDEX && reflectionPS)
+   {
+        context->PSSetShader(reflectionPS, nullptr, 0);
+   ID3D11ShaderResourceView* envSRV = envMapRenderer.GetEnvironmentSRV();
+          context->PSSetShaderResources(1, 1, &envSRV);
+          context->PSSetSamplers(0, 1, &samplerPtr);
+
+       objPtr->Draw(context, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
+
+           ID3D11ShaderResourceView* nullSRV = nullptr;
+           context->PSSetShaderResources(1, 1, &nullSRV);
+        context->PSSetShader(pShader, nullptr, 0);
+       }
+      else
+          {
+ objPtr->Draw(context, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
+     }
+        }
+
+            // Debug output: Display culling statistics
+          if (debugCullingEnabled)
+{
+     char debugMsg[256];
+          sprintf_s(debugMsg, "Frustum Culling: %zu / %zu objects visible (%.1f%% culled)\n",
+        visibleObjects.size(), gameObjects.size(),
+     100.0f * (1.0f - (float)visibleObjects.size() / gameObjects.size()));
+     OutputDebugStringA(debugMsg);
+     }
         }
 
         // ----- LIGHTING PASS (COMPUTE) -----
@@ -543,3 +653,111 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     return 0;
 }
+
+/*
+ * =============================================================================
+ * QUADTREE FRUSTUM CULLING - USAGE EXAMPLE
+ * =============================================================================
+ * 
+ * This example demonstrates how to use the QuadTree for frustum culling.
+ * 
+ * STEP 1: Include the QuadTree header
+ * ----------------------------------------------------------------------------
+ * #include "QuadTree.h"
+ * 
+ * 
+ * STEP 2: Create a QuadTree instance
+ * ----------------------------------------------------------------------------
+ * // Define world bounds (adjust based on your scene size)
+ * DirectX::BoundingBox worldBounds(
+ *     DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f),  // Center of the world
+ *     DirectX::XMFLOAT3(100.0f, 50.0f, 100.0f)  // Extents (half-width, half-height, half-depth)
+ * );
+ * 
+ * // Create QuadTree with GameObject pointers
+ * // Parameters: worldBounds, maxDepth (5), maxElementsPerNode (8)
+ * QuadTree<GameObject*> sceneQuadTree(worldBounds, 5, 8);
+ * 
+ * 
+ * STEP 3: Insert all game objects into the QuadTree
+ * ----------------------------------------------------------------------------
+ * for (auto& obj : gameObjects)
+ * {
+ *     DirectX::BoundingBox worldBox = obj.GetWorldBoundingBox();
+ *     sceneQuadTree.Insert(&obj, worldBox);
+ * }
+ * 
+ * 
+ * STEP 4: Perform frustum culling each frame
+ * ----------------------------------------------------------------------------
+ * // Get the camera's frustum
+ * DirectX::BoundingFrustum frustum = camera.GetBoundingFrustum();
+ * 
+ * // Query visible objects
+ * std::vector<GameObject*> visibleObjects;
+ * sceneQuadTree.Query(frustum, visibleObjects);
+ * 
+ * // Render only visible objects
+ * for (GameObject* obj : visibleObjects)
+ * {
+ *     obj->Draw(context, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
+ * }
+ * 
+ * 
+ * STEP 5: Update QuadTree when objects move (optional)
+ * ----------------------------------------------------------------------------
+ * // If objects move dynamically, you need to rebuild the tree
+ * // Option A: Clear and re-insert (simple but potentially expensive)
+ * sceneQuadTree.Clear();
+ * for (auto& obj : gameObjects)
+ * {
+ *     DirectX::BoundingBox worldBox = obj.GetWorldBoundingBox();
+ *     sceneQuadTree.Insert(&obj, worldBox);
+ * }
+ * 
+ * // Option B: Rebuild the tree (clears and resets to initial state)
+ * sceneQuadTree.Rebuild(worldBounds);
+ * for (auto& obj : gameObjects)
+ * {
+ *     DirectX::BoundingBox worldBox = obj.GetWorldBoundingBox();
+ *     sceneQuadTree.Insert(&obj, worldBox);
+ * }
+ * 
+ * 
+ * ADVANCED USAGE: Storing indices instead of pointers
+ * ----------------------------------------------------------------------------
+ * // You can also store indices to game objects instead of pointers
+ * QuadTree<size_t> sceneQuadTreeIndices(worldBounds, 5, 8);
+ * 
+ * for (size_t i = 0; i < gameObjects.size(); ++i)
+ * {
+ *     DirectX::BoundingBox worldBox = gameObjects[i].GetWorldBoundingBox();
+ *     sceneQuadTreeIndices.Insert(i, worldBox);
+ * }
+ * 
+ * // Query and render
+ * std::vector<size_t> visibleIndices;
+ * sceneQuadTreeIndices.Query(frustum, visibleIndices);
+ * 
+ * for (size_t idx : visibleIndices)
+ * {
+ *     gameObjects[idx].Draw(context, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
+ * }
+ * 
+ * 
+ * PERFORMANCE TIPS
+ * ----------------------------------------------------------------------------
+ * 1. Adjust maxDepth and maxElementsPerNode based on your scene:
+ *    - More depth = finer subdivision but more nodes
+ *    - More elements per node = less subdivision but more objects to test
+ * 
+ * 2. For mostly static scenes, build the QuadTree once and reuse
+ * 
+ * 3. For dynamic scenes, rebuild only when necessary (e.g., objects move)
+ * 
+ * 4. Consider using a separate QuadTree for static and dynamic objects
+ * 
+ * 5. Profile to find the optimal parameters for your specific scene
+ * 
+ * =============================================================================
+ */

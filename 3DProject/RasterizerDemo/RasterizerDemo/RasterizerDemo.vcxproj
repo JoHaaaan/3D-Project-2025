@@ -263,6 +263,7 @@
     <ClInclude Include="MeshD3D11.h" />
     <ClInclude Include="OBJParser.h" />
     <ClInclude Include="PipelineHelper.h" />
+    <ClInclude Include="QuadTree.h" />
     <ClInclude Include="RenderHelper.h" />
     <ClInclude Include="RenderTargetD3D11.h" />
     <ClInclude Include="SamplerD3D11.h" />

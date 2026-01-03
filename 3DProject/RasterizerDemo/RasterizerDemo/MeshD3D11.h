@@ -4,6 +4,7 @@
 
 #include <d3d11_4.h>
 #include <DirectXMath.h>
+#include <DirectXCollision.h>
 
 #include "SubMeshD3D11.h"
 #include "VertexBufferD3D11.h"
@@ -52,6 +53,7 @@ private:
 	std::vector<MeshData::MaterialData> subMeshMaterials;
 	VertexBufferD3D11 vertexBuffer;
 	IndexBufferD3D11 indexBuffer;
+	DirectX::BoundingBox localBoundingBox;  // Local-space bounding box
 
 public:
 	MeshD3D11() = default;
@@ -71,4 +73,7 @@ public:
 	ID3D11ShaderResourceView* GetDiffuseSRV(size_t subMeshIndex) const;
 	ID3D11ShaderResourceView* GetSpecularSRV(size_t subMeshIndex) const;
 	const MeshData::MaterialData& GetMaterial(size_t subMeshIndex) const;
+
+	// Get the local-space bounding box
+	const DirectX::BoundingBox& GetLocalBoundingBox() const { return localBoundingBox; }
 };

@@ -2,6 +2,7 @@
 
 #include <d3d11_4.h>
 #include <DirectXMath.h>
+#include <DirectXCollision.h>
 
 #include "ConstantBufferD3D11.h"
 
@@ -60,4 +61,8 @@ public:
 	ID3D11Buffer* GetConstantBuffer() const;
 
 	DirectX::XMFLOAT4X4 GetViewProjectionMatrix() const;
+
+	// Create a bounding frustum for culling
+	DirectX::BoundingFrustum GetBoundingFrustum() const;
 };
+		

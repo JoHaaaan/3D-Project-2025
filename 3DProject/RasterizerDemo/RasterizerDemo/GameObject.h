@@ -1,6 +1,7 @@
 #pragma once
 #include <d3d11.h>
 #include <DirectXMath.h>
+#include <DirectXCollision.h>
 #include "MeshD3D11.h"
 #include "ConstantBufferD3D11.h"
 
@@ -16,6 +17,9 @@ public:
     // Get the mesh pointer
     const MeshD3D11* GetMesh() const { return m_mesh; }
 
+    // Get world-space bounding box (transforms the local bounding box by world matrix)
+    DirectX::BoundingBox GetWorldBoundingBox() const;
+
     // The Draw method handles the boilerplate of binding buffers and materials
     void Draw(ID3D11DeviceContext* context,
         ConstantBufferD3D11& matrixBuffer,
@@ -24,6 +28,6 @@ public:
         ID3D11ShaderResourceView* fallbackTexture);
 
 private:
-    const MeshD3D11* m_mesh;
+ const MeshD3D11* m_mesh;
     DirectX::XMFLOAT4X4 m_worldMatrix;
 };

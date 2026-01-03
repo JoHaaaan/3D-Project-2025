@@ -158,3 +158,30 @@ DirectX::XMFLOAT4X4 CameraD3D11::GetViewProjectionMatrix() const
     XMStoreFloat4x4(&vp, viewProj);
     return vp;
 }
+
+// Create a bounding frustum for culling
+DirectX::BoundingFrustum CameraD3D11::GetBoundingFrustum() const
+{
+    // Create frustum from projection matrix
+    XMMATRIX proj = XMMatrixPerspectiveFovLH(
+        projInfo.fovAngleY,
+        projInfo.aspectRatio,
+        projInfo.nearZ,
+        projInfo.farZ
+    );
+
+    DirectX::BoundingFrustum frustum(proj);
+
+    // Transform frustum to world space using view matrix
+    XMVECTOR posV = XMLoadFloat3(&position);
+    XMVECTOR lookAtV = XMVectorAdd(posV, XMLoadFloat3(&forward));
+    XMVECTOR upV = XMLoadFloat3(&up);
+
+    XMMATRIX view = XMMatrixLookAtLH(posV, lookAtV, upV);
+    XMMATRIX invView = XMMatrixInverse(nullptr, view);
+
+    DirectX::BoundingFrustum worldFrustum;
+    frustum.Transform(worldFrustum, invView);
+
+    return worldFrustum;
+}

@@ -31,6 +31,24 @@ DirectX::XMMATRIX GameObject::GetWorldMatrix() const
     return XMLoadFloat4x4(&m_worldMatrix);
 }
 
+DirectX::BoundingBox GameObject::GetWorldBoundingBox() const
+{
+    if (!m_mesh)
+    {
+        // Return empty bounding box if no mesh
+        return DirectX::BoundingBox(DirectX::XMFLOAT3(0, 0, 0), DirectX::XMFLOAT3(0, 0, 0));
+    }
+
+    // Get the local bounding box from the mesh
+    DirectX::BoundingBox localBox = m_mesh->GetLocalBoundingBox();
+
+    // Transform it using the object's world matrix
+    DirectX::BoundingBox worldBox;
+    localBox.Transform(worldBox, GetWorldMatrix());
+
+    return worldBox;
+}
+
 void GameObject::Draw(ID3D11DeviceContext* context,
     ConstantBufferD3D11& matrixBuffer,
     ConstantBufferD3D11& materialBuffer,
