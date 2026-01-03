@@ -32,9 +32,9 @@ ConstantBufferD3D11& ConstantBufferD3D11::operator=(ConstantBufferD3D11&& other)
 
 void ConstantBufferD3D11::Initialize(ID3D11Device* device, size_t byteSize, void* initialData)
 {
-	if (buffer) 
-	{ 
-		buffer->Release(); buffer = nullptr; 
+	if (buffer)
+	{
+		buffer->Release(); buffer = nullptr;
 	}
 
 	D3D11_BUFFER_DESC desc = {};

@@ -42,7 +42,7 @@ public:
 
 	void Initialize(ID3D11Device* device, const ProjectionInfo& projectionInfo,
 		const DirectX::XMFLOAT3& initialPosition = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f));
-	
+
 	void SetPosition(const DirectX::XMFLOAT3& p);
 	void MoveForward(float amount);
 	void MoveRight(float amount);
@@ -65,4 +65,3 @@ public:
 	// Create a bounding frustum for culling
 	DirectX::BoundingFrustum GetBoundingFrustum() const;
 };
-		

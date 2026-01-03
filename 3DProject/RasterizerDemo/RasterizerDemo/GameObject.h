@@ -8,26 +8,26 @@
 class GameObject
 {
 public:
-    GameObject(const MeshD3D11* mesh);
+	GameObject(const MeshD3D11* mesh);
 
-    // Transform handling
-    void SetWorldMatrix(const DirectX::XMMATRIX& world);
-    DirectX::XMMATRIX GetWorldMatrix() const;
+	// Transform handling
+	void SetWorldMatrix(const DirectX::XMMATRIX& world);
+	DirectX::XMMATRIX GetWorldMatrix() const;
 
-    // Get the mesh pointer
-    const MeshD3D11* GetMesh() const { return m_mesh; }
+	// Get the mesh pointer
+	const MeshD3D11* GetMesh() const { return m_mesh; }
 
-    // Get world-space bounding box (transforms the local bounding box by world matrix)
-    DirectX::BoundingBox GetWorldBoundingBox() const;
+	// Get world-space bounding box (transforms the local bounding box by world matrix)
+	DirectX::BoundingBox GetWorldBoundingBox() const;
 
-    // The Draw method handles the boilerplate of binding buffers and materials
-    void Draw(ID3D11DeviceContext* context,
-        ConstantBufferD3D11& matrixBuffer,
-        ConstantBufferD3D11& materialBuffer,
-        const DirectX::XMMATRIX& viewProjection,
-        ID3D11ShaderResourceView* fallbackTexture);
+	// The Draw method handles the boilerplate of binding buffers and materials
+	void Draw(ID3D11DeviceContext* context,
+		ConstantBufferD3D11& matrixBuffer,
+		ConstantBufferD3D11& materialBuffer,
+		const DirectX::XMMATRIX& viewProjection,
+		ID3D11ShaderResourceView* fallbackTexture);
 
 private:
- const MeshD3D11* m_mesh;
-    DirectX::XMFLOAT4X4 m_worldMatrix;
+	const MeshD3D11* m_mesh;
+	DirectX::XMFLOAT4X4 m_worldMatrix;
 };

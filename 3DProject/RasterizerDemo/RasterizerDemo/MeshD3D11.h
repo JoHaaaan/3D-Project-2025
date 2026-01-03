@@ -58,10 +58,10 @@ private:
 public:
 	MeshD3D11() = default;
 	~MeshD3D11() = default;
-	MeshD3D11(const MeshD3D11 & other) = delete;
-	MeshD3D11& operator=(const MeshD3D11 & other) = delete;
-	MeshD3D11(MeshD3D11 && other) = delete;
-	MeshD3D11& operator=(MeshD3D11 && other) = delete;
+	MeshD3D11(const MeshD3D11& other) = delete;
+	MeshD3D11& operator=(const MeshD3D11& other) = delete;
+	MeshD3D11(MeshD3D11&& other) = delete;
+	MeshD3D11& operator=(MeshD3D11&& other) = delete;
 
 	void Initialize(ID3D11Device* device, const MeshData& meshInfo);
 
