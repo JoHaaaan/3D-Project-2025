@@ -4,6 +4,7 @@
 #include <DirectXMath.h>
 #include <memory>
 #include <vector>
+#include <unordered_set>
 
 // Helper structure to store element with its bounding box
 template<typename T>
@@ -36,7 +37,7 @@ private:
     // Helper methods
     void Subdivide(Node* node, int currentDepth);
     void Insert(Node* node, const QuadTreeElement<T>& element, int currentDepth);
-    void Query(Node* node, const DirectX::BoundingFrustum& frustum, std::vector<T>& result) const;
+    void Query(Node* node, const DirectX::BoundingFrustum& frustum, std::unordered_set<T>& visited, std::vector<T>& result) const;
     void Clear(Node* node);
 
 public:
@@ -189,7 +190,7 @@ void QuadTree<T>::Insert(const T& element, const DirectX::BoundingBox& elementBo
 }
 
 template<typename T>
-void QuadTree<T>::Query(Node* node, const DirectX::BoundingFrustum& frustum, std::vector<T>& result) const
+void QuadTree<T>::Query(Node* node, const DirectX::BoundingFrustum& frustum, std::unordered_set<T>& visited, std::vector<T>& result) const
 {
     if (!node)
         return;
@@ -204,25 +205,29 @@ void QuadTree<T>::Query(Node* node, const DirectX::BoundingFrustum& frustum, std
     {
  // It's a LEAF: Check intersection between the Frustum and each object in elements
         for (const auto& elem : node->elements)
-     {
-            // Perform per-object frustum culling
+ {
+       // Perform per-object frustum culling
          if (frustum.Intersects(elem.boundingBox))
      {
-     // If an object intersects, add it to your result list
-                result.push_back(elem.data);
-    }
+                // Check if we've already added this element (duplicate protection)
+                if (visited.find(elem.data) == visited.end())
+        {
+                    visited.insert(elem.data);
+      result.push_back(elem.data);
+ }
+  }
         }
     }
     else
-    {
+ {
      // It's a PARENT: Recurse into all children
     for (int i = 0; i < 4; ++i)
-        {
+   {
    if (node->children[i])
         {
-          Query(node->children[i].get(), frustum, result);
+     Query(node->children[i].get(), frustum, visited, result);
     }
-        }
+  }
     }
 }
 
@@ -230,7 +235,8 @@ template<typename T>
 void QuadTree<T>::Query(const DirectX::BoundingFrustum& frustum, std::vector<T>& result) const
 {
     result.clear();
-    Query(root.get(), frustum, result);
+    std::unordered_set<T> visited;  // Track processed elements to avoid duplicates
+    Query(root.get(), frustum, visited, result);
 }
 
 template<typename T>
