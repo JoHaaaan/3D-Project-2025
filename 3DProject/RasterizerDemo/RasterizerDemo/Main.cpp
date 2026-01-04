@@ -261,23 +261,23 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 	// Game objects
 	std::vector<GameObject> gameObjects;
+	// Note: gameObjects[0] is now a spinning quad rendered separately (not a GameObject)
 	gameObjects.emplace_back(cubeMesh);
-	gameObjects.emplace_back(cubeMesh);
-	gameObjects[1].SetWorldMatrix(XMMatrixTranslation(30.0f, 1.0f, 0.0f));
+	gameObjects[0].SetWorldMatrix(XMMatrixTranslation(30.0f, 1.0f, 0.0f));
 	gameObjects.emplace_back(pineAppleMesh);
-	gameObjects[2].SetWorldMatrix(XMMatrixTranslation(0.0f, 0.0f, -14.0f));
-	gameObjects.emplace_back(simpleCubeMesh);
-	gameObjects[3].SetWorldMatrix(XMMatrixTranslation(-2.0f, 2.0f, 0.0f));
-	gameObjects.emplace_back(simpleCubeMesh);
-	gameObjects[4].SetWorldMatrix(XMMatrixTranslation(2.0f, 2.0f, 0.0f));
-	gameObjects.emplace_back(simpleCubeMesh);
-	gameObjects[5].SetWorldMatrix(XMMatrixScaling(5.0f, 0.2f, 5.0f) * XMMatrixTranslation(0.0f, -1.0f, 0.0f));
+	gameObjects[1].SetWorldMatrix(XMMatrixTranslation(0.0f, 0.0f, -14.0f));
 	gameObjects.emplace_back(sphereMesh);
-	gameObjects[6].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(2.0f, 3.0f, -3.0f));
+	gameObjects[2].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(-2.0f, 2.0f, 0.0f));
+	gameObjects.emplace_back(simpleCubeMesh);
+	gameObjects[3].SetWorldMatrix(XMMatrixTranslation(2.0f, 2.0f, 0.0f));
+	gameObjects.emplace_back(simpleCubeMesh);
+	gameObjects[4].SetWorldMatrix(XMMatrixScaling(5.0f, 0.2f, 5.0f) * XMMatrixTranslation(0.0f, -1.0f, 0.0f));
 	gameObjects.emplace_back(sphereMesh);
-	gameObjects[7].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(4.0f, 3.0f, -3.0f));
+	gameObjects[5].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(2.0f, 3.0f, -3.0f));
 	gameObjects.emplace_back(sphereMesh);
-	gameObjects[8].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(6.0f, 3.0f, -3.0f));
+	gameObjects[6].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(4.0f, 3.0f, -3.0f));
+	gameObjects.emplace_back(sphereMesh);
+	gameObjects[7].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(6.0f, 3.0f, -3.0f));
 
 	// Add small spheres at each spotlight position
 	const auto& lights = lightManager.GetLights();
@@ -296,7 +296,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	}
 
 
-	const size_t REFLECTIVE_OBJECT_INDEX = 3;
+	const size_t REFLECTIVE_OBJECT_INDEX = 2;  // Updated index (was 3, now 2 since we removed one cube)
 
 	// Initialize QuadTree for frustum culling
 	// Define world bounds covering the entire scene
@@ -394,16 +394,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		XMFLOAT4X4 vp = camera.GetViewProjectionMatrix();
 		VIEW_PROJ = XMLoadFloat4x4(&vp);
 
-		// Update rotating cube
-		float armLength = 0.7f;
-		float x = armLength * cosf(rotationAngle);
-		float z = armLength * sinf(rotationAngle);
-		XMVECTOR objectPos = XMVectorSet(x, 0.f, z, 1.f);
-		XMMATRIX lookAtMatrix = XMMatrixLookAtLH(objectPos, XMVectorZero(), XMVectorSet(0.f, 1.f, 0.f, 0.f));
-		gameObjects[0].SetWorldMatrix(XMMatrixTranspose(lookAtMatrix) * XMMatrixTranslation(x, 0.f, z));
+		// Update spinning quad transformation (no longer using gameObjects[0])
+		XMMATRIX spinningQuadWorld = XMMatrixRotationY(rotationAngle) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 
 		// Update QuadTree for moving objects
-		// Since the rotating cube moves, we need to rebuild the tree each frame
 		sceneTree.Clear();
 		for (auto& obj : gameObjects)
 		{
@@ -521,10 +515,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 				context->PSSetShader(pShader, nullptr, 0);
 			}
 
-			// Render image quad
+			// Render spinning quad
 			{
 				MatrixPair rotatingData;
-				XMStoreFloat4x4(&rotatingData.world, XMMatrixTranspose(gameObjects[0].GetWorldMatrix()));
+				XMStoreFloat4x4(&rotatingData.world, XMMatrixTranspose(spinningQuadWorld));
 				XMStoreFloat4x4(&rotatingData.viewProj, XMMatrixTranspose(VIEW_PROJ));
 				constantBuffer.UpdateBuffer(context, &rotatingData);
 
