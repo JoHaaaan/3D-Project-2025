@@ -1,14 +1,21 @@
 #include "StructuredBufferD3D11.h"
 #include <cstring>
 
+
 StructuredBufferD3D11::StructuredBufferD3D11(ID3D11Device* device, UINT sizeOfElement,
-    size_t nrOfElementsInBuffer, void* bufferData, bool dynamic)
+    size_t nrOfElementsInBuffer, void* bufferData, bool dynamic, bool createUAV)
 {
-    Initialize(device, sizeOfElement, nrOfElementsInBuffer, bufferData, dynamic);
+    Initialize(device, sizeOfElement, nrOfElementsInBuffer, bufferData, dynamic, createUAV);
 }
 
 StructuredBufferD3D11::~StructuredBufferD3D11()
 {
+
+    if (uav)
+    {
+        uav->Release();
+        uav = nullptr;
+    }
     if (srv)
     {
         srv->Release();
@@ -21,9 +28,16 @@ StructuredBufferD3D11::~StructuredBufferD3D11()
     }
 }
 
+
 void StructuredBufferD3D11::Initialize(ID3D11Device* device, UINT sizeOfElement,
-    size_t nrOfElementsInBuffer, void* bufferData, bool dynamic)
+    size_t nrOfElementsInBuffer, void* bufferData, bool dynamic, bool createUAV)
 {
+
+    if (uav)
+    {
+        uav->Release();
+        uav = nullptr;
+    }
     if (srv)
     {
         srv->Release();
@@ -42,6 +56,13 @@ void StructuredBufferD3D11::Initialize(ID3D11Device* device, UINT sizeOfElement,
     desc.ByteWidth = static_cast<UINT>(sizeOfElement * nrOfElementsInBuffer);
     desc.Usage = dynamic ? D3D11_USAGE_DYNAMIC : D3D11_USAGE_DEFAULT;
     desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+
+    if (createUAV)
+    {
+        desc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
+    }
+
     desc.CPUAccessFlags = dynamic ? D3D11_CPU_ACCESS_WRITE : 0;
     desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
     desc.StructureByteStride = sizeOfElement;
@@ -66,6 +87,22 @@ void StructuredBufferD3D11::Initialize(ID3D11Device* device, UINT sizeOfElement,
     if (FAILED(hr))
     {
         srv = nullptr;
+    }
+
+    if (createUAV)
+    {
+        D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+        uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+        uavDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+        uavDesc.Buffer.FirstElement = 0;
+        uavDesc.Buffer.NumElements = static_cast<UINT>(nrOfElementsInBuffer);
+        uavDesc.Buffer.Flags = 0;
+
+        hr = device->CreateUnorderedAccessView(buffer, &uavDesc, &uav);
+        if (FAILED(hr))
+        {
+            uav = nullptr;
+        }
     }
 }
 
@@ -95,4 +132,10 @@ size_t StructuredBufferD3D11::GetNrOfElements() const
 ID3D11ShaderResourceView* StructuredBufferD3D11::GetSRV() const
 {
     return srv;
+}
+
+
+ID3D11UnorderedAccessView* StructuredBufferD3D11::GetUAV() const
+{
+    return uav;
 }
