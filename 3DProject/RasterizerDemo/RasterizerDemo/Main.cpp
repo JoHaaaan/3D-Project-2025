@@ -323,13 +323,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	OutputDebugStringA("2         - Toggle diffuse lighting\n");
 	OutputDebugStringA("3         - Toggle specular lighting\n");
 	OutputDebugStringA("4         - Toggle wireframe mode\n");
-	OutputDebugStringA("5      - Toggle tessellation\n");
+	OutputDebugStringA("5         - Toggle tessellation\n");
 	OutputDebugStringA("6         - Toggle DEBUG CULLING (smaller frustum)\n");
 	OutputDebugStringA("ESC       - Exit\n");
 	OutputDebugStringA("===========================================\n");
-	OutputDebugStringA("QuadTree initialized with frustum culling!\n");
-	OutputDebugStringA("Press '6' to see culling in action.\n");
-	OutputDebugStringA("===========================================\n");
+
 
 	// State
 	bool tessellationEnabled = false;
@@ -591,15 +589,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 				}
 			}
 
-			// Debug output: Display culling statistics
-			if (debugCullingEnabled)
-			{
-				char debugMsg[256];
-				sprintf_s(debugMsg, "Frustum Culling: %zu / %zu objects visible (%.1f%% culled)\n",
-					visibleObjects.size(), gameObjects.size(),
-					100.0f * (1.0f - (float)visibleObjects.size() / gameObjects.size()));
-				OutputDebugStringA(debugMsg);
-			}
+
 		}
 
 		// ----- LIGHTING PASS (COMPUTE) -----
