@@ -28,8 +28,22 @@ void EnvironmentMapRenderer::InitializeCameras(ID3D11Device* device)
     for (int i = 0; i < 6; ++i)
     {
         m_cameras[i].Initialize(device, m_projInfo, XMFLOAT3(0.0f, 0.0f, 0.0f));
-        m_cameras[i].RotateUp(m_upRotations[i]);
+   
+        // Apply yaw (right rotation) first
         m_cameras[i].RotateRight(m_rightRotations[i]);
+      
+        // For +Y and -Y faces, apply pitch rotation
+        if (i == 2) // +Y face: look up
+        {
+            m_cameras[i].RotateForward(-XM_PIDIV2); // Pitch up 90°
+        }
+        else if (i == 3) // -Y face: look down
+        {
+            m_cameras[i].RotateForward(XM_PIDIV2); // Pitch down 90°
+        }
+        
+        // Apply roll (up rotation) last
+        m_cameras[i].RotateUp(m_upRotations[i]);
     }
 }
 
