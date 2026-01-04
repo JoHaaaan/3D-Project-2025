@@ -266,7 +266,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	gameObjects[0].SetWorldMatrix(XMMatrixTranslation(30.0f, 1.0f, 0.0f));
 	gameObjects.emplace_back(pineAppleMesh);
 	gameObjects[1].SetWorldMatrix(XMMatrixTranslation(0.0f, 0.0f, -14.0f));
-	gameObjects.emplace_back(simpleCubeMesh);
+	gameObjects.emplace_back(sphereMesh);  // Changed to sphereMesh
 	gameObjects[2].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(-2.0f, 2.0f, 0.0f));
 	gameObjects.emplace_back(simpleCubeMesh);
 	gameObjects[3].SetWorldMatrix(XMMatrixTranslation(2.0f, 2.0f, 0.0f));
@@ -296,7 +296,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	}
 
 
-	const size_t REFLECTIVE_OBJECT_INDEX = 2;  // Updated index (was 3, now 2 since we removed one cube)
+	const size_t REFLECTIVE_OBJECT_INDEX = 2;  // Reflective sphere at index 2
 
 	// Initialize QuadTree for frustum culling
 	// Define world bounds covering the entire scene
