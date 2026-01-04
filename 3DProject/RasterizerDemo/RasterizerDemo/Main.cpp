@@ -332,7 +332,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	// State
 	bool tessellationEnabled = false;
 	bool wireframeEnabled = false;
-	bool debugCullingEnabled = false;  // Toggle for debug culling visualization
+	bool debugCullingEnabled = false;
 	auto previousTime = std::chrono::high_resolution_clock::now();
 	float rotationAngle = 90.f;
 	const float mouseSens = 0.1f;
@@ -531,7 +531,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 			}
 
 			// *** FRUSTUM CULLING WITH QUADTREE ***
-			   // Create the culling frustum (debug mode uses a smaller frustum)
+			// Create the culling frustum (debug mode uses a smaller frustum)
 			DirectX::BoundingFrustum cullingFrustum;
 			if (debugCullingEnabled)
 			{
@@ -659,110 +659,4 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	return 0;
 }
 
-/*
- * =============================================================================
- * QUADTREE FRUSTUM CULLING - USAGE EXAMPLE
- * =============================================================================
- *
- * This example demonstrates how to use the QuadTree for frustum culling.
- *
- * STEP 1: Include the QuadTree header
- * ----------------------------------------------------------------------------
- * #include "QuadTree.h"
- *
- *
- * STEP 2: Create a QuadTree instance
- * ----------------------------------------------------------------------------
- * // Define world bounds (adjust based on your scene size)
- * DirectX::BoundingBox worldBounds(
- *     DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f),  // Center of the world
- *     DirectX::XMFLOAT3(100.0f, 50.0f, 100.0f)  // Extents (half-width, half-height, half-depth)
- * );
- *
- * // Create QuadTree with GameObject pointers
- * // Parameters: worldBounds, maxDepth (5), maxElementsPerNode (8)
- * QuadTree<GameObject*> sceneQuadTree(worldBounds, 5, 8);
- *
- *
- * STEP 3: Insert all game objects into the QuadTree
- * ----------------------------------------------------------------------------
- * for (auto& obj : gameObjects)
- * {
- *     DirectX::BoundingBox worldBox = obj.GetWorldBoundingBox();
- *     sceneQuadTree.Insert(&obj, worldBox);
- * }
- *
- *
- * STEP 4: Perform frustum culling each frame
- * ----------------------------------------------------------------------------
- * // Get the camera's frustum
- * DirectX::BoundingFrustum frustum = camera.GetBoundingFrustum();
- *
- * // Query visible objects
- * std::vector<GameObject*> visibleObjects;
- * sceneQuadTree.Query(frustum, visibleObjects);
- *
- * // Render only visible objects
- * for (GameObject* obj : visibleObjects)
- * {
- *     obj->Draw(context, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
- * }
- *
- *
- * STEP 5: Update QuadTree when objects move (optional)
- * ----------------------------------------------------------------------------
- * // If objects move dynamically, you need to rebuild the tree
- * // Option A: Clear and re-insert (simple but potentially expensive)
- * sceneQuadTree.Clear();
- * for (auto& obj : gameObjects)
- * {
- *     DirectX::BoundingBox worldBox = obj.GetWorldBoundingBox();
- *     sceneQuadTree.Insert(&obj, worldBox);
- * }
- *
- * // Option B: Rebuild the tree (clears and resets to initial state)
- * sceneQuadTree.Rebuild(worldBounds);
- * for (auto& obj : gameObjects)
- * {
- *     DirectX::BoundingBox worldBox = obj.GetWorldBoundingBox();
- *     sceneQuadTree.Insert(&obj, worldBox);
- * }
- *
- *
- * ADVANCED USAGE: Storing indices instead of pointers
- * ----------------------------------------------------------------------------
- * // You can also store indices to game objects instead of pointers
- * QuadTree<size_t> sceneQuadTreeIndices(worldBounds, 5, 8);
- *
- * for (size_t i = 0; i < gameObjects.size(); ++i)
- * {
- *     DirectX::BoundingBox worldBox = gameObjects[i].GetWorldBoundingBox();
- *     sceneQuadTreeIndices.Insert(i, worldBox);
- * }
- *
- * // Query and render
- * std::vector<size_t> visibleIndices;
- * sceneQuadTreeIndices.Query(frustum, visibleIndices);
- *
- * for (size_t idx : visibleIndices)
- * {
- *     gameObjects[idx].Draw(context, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
- * }
- *
- *
- * PERFORMANCE TIPS
- * ----------------------------------------------------------------------------
- * 1. Adjust maxDepth and maxElementsPerNode based on your scene:
- *    - More depth = finer subdivision but more nodes
- *    - More elements per node = less subdivision but more objects to test
- *
- * 2. For mostly static scenes, build the QuadTree once and reuse
- *
- * 3. For dynamic scenes, rebuild only when necessary (e.g., objects move)
- *
- * 4. Consider using a separate QuadTree for static and dynamic objects
- *
- * 5. Profile to find the optimal parameters for your specific scene
- *
- * =============================================================================
- */
+
