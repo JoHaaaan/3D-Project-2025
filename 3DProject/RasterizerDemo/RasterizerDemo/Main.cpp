@@ -274,6 +274,27 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	gameObjects[5].SetWorldMatrix(XMMatrixScaling(5.0f, 0.2f, 5.0f) * XMMatrixTranslation(0.0f, -1.0f, 0.0f));
 	gameObjects.emplace_back(sphereMesh);
 	gameObjects[6].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(2.0f, 3.0f, -3.0f));
+	gameObjects.emplace_back(sphereMesh);
+	gameObjects[7].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(4.0f, 3.0f, -3.0f));
+	gameObjects.emplace_back(sphereMesh);
+	gameObjects[8].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(6.0f, 3.0f, -3.0f));
+
+	// Add small spheres at each spotlight position
+	const auto& lights = lightManager.GetLights();
+	for (size_t i = 0; i < lights.size(); ++i)
+	{
+		// Skip directional light (type 0), only add spheres for spotlights (type 1)
+		if (lights[i].type == 1)
+		{
+			gameObjects.emplace_back(sphereMesh);
+			const XMFLOAT3& lightPos = lights[i].position;
+			gameObjects.back().SetWorldMatrix(
+				XMMatrixScaling(0.2f, 0.2f, 0.2f) * 
+				XMMatrixTranslation(lightPos.x, lightPos.y, lightPos.z)
+			);
+		}
+	}
+
 
 	const size_t REFLECTIVE_OBJECT_INDEX = 3;
 

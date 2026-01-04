@@ -140,13 +140,14 @@ void QuadTree<T>::Insert(Node* node, const QuadTreeElement<T>& element, int curr
 		}
 		else
 		{
+			// FIX: Save existing elements BEFORE calling Subdivide, 
+			// because Subdivide() clears node->elements.
+			std::vector<QuadTreeElement<T>> oldElements = node->elements;
+
 			// Node is full - SPLIT it
-	   // Create 4 child nodes, dividing the current node's volume into 4 sub-quadrants
 			Subdivide(node, currentDepth);
 
-			// Move existing elements into the new children
-			std::vector<QuadTreeElement<T>> oldElements = node->elements;
-			node->elements.clear();
+			// node->elements.clear(); // This is now redundant as Subdivide clears it, but harmless.
 
 			for (const auto& elem : oldElements)
 			{
@@ -169,6 +170,7 @@ void QuadTree<T>::Insert(Node* node, const QuadTreeElement<T>& element, int curr
 				}
 			}
 		}
+		
 	}
 	else
 	{
