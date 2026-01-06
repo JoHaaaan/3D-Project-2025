@@ -4,6 +4,14 @@
 
 class ShadowMapD3D11
 {
+
+private:
+    ID3D11ShaderResourceView* m_srv = nullptr;
+    std::vector<ID3D11DepthStencilView*> m_dsvs;
+    UINT m_width = 0;
+    UINT m_height = 0;
+
+
 public:
     ShadowMapD3D11() = default;
     ~ShadowMapD3D11();
@@ -19,10 +27,4 @@ public:
 
     // Helper to get a viewport matching the shadow map size
     D3D11_VIEWPORT GetViewport() const;
-
-private:
-    ID3D11ShaderResourceView* m_srv = nullptr;
-    std::vector<ID3D11DepthStencilView*> m_dsvs;
-    UINT m_width = 0;
-    UINT m_height = 0;
 };

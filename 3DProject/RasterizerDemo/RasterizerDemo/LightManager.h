@@ -8,6 +8,18 @@
 
 class LightManager
 {
+
+
+private:
+    void SetupDirectionalLight(LightData& light);
+    void SetupSpotLight(LightData& light, const DirectX::XMFLOAT3& color,
+        const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT3& direction);
+
+    std::vector<LightData> m_lights;
+    StructuredBufferD3D11 m_lightBuffer;
+
+
+
 public:
     LightManager() = default;
     ~LightManager() = default;
@@ -24,11 +36,4 @@ public:
     // Get light view-projection matrix
     DirectX::XMMATRIX GetLightViewProj(size_t index) const;
 
-private:
-    void SetupDirectionalLight(LightData& light);
-    void SetupSpotLight(LightData& light, const DirectX::XMFLOAT3& color,
-        const DirectX::XMFLOAT3& position, const DirectX::XMFLOAT3& direction);
-
-    std::vector<LightData> m_lights;
-    StructuredBufferD3D11 m_lightBuffer;
 };
