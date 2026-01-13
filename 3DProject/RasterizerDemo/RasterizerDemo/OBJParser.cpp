@@ -220,37 +220,50 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
     {
         MeshData::SubMeshInfo sm = {};
         sm.startIndexValue = sub.startIndexValue;
-        sm.nrOfIndicesInSubMesh = sub.nrOfIndicesInSubMesh;
+  sm.nrOfIndicesInSubMesh = sub.nrOfIndicesInSubMesh;
         sm.ambientTextureSRV = nullptr;  // no ambient map handling yet
-        sm.diffuseTextureSRV = nullptr;
+   sm.diffuseTextureSRV = nullptr;
         sm.specularTextureSRV = nullptr;
+        sm.normalHeightTextureSRV = nullptr; // For parallax occlusion mapping
         sm.materialIndex = sub.currentSubMeshMaterial;
 
         const auto& material = data.parsedMaterials[sm.materialIndex];
-        sm.material.ambient = material.ambient;
-        sm.material.diffuse = material.diffuse;
+     sm.material.ambient = material.ambient;
+    sm.material.diffuse = material.diffuse;
         sm.material.specular = material.specular;
         sm.material.specularPower = material.specularPower;
 
-        // Debug: Print material info
+    // Debug: Print material info
         {
-            char buf[512];
-            sprintf_s(buf, "Submesh %zu: Material '%s', map_Kd='%s'\n",
-            meshInfo.subMeshInfo.size(),
-            material.name.c_str(),
-            material.mapKd.c_str());
-            OutputDebugStringA(buf);
+     char buf[512];
+            sprintf_s(buf, "Submesh %zu: Material '%s', map_Kd='%s', map_Bump='%s'\n",
+      meshInfo.subMeshInfo.size(),
+       material.name.c_str(),
+         material.mapKd.c_str(),
+     material.mapBump.c_str());
+   OutputDebugStringA(buf);
         }
 
         // If material references a diffuse texture, try loading it.
         if (!material.mapKd.empty())
         {
-            ID3D11ShaderResourceView* diffuseSRV = LoadTextureSRV(material.mapKd);
-            sm.diffuseTextureSRV = diffuseSRV; // may be nullptr on failure
+   ID3D11ShaderResourceView* diffuseSRV = LoadTextureSRV(material.mapKd);
+      sm.diffuseTextureSRV = diffuseSRV; // may be nullptr on failure
         }
         else
         {
             OutputDebugStringA("  -> No map_Kd specified for this material\n");
+        }
+
+        // If material references a normal/height map, try loading it.
+ if (!material.mapBump.empty())
+        {
+   ID3D11ShaderResourceView* normalHeightSRV = LoadTextureSRV(material.mapBump);
+            sm.normalHeightTextureSRV = normalHeightSRV; // may be nullptr on failure
+        }
+        else
+        {
+            OutputDebugStringA("  -> No map_Bump specified for this material\n");
         }
 
         meshInfo.subMeshInfo.push_back(sm);
@@ -473,9 +486,14 @@ void ParseMtlLib(const std::string& dataSection, ParseData& data)
             lineStream >> current->specularPower;
         }
         else if (current && type == "map_Kd")
+      {
+         std::getline(lineStream, current->mapKd);
+       current->mapKd = Trim(current->mapKd);
+        }
+        else if (current && type == "map_Bump" || current && type == "bump")
         {
-            std::getline(lineStream, current->mapKd);
-            current->mapKd = Trim(current->mapKd);
+    std::getline(lineStream, current->mapBump);
+     current->mapBump = Trim(current->mapBump);
         }
     }
 }
@@ -538,10 +556,11 @@ void PushBackCurrentSubmesh(ParseData& data)
     toAdd.nrOfIndicesInSubMesh = data.indexData.size() - toAdd.startIndexValue;
     toAdd.currentSubMeshMaterial = data.currentSubMeshMaterial;
 
-    // Set texture SRVs to nullptr for now (no texture loading implemented)
+    // Set texture SRVs to nullptr for now (texture loading happens in ParseOBJ)
     toAdd.ambientTextureSRV = nullptr;
     toAdd.diffuseTextureSRV = nullptr;
     toAdd.specularTextureSRV = nullptr;
+    toAdd.normalHeightTextureSRV = nullptr; // For parallax occlusion mapping
 
     data.finishedSubMeshes.push_back(toAdd);
 }

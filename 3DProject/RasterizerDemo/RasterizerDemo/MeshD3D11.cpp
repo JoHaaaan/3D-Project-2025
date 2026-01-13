@@ -29,7 +29,8 @@ void MeshD3D11::Initialize(ID3D11Device* device, const MeshData& meshInfo)
 			sm.nrOfIndicesInSubMesh,
 			sm.ambientTextureSRV,
 			sm.diffuseTextureSRV,
-			sm.specularTextureSRV
+			sm.specularTextureSRV,
+			sm.normalHeightTextureSRV
 		);
 
 		subMeshes.push_back(subMesh);
@@ -117,6 +118,10 @@ ID3D11ShaderResourceView* MeshD3D11::GetSpecularSRV(size_t subMeshIndex) const
 	return subMeshes[subMeshIndex].GetSpecularSRV();
 }
 
+ID3D11ShaderResourceView* MeshD3D11::GetNormalHeightSRV(size_t subMeshIndex) const
+{
+	return subMeshes[subMeshIndex].GetNormalHeightSRV();
+}
 
 const MeshData::MaterialData& MeshD3D11::GetMaterial(size_t subMeshIndex) const
 {
