@@ -23,6 +23,7 @@
 #include "LightManager.h"
 #include "EnvironmentMapRenderer.h"
 #include "QuadTree.h"
+#include "ParticleSystemD3D11.h"
 
 using namespace DirectX;
 
@@ -181,6 +182,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	ID3D11UnorderedAccessView* lightingUAV = nullptr;
 	CreateComputeOutputResources(device, WIDTH, HEIGHT, lightingTex, lightingUAV);
 
+	//ParticleSystem
+	ID3D11RenderTargetView* lightingRTV = nullptr;
+	device->CreateRenderTargetView(lightingTex, nullptr, &lightingRTV);
+
+
 	// Shadow mapping
 	ShadowMapD3D11 shadowMap;
 	if (!shadowMap.Initialize(device, 2048, 2048, 4))
@@ -236,6 +242,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	CameraD3D11 camera;
 	camera.Initialize(device, proj, XMFLOAT3(0.0f, 5.0f, -10.0f));
 	camera.RotateForward(XMConvertToRadians(-20.0f));
+
+
+	//Particlesystem
+	ParticleSystemD3D11 particleSystem(device, 200, XMFLOAT3(0.0f, 10.0f, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
+	//200 particles, emitter at (0,10,0), white color
 
 	// Textures
 	ID3D11ShaderResourceView* whiteTexView = TextureLoader::CreateWhiteTexture(device);
@@ -400,6 +411,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 		// Update spinning quad transformation (no longer using gameObjects[0])
 		XMMATRIX spinningQuadWorld = XMMatrixRotationY(rotationAngle) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+
+		// Update particle system
+		particleSystem.Update(context, dt);
+
 
 		// Update QuadTree for moving objects
 		sceneTree.Clear();
@@ -628,6 +643,14 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 			context->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
 			context->CSSetShader(nullptr, nullptr, 0);
 		}
+		
+		{
+			ID3D11DepthStencilView* myDSV = depthBuffer.GetDSV(0);
+			context->OMSetRenderTargets(1, &lightingRTV, myDSV);
+			context->RSSetViewports(1, &viewport);
+
+			particleSystem.Render(context, camera);
+		}
 
 		// Copy to backbuffer
 		ID3D11Texture2D* backBuffer = nullptr;
@@ -648,6 +671,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	if (tessDS) tessDS->Release();
 	if (lightingUAV) lightingUAV->Release();
 	if (lightingTex) lightingTex->Release();
+	if (lightingRTV) lightingRTV->Release();
 	if (lightingCS) lightingCS->Release();
 	if (shadowSampler) shadowSampler->Release();
 	if (solidRasterizerState) solidRasterizerState->Release();

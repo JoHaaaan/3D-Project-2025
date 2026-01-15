@@ -34,6 +34,9 @@ ParticleSystemD3D11::ParticleSystemD3D11(ID3D11Device* device,
     // Skapa constant buffer för delta time (1 float)
     timeBuffer.Initialize(device, sizeof(float));
 
+    // Skapa constant buffer för particle camera data
+    particleCameraBuffer.Initialize(device, sizeof(ParticleCameraData));
+
     // Rensa temporary array
     delete[] particles;
 }
@@ -106,8 +109,16 @@ void ParticleSystemD3D11::Update(ID3D11DeviceContext* context, float deltaTime)
     context->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
 }
 
-void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, ID3D11Buffer* cameraBuffer)
+void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, const CameraD3D11& camera)
 {
+    // Uppdatera particle camera buffer med all data från kameran
+    ParticleCameraData cameraData;
+    cameraData.viewProjection = camera.GetViewProjectionMatrix();
+    cameraData.cameraPosition = camera.GetPosition();
+    cameraData.padding = 0.0f;
+
+    particleCameraBuffer.UpdateBuffer(context, &cameraData);
+
     // Sätt input layout till nullptr (vertex pulling, ingen layout!)
     context->IASetInputLayout(nullptr);
 
@@ -124,8 +135,9 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, ID3D11Buffer* cam
     // Binda geometry shader
     context->GSSetShader(geometryShader, nullptr, 0);
 
-    // Binda camera constant buffer till geometry shader (register b0)
-    context->GSSetConstantBuffers(0, 1, &cameraBuffer);
+    // Binda particle camera constant buffer till geometry shader (register b0)
+    ID3D11Buffer* camBuf = particleCameraBuffer.GetBuffer();
+    context->GSSetConstantBuffers(0, 1, &camBuf);
 
     // Binda pixel shader
     context->PSSetShader(pixelShader, nullptr, 0);

@@ -3,6 +3,7 @@
 #include <DirectXMath.h>
 #include "StructuredBufferD3D11.h"
 #include "ConstantBufferD3D11.h"
+#include "CameraD3D11.h"
 
 using namespace DirectX;
 
@@ -21,6 +22,15 @@ struct Particle
 class ParticleSystemD3D11
 {
 private:
+    struct ParticleCameraData
+    {
+        DirectX::XMFLOAT4X4 viewProjection;  // 64 bytes
+        DirectX::XMFLOAT3 cameraPosition;    // 12 bytes
+        float padding;                        // 4 bytes
+        // Total: 80 bytes
+    };
+
+    ConstantBufferD3D11 particleCameraBuffer;
     StructuredBufferD3D11 particleBuffer;
     unsigned int numParticles;
 
@@ -36,6 +46,7 @@ private:
 
     void InitializeParticles(Particle* particles, unsigned int count);
 
+
 public:
     ParticleSystemD3D11() = default;
     ParticleSystemD3D11(ID3D11Device* device,
@@ -50,7 +61,7 @@ public:
     ParticleSystemD3D11& operator=(ParticleSystemD3D11&& other) = delete;
 
     void Update(ID3D11DeviceContext* context, float deltaTime);
-    void Render(ID3D11DeviceContext* context, ID3D11Buffer* cameraBuffer);
+    void Render(ID3D11DeviceContext* context, const CameraD3D11& camera);
 
     XMFLOAT3 GetEmitterPosition() const;
     void SetEmitterPosition(const XMFLOAT3& position);
