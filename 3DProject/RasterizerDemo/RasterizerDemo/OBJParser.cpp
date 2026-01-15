@@ -121,11 +121,10 @@ void ReadFile(const std::string& path, std::string& toFill)
 void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11Device* device)
 {
     std::istringstream lineStream(contents);
-    ParseData data;
+ParseData data;
 
     // Default material in case the OBJ doesn't reference one
     data.parsedMaterials.push_back(MaterialInfo{});
-
 
     std::string line;
     while (std::getline(lineStream, line))
@@ -134,8 +133,7 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
     }
     PushBackCurrentSubmesh(data);
 
-    // --- FIX STARTS HERE ---
-    // 1. Create a MeshData struct to transfer data to the MeshD3D11
+  // 1. Create a MeshData struct to transfer data to the MeshD3D11
     MeshData meshInfo = {};
 
     // 2. Fill Vertex Info
@@ -147,29 +145,69 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
     meshInfo.indexInfo.nrOfIndicesInBuffer = data.indexData.size();
     meshInfo.indexInfo.indexData = data.indexData.data();
 
+    // Helper to create a default white 1x1 texture
+    auto CreateDefaultWhiteTexture = [&]() -> ID3D11ShaderResourceView*
+    {
+      unsigned char whitePixel[4] = { 255, 255, 255, 255 };
+
+        D3D11_TEXTURE2D_DESC desc = {};
+        desc.Width = 1;
+      desc.Height = 1;
+     desc.MipLevels = 1;
+ desc.ArraySize = 1;
+      desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        desc.SampleDesc.Count = 1;
+        desc.Usage = D3D11_USAGE_DEFAULT;
+        desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+   D3D11_SUBRESOURCE_DATA texData = {};
+        texData.pSysMem = whitePixel;
+        texData.SysMemPitch = 4;
+
+        ID3D11Texture2D* tex = nullptr;
+        HRESULT hr = device->CreateTexture2D(&desc, &texData, &tex);
+        if (FAILED(hr) || !tex)
+        {
+     if (tex) tex->Release();
+    return nullptr;
+        }
+
+        ID3D11ShaderResourceView* srv = nullptr;
+        hr = device->CreateShaderResourceView(tex, nullptr, &srv);
+   tex->Release();
+
+        if (FAILED(hr))
+        {
+  if (srv) srv->Release();
+         return nullptr;
+        }
+
+        return srv;
+  };
+
     // Helper to load a texture file into an SRV (returns nullptr on failure)
     auto LoadTextureSRV = [&](const std::string& texPath) -> ID3D11ShaderResourceView*
     {
-        if (texPath.empty())
-            return nullptr;
+    if (texPath.empty())
+       return nullptr;
 
         std::string fullPath = defaultDirectory + texPath;
-        
-        // Debug output
-        std::string debugMsg = "Attempting to load texture: " + fullPath + "\n";
+   
+   // Debug output
+  std::string debugMsg = "Attempting to load texture: " + fullPath + "\n";
         OutputDebugStringA(debugMsg.c_str());
         
-        int w = 0, h = 0, channels = 0;
-        unsigned char* imageData = stbi_load(fullPath.c_str(), &w, &h, &channels, 4);
+int w = 0, h = 0, channels = 0;
+     unsigned char* imageData = stbi_load(fullPath.c_str(), &w, &h, &channels, 4);
         if (!imageData)
-        {
-            // failed to load image
-            std::string errorMsg = "FAILED to load texture: " + fullPath + "\n";
-            OutputDebugStringA(errorMsg.c_str());
-            return nullptr;
-        }
+   {
+       // failed to load image
+  std::string errorMsg = "FAILED to load texture: " + fullPath + "\n";
+        OutputDebugStringA(errorMsg.c_str());
+ return nullptr;
+ }
 
-        std::string successMsg = "SUCCESS: Loaded texture " + fullPath + " (" + std::to_string(w) + "x" + std::to_string(h) + ")\n";
+ std::string successMsg = "SUCCESS: Loaded texture " + fullPath + " (" + std::to_string(w) + "x" + std::to_string(h) + ")\n";
         OutputDebugStringA(successMsg.c_str());
 
         D3D11_TEXTURE2D_DESC desc = {};
@@ -177,38 +215,37 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
         desc.Height = static_cast<UINT>(h);
         desc.MipLevels = 1;
         desc.ArraySize = 1;
-        desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+  desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
         desc.SampleDesc.Count = 1;
         desc.Usage = D3D11_USAGE_DEFAULT;
         desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
         desc.CPUAccessFlags = 0;
         desc.MiscFlags = 0;
 
-        D3D11_SUBRESOURCE_DATA texData = {};
-        texData.pSysMem = imageData;
-        texData.SysMemPitch = w * 4;
+  D3D11_SUBRESOURCE_DATA texData = {};
+    texData.pSysMem = imageData;
+    texData.SysMemPitch = w * 4;
 
         ID3D11Texture2D* tex = nullptr;
-        HRESULT hr = device->CreateTexture2D(&desc, &texData, &tex);
-        stbi_image_free(imageData);
+     HRESULT hr = device->CreateTexture2D(&desc, &texData, &tex);
+  stbi_image_free(imageData);
 
         if (FAILED(hr) || !tex)
-        {
+      {
             if (tex) tex->Release();
-                OutputDebugStringA("FAILED to create D3D11 texture\n");
-            return nullptr;
-        }
+ OutputDebugStringA("FAILED to create D3D11 texture\n");
+    return nullptr;
+ }
 
-        ID3D11ShaderResourceView* srv = nullptr;
+    ID3D11ShaderResourceView* srv = nullptr;
         hr = device->CreateShaderResourceView(tex, nullptr, &srv);
-        // We can release the local texture; the SRV holds a reference.
-        tex->Release();
+    tex->Release();
 
         if (FAILED(hr))
         {
-            if (srv) srv->Release();
-                OutputDebugStringA("FAILED to create SRV for texture\n");
-            return nullptr;
+       if (srv) srv->Release();
+OutputDebugStringA("FAILED to create SRV for texture\n");
+        return nullptr;
         }
 
         OutputDebugStringA("SUCCESS: Created SRV for texture\n");
@@ -218,61 +255,83 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
     // 4. Fill SubMesh Info
     for (const auto& sub : data.finishedSubMeshes)
     {
-        MeshData::SubMeshInfo sm = {};
-        sm.startIndexValue = sub.startIndexValue;
-  sm.nrOfIndicesInSubMesh = sub.nrOfIndicesInSubMesh;
-        sm.ambientTextureSRV = nullptr;  // no ambient map handling yet
-   sm.diffuseTextureSRV = nullptr;
+      MeshData::SubMeshInfo sm = {};
+ sm.startIndexValue = sub.startIndexValue;
+        sm.nrOfIndicesInSubMesh = sub.nrOfIndicesInSubMesh;
+        sm.ambientTextureSRV = nullptr;
+        sm.diffuseTextureSRV = nullptr;
         sm.specularTextureSRV = nullptr;
-        sm.normalHeightTextureSRV = nullptr; // For parallax occlusion mapping
+   sm.normalHeightTextureSRV = nullptr;
         sm.materialIndex = sub.currentSubMeshMaterial;
 
         const auto& material = data.parsedMaterials[sm.materialIndex];
-     sm.material.ambient = material.ambient;
+        sm.material.ambient = material.ambient;
     sm.material.diffuse = material.diffuse;
         sm.material.specular = material.specular;
         sm.material.specularPower = material.specularPower;
 
-    // Debug: Print material info
+        // Debug: Print material info
         {
-     char buf[512];
-            sprintf_s(buf, "Submesh %zu: Material '%s', map_Kd='%s', map_Bump='%s'\n",
-      meshInfo.subMeshInfo.size(),
-       material.name.c_str(),
-         material.mapKd.c_str(),
-     material.mapBump.c_str());
-   OutputDebugStringA(buf);
-        }
+            char buf[512];
+          sprintf_s(buf, "Submesh %zu: Material '%s', map_Ka='%s', map_Kd='%s', map_Ks='%s', map_Bump='%s'\n",
+            meshInfo.subMeshInfo.size(),
+          material.name.c_str(),
+         material.mapKa.c_str(),
+           material.mapKd.c_str(),
+                material.mapKs.c_str(),
+          material.mapBump.c_str());
+          OutputDebugStringA(buf);
+  }
 
-        // If material references a diffuse texture, try loading it.
+        // Load ambient texture (map_Ka) - use default white if not specified
+        if (!material.mapKa.empty())
+        {
+      sm.ambientTextureSRV = LoadTextureSRV(material.mapKa);
+        }
+    if (!sm.ambientTextureSRV)
+        {
+        sm.ambientTextureSRV = CreateDefaultWhiteTexture();
+            OutputDebugStringA("  -> Using default white texture for ambient map\n");
+      }
+
+      // Load diffuse texture (map_Kd) - use default white if not specified
         if (!material.mapKd.empty())
         {
-   ID3D11ShaderResourceView* diffuseSRV = LoadTextureSRV(material.mapKd);
-      sm.diffuseTextureSRV = diffuseSRV; // may be nullptr on failure
+            sm.diffuseTextureSRV = LoadTextureSRV(material.mapKd);
         }
-        else
+        if (!sm.diffuseTextureSRV)
         {
-            OutputDebugStringA("  -> No map_Kd specified for this material\n");
+         sm.diffuseTextureSRV = CreateDefaultWhiteTexture();
+       OutputDebugStringA("  -> Using default white texture for diffuse map\n");
         }
 
-        // If material references a normal/height map, try loading it.
- if (!material.mapBump.empty())
+   // Load specular texture (map_Ks) - use default white if not specified
+        if (!material.mapKs.empty())
         {
-   ID3D11ShaderResourceView* normalHeightSRV = LoadTextureSRV(material.mapBump);
-            sm.normalHeightTextureSRV = normalHeightSRV; // may be nullptr on failure
+     sm.specularTextureSRV = LoadTextureSRV(material.mapKs);
         }
-        else
+        if (!sm.specularTextureSRV)
+  {
+          sm.specularTextureSRV = CreateDefaultWhiteTexture();
+    OutputDebugStringA("  -> Using default white texture for specular map\n");
+        }
+
+    // Load normal/height map (map_Bump) - no default needed, nullptr is acceptable
+    if (!material.mapBump.empty())
         {
-            OutputDebugStringA("  -> No map_Bump specified for this material\n");
+     sm.normalHeightTextureSRV = LoadTextureSRV(material.mapBump);
+    }
+ else
+        {
+      OutputDebugStringA("  -> No map_Bump specified for this material\n");
         }
 
         meshInfo.subMeshInfo.push_back(sm);
     }
 
-    // 5. Initialize the mesh - use new to create on heap since move is deleted
+    // 5. Initialize the mesh
     MeshD3D11* toAdd = new MeshD3D11();
     toAdd->Initialize(device, meshInfo);
-    // --- FIX ENDS HERE ---
 
     loadedMeshes[identifier] = toAdd;
 }
@@ -458,43 +517,53 @@ void ParseMtlLib(const std::string& dataSection, ParseData& data)
 
         std::istringstream lineStream(line);
         std::string type;
-        lineStream >> type;
+    lineStream >> type;
 
         if (type == "newmtl")
         {
-            std::string name;
-            std::getline(lineStream, name);
-            name = Trim(name);
-            data.parsedMaterials.push_back(MaterialInfo{});
-            current = &data.parsedMaterials.back();
-            current->name = name;
+          std::string name;
+          std::getline(lineStream, name);
+  name = Trim(name);
+  data.parsedMaterials.push_back(MaterialInfo{});
+       current = &data.parsedMaterials.back();
+    current->name = name;
         }
         else if (current && type == "Ka")
-        {
-            lineStream >> current->ambient.x >> current->ambient.y >> current->ambient.z;
+  {
+    lineStream >> current->ambient.x >> current->ambient.y >> current->ambient.z;
         }
         else if (current && type == "Kd")
         {
-            lineStream >> current->diffuse.x >> current->diffuse.y >> current->diffuse.z;
+ lineStream >> current->diffuse.x >> current->diffuse.y >> current->diffuse.z;
         }
         else if (current && type == "Ks")
-        {
-            lineStream >> current->specular.x >> current->specular.y >> current->specular.z;
+   {
+    lineStream >> current->specular.x >> current->specular.y >> current->specular.z;
         }
         else if (current && type == "Ns")
         {
-            lineStream >> current->specularPower;
+ lineStream >> current->specularPower;
+        }
+        else if (current && type == "map_Ka")
+        {
+         std::getline(lineStream, current->mapKa);
+       current->mapKa = Trim(current->mapKa);
         }
         else if (current && type == "map_Kd")
-      {
-         std::getline(lineStream, current->mapKd);
-       current->mapKd = Trim(current->mapKd);
-        }
-        else if (current && type == "map_Bump" || current && type == "bump")
         {
-    std::getline(lineStream, current->mapBump);
-     current->mapBump = Trim(current->mapBump);
+        std::getline(lineStream, current->mapKd);
+            current->mapKd = Trim(current->mapKd);
         }
+        else if (current && type == "map_Ks")
+        {
+      std::getline(lineStream, current->mapKs);
+            current->mapKs = Trim(current->mapKs);
+        }
+        else if (current && (type == "map_Bump" || type == "bump"))
+        {
+      std::getline(lineStream, current->mapBump);
+       current->mapBump = Trim(current->mapBump);
+ }
     }
 }
 
