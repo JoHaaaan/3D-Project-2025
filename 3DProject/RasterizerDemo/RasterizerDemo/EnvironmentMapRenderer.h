@@ -63,30 +63,3 @@ public:
 
 	// Get the cube map SRV for sampling in the reflection shader
 	ID3D11ShaderResourceView* GetEnvironmentSRV() const { return m_cubeMap.GetSRV(); }
-
-private:
-	void InitializeCameras(ID3D11Device* device);
-
-	TextureCubeD3D11 m_cubeMap;
-	CameraD3D11 m_cameras[6];
-	ProjectionInfo m_projInfo;
-
-	// Camera rotation values for each face (DirectX cube map orientation)
-	// Order: +X (right), -X (left), +Y (up), -Y (down), +Z (forward), -Z (back)
-	float m_upRotations[6] = {
-		0.0f,        // +X face: no roll
-		0.0f,         // -X face: no roll
-		0.0f,               // +Y face: no roll
-		DirectX::XM_PI,     // -Y face: 180 roll (flip upside down)
-		0.0f,   // +Z face: no roll
-		0.0f      // -Z face: no roll
-	};
-	float m_rightRotations[6] = {
-		DirectX::XM_PIDIV2,     // +X face: 90 right
-		-DirectX::XM_PIDIV2,    // -X face: -90 right
-		0.0f,// +Y face: 0 (then pitch up)
-		0.0f,     // -Y face: 0 (then pitch down)
-		0.0f,          // +Z face: 0 (look forward)
-		DirectX::XM_PI          // -Z face: 180 (look back)
-	};
-};
