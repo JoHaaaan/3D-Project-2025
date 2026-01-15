@@ -116,10 +116,6 @@
     <FxCompile Include="TessellationDS.hlsl" />
     <FxCompile Include="ReflectionPS.hlsl" />
     <FxCompile Include="CubeMapPS.hlsl" />
-    <FxCompile Include="ParticleUpdateCS.hlsl" />
-    <FxCompile Include="ParticleVS.hlsl" />
-    <FxCompile Include="ParticlePS.hlsl" />
-    <FxCompile Include="ParticleGS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WindowHelper.h">
