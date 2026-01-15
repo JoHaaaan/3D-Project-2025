@@ -33,6 +33,7 @@ struct MaterialInfo
     std::string mapKa; // Ambient map
     std::string mapKd; // Diffuse map
     std::string mapKs; // Specular map
+    std::string mapBump; // Normal/Height map for parallax occlusion mapping
 };
 
 // Info about one submesh inside a mesh
@@ -44,6 +45,7 @@ struct SubMeshInfo
     ID3D11ShaderResourceView* ambientTextureSRV = nullptr;
     ID3D11ShaderResourceView* diffuseTextureSRV = nullptr;
     ID3D11ShaderResourceView* specularTextureSRV = nullptr;
+    ID3D11ShaderResourceView* normalHeightTextureSRV = nullptr; // For parallax occlusion mapping
 
 
     std::size_t materialIndex = 0;
