@@ -16,4 +16,5 @@ public:
     static ID3D11HullShader* CreateHullShader(ID3D11Device* device, const std::string& filename);
     static ID3D11DomainShader* CreateDomainShader(ID3D11Device* device, const std::string& filename);
     static ID3D11ComputeShader* CreateComputeShader(ID3D11Device* device, const std::string& filename);
+    static ID3D11GeometryShader* CreateGeometryShader(ID3D11Device* device, const std::string& filename);
 };

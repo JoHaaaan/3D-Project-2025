@@ -128,3 +128,24 @@ ID3D11ComputeShader* ShaderLoader::CreateComputeShader(ID3D11Device* device, con
     OutputDebugStringA(msg.c_str());
     return shader;
 }
+
+ID3D11GeometryShader* ShaderLoader::CreateGeometryShader(ID3D11Device* device, const std::string& filename)
+{
+    auto data = LoadCompiledShader(filename);
+    if (data.empty())
+        return nullptr;
+
+    ID3D11GeometryShader* shader = nullptr;
+    HRESULT hr = device->CreateGeometryShader(data.data(), data.size(), nullptr, &shader);
+
+    if (FAILED(hr))
+    {
+        std::string msg = "Failed to create geometry shader: " + filename + "\n";
+        OutputDebugStringA(msg.c_str());
+        return nullptr;
+    }
+
+    std::string msg = "Geometry shader loaded: " + filename + "\n";
+    OutputDebugStringA(msg.c_str());
+    return shader;
+}

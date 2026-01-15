@@ -162,7 +162,7 @@ ID3D11DepthStencilView* DepthBufferD3D11::GetDSV(UINT arrayIndex) const
         return nullptr;
 
     return depthStencilViews[arrayIndex];
-}
+}   
 
 ID3D11ShaderResourceView* DepthBufferD3D11::GetSRV() const
 {
