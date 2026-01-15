@@ -160,6 +160,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	ID3D11PixelShader* reflectionPS = ShaderLoader::CreatePixelShader(device, "ReflectionPS.cso");
 	ID3D11PixelShader* cubeMapPS = ShaderLoader::CreatePixelShader(device, "CubeMapPS.cso");
 
+	// Normal map shader
+	ID3D11PixelShader* normalMapPS = ShaderLoader::CreatePixelShader(device, "NormalMapPS.cso");
+
 	// Compute shader
 	ID3D11ComputeShader* lightingCS = ShaderLoader::CreateComputeShader(device, "LightingCS.cso");
 
@@ -303,6 +306,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 
 	const size_t REFLECTIVE_OBJECT_INDEX = 2;  // Reflective sphere at index 2
+	const size_t NORMAL_MAP_OBJECT_INDEX = 8;  // SimpleCubeNormal at index 8
 
 	// Initialize QuadTree for frustum culling
 	// Define world bounds covering the entire scene
@@ -400,6 +404,16 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 		// Update spinning quad transformation (no longer using gameObjects[0])
 		XMMATRIX spinningQuadWorld = XMMatrixRotationY(rotationAngle) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+
+		// Update SimpleCubeNormal rotation to see normal mapping effect
+		gameObjects[NORMAL_MAP_OBJECT_INDEX].SetWorldMatrix(
+			XMMatrixRotationY(rotationAngle) * XMMatrixTranslation(5.0f, 2.0f, 0.0f)
+		);
+
+		// Update SimpleCube next to it for comparison
+		gameObjects[3].SetWorldMatrix(
+			XMMatrixRotationY(rotationAngle) * XMMatrixTranslation(2.0f, 2.0f, 0.0f)
+		);
 
 		// Update QuadTree for moving objects
 		sceneTree.Clear();
@@ -589,6 +603,29 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 					context->PSSetShaderResources(1, 1, &nullSRV);
 					context->PSSetShader(pShader, nullptr, 0);
 				}
+				else if (objIdx == NORMAL_MAP_OBJECT_INDEX && normalMapPS)
+				{
+					// Use normal map shader for SimpleCubeNormal
+					context->PSSetShader(normalMapPS, nullptr, 0);
+
+					// Bind the normal map texture to slot t1
+					const MeshD3D11* mesh = objPtr->GetMesh();
+					if (mesh && mesh->GetNrOfSubMeshes() > 0)
+					{
+						ID3D11ShaderResourceView* normalMapSRV = mesh->GetNormalHeightSRV(0);
+						if (normalMapSRV)
+						{
+							context->PSSetShaderResources(1, 1, &normalMapSRV);
+						}
+					}
+
+					objPtr->Draw(context, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
+
+					// Unbind normal map and restore default shader
+					ID3D11ShaderResourceView* nullSRV = nullptr;
+					context->PSSetShaderResources(1, 1, &nullSRV);
+					context->PSSetShader(pShader, nullptr, 0);
+				}
 				else
 				{
 					objPtr->Draw(context, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
@@ -641,6 +678,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	}
 
 	// Cleanup
+	if (normalMapPS) normalMapPS->Release();
 	if (cubeMapPS) cubeMapPS->Release();
 	if (reflectionPS) reflectionPS->Release();
 	if (tessVS) tessVS->Release();
