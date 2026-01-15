@@ -206,6 +206,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	const MeshD3D11* pineAppleMesh = GetMesh("pineapple2.obj", device);
 	const MeshD3D11* simpleCubeMesh = GetMesh("SimpleCube.obj", device);
 	const MeshD3D11* sphereMesh = GetMesh("sphere.obj", device);
+	const MeshD3D11* sphereNormalMapMesh = GetMesh("sphereNormalMap.obj", device);
+	const MeshD3D11* simpleCubeNormal = GetMesh("SimpleCubeNormal.obj", device);
 
 	// Material setup
 	Material mat = {
@@ -278,6 +280,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	gameObjects[6].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(4.0f, 3.0f, -3.0f));
 	gameObjects.emplace_back(sphereMesh);
 	gameObjects[7].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(6.0f, 3.0f, -3.0f));
+	gameObjects.emplace_back(simpleCubeNormal);
+	gameObjects[8].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(5.0f, 2.0f, 0.0f));
+
+
 
 	// Add small spheres at each spotlight position
 	const auto& lights = lightManager.GetLights();
@@ -658,5 +664,3 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 	return 0;
 }
-
-

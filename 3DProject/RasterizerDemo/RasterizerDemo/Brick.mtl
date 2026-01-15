@@ -1,0 +1,7 @@
+newmtl BrickMaterial
+Ka 1.0 1.0 1.0
+Kd 1.0 1.0 1.0
+Ks 0.5 0.5 0.5
+Ns 96.078431
+map_Kd Brick_Wall_Worn_sexkaitb_2K_BaseColor.jpg
+map_Bump Brick_Wall_Worn_sexkaitb_2K_Normal.jpg
