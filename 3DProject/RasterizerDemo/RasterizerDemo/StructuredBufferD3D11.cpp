@@ -139,3 +139,8 @@ ID3D11UnorderedAccessView* StructuredBufferD3D11::GetUAV() const
 {
     return uav;
 }
+
+ID3D11Buffer* StructuredBufferD3D11::GetBuffer() const
+{
+	return buffer;
+}

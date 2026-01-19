@@ -62,4 +62,8 @@ private:
 		0.0f,          // +Z face: 0 (look forward)
 		DirectX::XM_PI     // -Z face: 180 (look back)
 	};
+<<<<<<< Updated upstream
 };
+=======
+};
+>>>>>>> Stashed changes

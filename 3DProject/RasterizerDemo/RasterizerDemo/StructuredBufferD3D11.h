@@ -32,4 +32,5 @@ public:
 	size_t GetNrOfElements() const;
 	ID3D11ShaderResourceView* GetSRV() const;
 	ID3D11UnorderedAccessView* GetUAV() const;
+	ID3D11Buffer* GetBuffer() const;
 };
