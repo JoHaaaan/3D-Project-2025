@@ -134,7 +134,6 @@ void CleanupD3DResources(
 	ID3D11ComputeShader*& lightingCS,
 	ID3D11SamplerState*& shadowSampler,
 	ID3D11ShaderResourceView*& whiteTexView,
-	ID3D11ShaderResourceView*& pineappleTexView,
 	ID3D11Texture2D*& lightingTex,
 	ID3D11UnorderedAccessView*& lightingUAV
 )
@@ -152,8 +151,6 @@ void CleanupD3DResources(
 	if (shadowSampler) { shadowSampler->Release(); shadowSampler = nullptr; }
 	if (solidRasterizerState) { solidRasterizerState->Release(); solidRasterizerState = nullptr; }
 	if (wireframeRasterizerState) { wireframeRasterizerState->Release(); wireframeRasterizerState = nullptr; }
-	if (pineappleTexView && pineappleTexView != whiteTexView) { pineappleTexView->Release(); pineappleTexView = nullptr; }
-	if (whiteTexView) { whiteTexView->Release(); whiteTexView = nullptr; }
 	if (pShader) { pShader->Release(); pShader = nullptr; }
 	if (vShader) { vShader->Release(); vShader = nullptr; }
 	if (rtv) { rtv->Release(); rtv = nullptr; }
@@ -238,7 +235,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 	// Initialize these early so they're available for cleanup
 	ID3D11ShaderResourceView* whiteTexView = nullptr;
-	ID3D11ShaderResourceView* pineappleTexView = nullptr;
 	ID3D11SamplerState* shadowSampler = nullptr;
 
 	// Shadow mapping
@@ -248,7 +244,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		OutputDebugStringA("Failed to initialize Shadow Map!\n");
 		CleanupD3DResources(device, context, swapChain, rtv, solidRasterizerState, wireframeRasterizerState,
 			vShader, pShader, tessVS, tessHS, tessDS, reflectionPS, cubeMapPS, normalMapPS, parallaxPS,
-			lightingCS, shadowSampler, whiteTexView, pineappleTexView, lightingTex, lightingUAV);
+			lightingCS, shadowSampler, whiteTexView, lightingTex, lightingUAV);
 		return -1;
 	}
 
@@ -259,7 +255,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		OutputDebugStringA("Failed to initialize Environment Map!\n");
 		CleanupD3DResources(device, context, swapChain, rtv, solidRasterizerState, wireframeRasterizerState,
 			vShader, pShader, tessVS, tessHS, tessDS, reflectionPS, cubeMapPS, normalMapPS, parallaxPS,
-			lightingCS, shadowSampler, whiteTexView, pineappleTexView, lightingTex, lightingUAV);
+			lightingCS, shadowSampler, whiteTexView, lightingTex, lightingUAV);
 		return -1;
 	}
 
@@ -269,7 +265,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 	// Meshes
 	const MeshD3D11* cubeMesh = GetMesh("cube.obj", device);
-	const MeshD3D11* pineAppleMesh = GetMesh("pineapple2.obj", device);
 	const MeshD3D11* simpleCubeMesh = GetMesh("SimpleCube.obj", device);
 	const MeshD3D11* sphereMesh = GetMesh("sphere.obj", device);
 	const MeshD3D11* sphereNormalMapMesh = GetMesh("sphereNormalMap.obj", device);
@@ -306,36 +301,20 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 	// Textures - Now actually initialize them
 	whiteTexView = TextureLoader::CreateWhiteTexture(device);
-	pineappleTexView = TextureLoader::LoadTexture(device, "image.png");
-	if (!pineappleTexView) pineappleTexView = whiteTexView;
 
 	// Samplers
 	SamplerD3D11 samplerState;
 	samplerState.Initialize(device, D3D11_TEXTURE_ADDRESS_WRAP);
 	shadowSampler = CreateShadowSampler(device);
 
-	// Image quad for rotating object
-	VertexBufferD3D11 imageQuadVB;
-	{
-		SimpleVertex quadVerts[] = {
-			{ { -1.0f,  1.0f, 0.0f }, {0,0,-1}, {0.0f, 0.0f} },
-			{ {  1.0f,  1.0f, 0.0f }, {0,0,-1}, {1.0f, 0.0f} },
-			{ { -1.0f, -1.0f, 0.0f }, {0,0,-1}, {0.0f, 1.0f} },
-			{ {  1.0f,  1.0f, 0.0f }, {0,0,-1}, {1.0f, 0.0f} },
-			{ {  1.0f, -1.0f, 0.0f }, {0,0,-1}, {1.0f, 1.0f} },
-			{ { -1.0f, -1.0f, 0.0f }, {0,0,-1}, {0.0f, 1.0f} },
-		};
-		imageQuadVB.Initialize(device, sizeof(SimpleVertex), 6, quadVerts);
-	}
-
 	// Game objects
 	std::vector<GameObject> gameObjects;
 	// Note: gameObjects[0] is now a spinning quad rendered separately (not a GameObject)
 	gameObjects.emplace_back(cubeMesh);
 	gameObjects[0].SetWorldMatrix(XMMatrixTranslation(30.0f, 1.0f, 0.0f));
-	gameObjects.emplace_back(pineAppleMesh);
-	gameObjects[1].SetWorldMatrix(XMMatrixTranslation(0.0f, 0.0f, -14.0f));
 	gameObjects.emplace_back(sphereMesh);  // Changed to sphereMesh
+	gameObjects[1].SetWorldMatrix(XMMatrixTranslation(0.0f, 0.0f, -14.0f));
+	gameObjects.emplace_back(sphereMesh);
 	gameObjects[2].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(4.0f, 2.0f, -2.0f));
 	gameObjects.emplace_back(simpleCubeMesh);
 	gameObjects[3].SetWorldMatrix(XMMatrixTranslation(2.0f, 2.0f, 0.0f));
@@ -351,8 +330,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	gameObjects[8].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(5.0f, 2.0f, 0.0f));
 	gameObjects.emplace_back(simpleCubeParallax);
 	gameObjects[9].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-1.0f, 2.0f, 0.0f));
-
-
 
 	// Add small spheres at each spotlight position
 	const auto& lights = lightManager.GetLights();
@@ -468,9 +445,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 		XMFLOAT4X4 vp = camera.GetViewProjectionMatrix();
 		VIEW_PROJ = XMLoadFloat4x4(&vp);
-
-		// Update spinning quad transformation (no longer using gameObjects[0])
-		XMMATRIX spinningQuadWorld = XMMatrixRotationY(rotationAngle) * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 
 		// Update SimpleCubeNormal rotation to see normal mapping effect
 		gameObjects[NORMAL_MAP_OBJECT_INDEX].SetWorldMatrix(
@@ -603,23 +577,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 				context->HSSetShader(nullptr, nullptr, 0);
 				context->DSSetShader(nullptr, nullptr, 0);
 				context->PSSetShader(pShader, nullptr, 0);
-			}
-
-			// Render spinning quad
-			{
-				MatrixPair rotatingData;
-				XMStoreFloat4x4(&rotatingData.world, XMMatrixTranspose(spinningQuadWorld));
-				XMStoreFloat4x4(&rotatingData.viewProj, XMMatrixTranspose(VIEW_PROJ));
-				constantBuffer.UpdateBuffer(context, &rotatingData);
-
-				UINT stride = sizeof(SimpleVertex), offset = 0;
-				ID3D11Buffer* quadVB = imageQuadVB.GetBuffer();
-				context->IASetVertexBuffers(0, 1, &quadVB, &stride, &offset);
-				context->PSSetShaderResources(0, 1, &pineappleTexView);
-				context->Draw(6, 0);
-
-				ID3D11ShaderResourceView* nullSRV = nullptr;
-				context->PSSetShaderResources(0, 1, &nullSRV);
 			}
 
 			// *** FRUSTUM CULLING WITH QUADTREE ***
@@ -848,8 +805,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		vShader, pShader, tessVS, tessHS, tessDS,
 		reflectionPS, cubeMapPS, normalMapPS, parallaxPS,
 		lightingCS, shadowSampler,
-		whiteTexView, pineappleTexView,
-		lightingTex, lightingUAV);
+		whiteTexView, lightingTex, lightingUAV);
 
 	return 0;
 }
