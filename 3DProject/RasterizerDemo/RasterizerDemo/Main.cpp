@@ -114,6 +114,55 @@ void CreateComputeOutputResources(ID3D11Device* device, UINT width, UINT height,
 	device->CreateUnorderedAccessView(texture, &uavDesc, &uav);
 }
 
+// Add cleanup function before wWinMain
+void CleanupD3DResources(
+	ID3D11Device*& device,
+	ID3D11DeviceContext*& context,
+	IDXGISwapChain*& swapChain,
+	ID3D11RenderTargetView*& rtv,
+	ID3D11RasterizerState*& solidRasterizerState,
+	ID3D11RasterizerState*& wireframeRasterizerState,
+	ID3D11VertexShader*& vShader,
+	ID3D11PixelShader*& pShader,
+	ID3D11VertexShader*& tessVS,
+	ID3D11HullShader*& tessHS,
+	ID3D11DomainShader*& tessDS,
+	ID3D11PixelShader*& reflectionPS,
+	ID3D11PixelShader*& cubeMapPS,
+	ID3D11PixelShader*& normalMapPS,
+	ID3D11PixelShader*& parallaxPS,
+	ID3D11ComputeShader*& lightingCS,
+	ID3D11SamplerState*& shadowSampler,
+	ID3D11ShaderResourceView*& whiteTexView,
+	ID3D11ShaderResourceView*& pineappleTexView,
+	ID3D11Texture2D*& lightingTex,
+	ID3D11UnorderedAccessView*& lightingUAV
+)
+{
+	if (lightingUAV) { lightingUAV->Release(); lightingUAV = nullptr; }
+	if (lightingTex) { lightingTex->Release(); lightingTex = nullptr; }
+	if (lightingCS) { lightingCS->Release(); lightingCS = nullptr; }
+	if (parallaxPS) { parallaxPS->Release(); parallaxPS = nullptr; }
+	if (normalMapPS) { normalMapPS->Release(); normalMapPS = nullptr; }
+	if (cubeMapPS) { cubeMapPS->Release(); cubeMapPS = nullptr; }
+	if (reflectionPS) { reflectionPS->Release(); reflectionPS = nullptr; }
+	if (tessDS) { tessDS->Release(); tessDS = nullptr; }
+	if (tessHS) { tessHS->Release(); tessHS = nullptr; }
+	if (tessVS) { tessVS->Release(); tessVS = nullptr; }
+	if (shadowSampler) { shadowSampler->Release(); shadowSampler = nullptr; }
+	if (solidRasterizerState) { solidRasterizerState->Release(); solidRasterizerState = nullptr; }
+	if (wireframeRasterizerState) { wireframeRasterizerState->Release(); wireframeRasterizerState = nullptr; }
+	if (pineappleTexView && pineappleTexView != whiteTexView) { pineappleTexView->Release(); pineappleTexView = nullptr; }
+	if (whiteTexView) { whiteTexView->Release(); whiteTexView = nullptr; }
+	if (pShader) { pShader->Release(); pShader = nullptr; }
+	if (vShader) { vShader->Release(); vShader = nullptr; }
+	if (rtv) { rtv->Release(); rtv = nullptr; }
+	if (swapChain) { swapChain->Release(); swapChain = nullptr; }
+	if (context) { context->Release(); context = nullptr; }
+	if (device) { device->Release(); device = nullptr; }
+	UnloadMeshes();
+}
+
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 {
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
@@ -187,11 +236,19 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	ID3D11UnorderedAccessView* lightingUAV = nullptr;
 	CreateComputeOutputResources(device, WIDTH, HEIGHT, lightingTex, lightingUAV);
 
+	// Initialize these early so they're available for cleanup
+	ID3D11ShaderResourceView* whiteTexView = nullptr;
+	ID3D11ShaderResourceView* pineappleTexView = nullptr;
+	ID3D11SamplerState* shadowSampler = nullptr;
+
 	// Shadow mapping
 	ShadowMapD3D11 shadowMap;
 	if (!shadowMap.Initialize(device, 2048, 2048, 4))
 	{
 		OutputDebugStringA("Failed to initialize Shadow Map!\n");
+		CleanupD3DResources(device, context, swapChain, rtv, solidRasterizerState, wireframeRasterizerState,
+			vShader, pShader, tessVS, tessHS, tessDS, reflectionPS, cubeMapPS, normalMapPS, parallaxPS,
+			lightingCS, shadowSampler, whiteTexView, pineappleTexView, lightingTex, lightingUAV);
 		return -1;
 	}
 
@@ -200,6 +257,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	if (!envMapRenderer.Initialize(device, 512))
 	{
 		OutputDebugStringA("Failed to initialize Environment Map!\n");
+		CleanupD3DResources(device, context, swapChain, rtv, solidRasterizerState, wireframeRasterizerState,
+			vShader, pShader, tessVS, tessHS, tessDS, reflectionPS, cubeMapPS, normalMapPS, parallaxPS,
+			lightingCS, shadowSampler, whiteTexView, pineappleTexView, lightingTex, lightingUAV);
 		return -1;
 	}
 
@@ -244,15 +304,15 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	camera.Initialize(device, proj, XMFLOAT3(0.0f, 5.0f, -10.0f));
 	camera.RotateForward(XMConvertToRadians(-20.0f));
 
-	// Textures
-	ID3D11ShaderResourceView* whiteTexView = TextureLoader::CreateWhiteTexture(device);
-	ID3D11ShaderResourceView* pineappleTexView = TextureLoader::LoadTexture(device, "image.png");
+	// Textures - Now actually initialize them
+	whiteTexView = TextureLoader::CreateWhiteTexture(device);
+	pineappleTexView = TextureLoader::LoadTexture(device, "image.png");
 	if (!pineappleTexView) pineappleTexView = whiteTexView;
 
 	// Samplers
 	SamplerD3D11 samplerState;
 	samplerState.Initialize(device, D3D11_TEXTURE_ADDRESS_WRAP);
-	ID3D11SamplerState* shadowSampler = CreateShadowSampler(device);
+	shadowSampler = CreateShadowSampler(device);
 
 	// Image quad for rotating object
 	VertexBufferD3D11 imageQuadVB;
@@ -276,10 +336,10 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	gameObjects.emplace_back(pineAppleMesh);
 	gameObjects[1].SetWorldMatrix(XMMatrixTranslation(0.0f, 0.0f, -14.0f));
 	gameObjects.emplace_back(sphereMesh);  // Changed to sphereMesh
-	gameObjects[2].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(-5.0f, 2.0f, 0.0f));
+	gameObjects[2].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(4.0f, 2.0f, -2.0f));
 	gameObjects.emplace_back(simpleCubeMesh);
 	gameObjects[3].SetWorldMatrix(XMMatrixTranslation(2.0f, 2.0f, 0.0f));
-	gameObjects.emplace_back(simpleCubeMesh);
+	gameObjects.emplace_back(sphereMesh);
 	gameObjects[4].SetWorldMatrix(XMMatrixScaling(5.0f, 0.2f, 5.0f) * XMMatrixTranslation(0.0f, -1.0f, 0.0f));
 	gameObjects.emplace_back(sphereMesh);
 	gameObjects[5].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(2.0f, 3.0f, -3.0f));
@@ -783,28 +843,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	}
 
 	// Cleanup
-	if (parallaxPS) parallaxPS->Release();
-	if (normalMapPS) normalMapPS->Release();
-	if (cubeMapPS) cubeMapPS->Release();
-	if (reflectionPS) reflectionPS->Release();
-	if (tessVS) tessVS->Release();
-	if (tessHS) tessHS->Release();
-	if (tessDS) tessDS->Release();
-	if (lightingUAV) lightingUAV->Release();
-	if (lightingTex) lightingTex->Release();
-	if (lightingCS) lightingCS->Release();
-	if (shadowSampler) shadowSampler->Release();
-	if (solidRasterizerState) solidRasterizerState->Release();
-	if (wireframeRasterizerState) wireframeRasterizerState->Release();
-	if (pineappleTexView && pineappleTexView != whiteTexView) pineappleTexView->Release();
-	if (whiteTexView) whiteTexView->Release();
-	if (pShader) pShader->Release();
-	if (vShader) vShader->Release();
-	if (rtv) rtv->Release();
-	swapChain->Release();
-	context->Release();
-	device->Release();
-	UnloadMeshes();
+	CleanupD3DResources(device, context, swapChain, rtv,
+		solidRasterizerState, wireframeRasterizerState,
+		vShader, pShader, tessVS, tessHS, tessDS,
+		reflectionPS, cubeMapPS, normalMapPS, parallaxPS,
+		lightingCS, shadowSampler,
+		whiteTexView, pineappleTexView,
+		lightingTex, lightingUAV);
 
 	return 0;
 }
