@@ -1,8 +1,3 @@
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
 // ParticleVS.hlsl
 
 struct Particle
@@ -37,7 +32,3 @@ VS_OUTPUT main(uint vertexID : SV_VertexID)
 
     return o;
 }
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes

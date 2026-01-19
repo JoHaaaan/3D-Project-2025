@@ -105,7 +105,7 @@ void CreateComputeOutputResources(ID3D11Device* device, UINT width, UINT height,
     desc.SampleDesc.Count = 1;
     desc.Usage = D3D11_USAGE_DEFAULT;
 
-    // *** LÄGG TILL D3D11_BIND_RENDER_TARGET! ***
+    // *** LaGG TILL D3D11_BIND_RENDER_TARGET! ***
     desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 
     device->CreateTexture2D(&desc, nullptr, &texture);
@@ -114,7 +114,7 @@ void CreateComputeOutputResources(ID3D11Device* device, UINT width, UINT height,
     uavDesc.Format = desc.Format;
     uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
     device->CreateUnorderedAccessView(texture, &uavDesc, &uav);
-<<<<<<< Updated upstream
+
 }
 
 // Add cleanup function before wWinMain
@@ -161,14 +161,11 @@ void CleanupD3DResources(
 	if (context) { context->Release(); context = nullptr; }
 	if (device) { device->Release(); device = nullptr; }
 	UnloadMeshes();
-=======
->>>>>>> Stashed changes
+
 }
 
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
 	const UINT WIDTH = 1024;
@@ -815,9 +812,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		whiteTexView, lightingTex, lightingUAV);
 
 	return 0;
-=======
-=======
->>>>>>> Stashed changes
+
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
     const UINT WIDTH = 1024;
@@ -902,7 +897,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     {
         OutputDebugStringA("FATAL ERROR: Failed to create lightingRTV!\n");
 
-        // Debug: Kolla om lightingTex är giltig
+        // Debug: Kolla om lightingTex ï¿½r giltig
         if (!lightingTex)
         {
             OutputDebugStringA("ERROR: lightingTex is NULL!\n");
@@ -1451,8 +1446,4 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
     UnloadMeshes();
 
     return 0;
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 }

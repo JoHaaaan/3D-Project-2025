@@ -1,8 +1,3 @@
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
 // ParticleGS.hlsl
 
 cbuffer ParticleCameraBuffer : register(b0)
@@ -76,7 +71,4 @@ void main(point GS_INPUT input[1], inout TriangleStream<GS_OUTPUT> output)
     o.uv = float2(0, 1);
     output.Append(o);
 }
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+

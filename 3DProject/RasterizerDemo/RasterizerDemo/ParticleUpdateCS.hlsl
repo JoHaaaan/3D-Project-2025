@@ -1,8 +1,3 @@
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
 // ParticleUpdateCS.hlsl
 
 cbuffer TimeBuffer : register(b0)
@@ -39,7 +34,7 @@ float3 Rand3(uint index, float t)
     return float3(Hash(s + 1.0f), Hash(s + 2.0f), Hash(s + 3.0f));
 }
 
-// FIX 1: Samla all respawn-logik på ett ställe
+// FIX 1: Samla all respawn-logik pï¿½ ett stï¿½lle
 void RespawnParticle(inout Particle p, uint index, float seed)
 {
     p.position = emitterPosition;
@@ -47,7 +42,7 @@ void RespawnParticle(inout Particle p, uint index, float seed)
 
     float3 r = Rand3(index, seed);
 
-    // Samma "shape" på spridningen som du haft innan
+    // Samma "shape" pï¿½ spridningen som du haft innan
     p.velocity.x = (r.x - 0.5f) * 4.0f;
     p.velocity.z = (r.z - 0.5f) * 4.0f;
     p.velocity.y = 2.0f + r.y * 2.0f;
@@ -70,7 +65,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     {
         if (emitterEnabled != 0)
         {
-            // FIX 1: anropa helper istället för duplicerad kod
+            // FIX 1: anropa helper istï¿½llet fï¿½r duplicerad kod
             RespawnParticle(p, index, deltaTime);
         }
 
@@ -83,16 +78,16 @@ void main(uint3 DTid : SV_DispatchThreadID)
     p.velocity.y += -9.82f * deltaTime;
     p.lifetime += deltaTime;
 
-    // Fade (0..1) baserat på livslängd
+    // Fade (0..1) baserat pï¿½ livslï¿½ngd
     float t = saturate(p.lifetime / max(p.maxLifetime, 0.0001f));
     p.color.a = 1.0f - t;
 
-    // Död?
+    // Dï¿½d?
     if (p.lifetime >= p.maxLifetime)
     {
         if (emitterEnabled != 0)
         {
-            // FIX 1: samma helper här också
+            // FIX 1: samma helper hï¿½r ocksï¿½
             RespawnParticle(p, index, p.maxLifetime + deltaTime);
         }
         else
@@ -106,7 +101,4 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
     Particles[index] = p;
 }
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
+

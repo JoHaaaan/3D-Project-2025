@@ -25,23 +25,14 @@ ParticleSystemD3D11::ParticleSystemD3D11(ID3D11Device* device,
     pixelShader = ShaderLoader::CreatePixelShader(device, "ParticlePS.cso");
     computeShader = ShaderLoader::CreateComputeShader(device, "ParticleUpdateCS.cso");
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    // Skapa constant buffer för delta time (1 float)
+    // Skapa constant buffer for delta time (1 float)
     timeBuffer.Initialize(device, sizeof(float));
 
     // Rensa temporary array
-=======
-=======
->>>>>>> Stashed changes
     // Constant buffers
     timeBuffer.Initialize(device, sizeof(TimeData));
     particleCameraBuffer.Initialize(device, sizeof(ParticleCameraData));
 
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     delete[] particles;
 }
 
@@ -52,7 +43,7 @@ ParticleSystemD3D11::~ParticleSystemD3D11()
     if (pixelShader) { pixelShader->Release(); pixelShader = nullptr; }
     if (computeShader) { computeShader->Release(); computeShader = nullptr; }
 
-    // particleBuffer, timeBuffer, particleCameraBuffer släpps av sina destructors
+    // particleBuffer, timeBuffer, particleCameraBuffer slapps av sina destructors
 }
 
 void ParticleSystemD3D11::InitializeParticles(Particle* particles, unsigned int count)
@@ -73,9 +64,9 @@ void ParticleSystemD3D11::InitializeParticles(Particle* particles, unsigned int 
         float maxLife = 3.0f + dist01(gen) * 5.0f;
         particles[i].maxLifetime = maxLife;
 
-        // Ge variation i startläge:
-        // Om emitter är på vill du ofta starta med spridning, men:
-        // Vi håller dem aktiva från start.
+        // Ge variation i startlage:
+        // Om emitter ar pa vill du ofta starta med spridning, men:
+        // Vi haller dem aktiva fran start.
         particles[i].lifetime = dist01(gen) * maxLife;
 
         particles[i].color = particleColor;
@@ -119,16 +110,10 @@ void ParticleSystemD3D11::Update(ID3D11DeviceContext* context, float deltaTime)
 
 void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, ID3D11Buffer* cameraBuffer)
 {
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    // Sätt input layout till nullptr (vertex pulling, ingen layout!)
-=======
-=======
->>>>>>> Stashed changes
     if (!vertexShader || !geometryShader || !pixelShader)
         return;
 
-    // Unbind tess stages så GS funkar rent
+    // Unbind tess stages sa GS funkar rent
     context->HSSetShader(nullptr, nullptr, 0);
     context->DSSetShader(nullptr, nullptr, 0);
 
@@ -137,10 +122,10 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, ID3D11Buffer* cam
     cd.pad0 = 0.0f;
     cd.pad1 = 0.0f;
 
-    // Paket A: shaders kör mul(v, M) => CPU måste skicka TRANSPOSEAD matris
-    XMFLOAT4X4 vp = camera.GetViewProjectionMatrix();            // (icke-transponerad från kameran)
+    // Paket A: shaders kar mul(v, M) => CPU maste skicka TRANSPOSEAD matris
+    XMFLOAT4X4 vp = camera.GetViewProjectionMatrix();            // (icke-transponerad fran kameran)
     XMMATRIX VPm = XMLoadFloat4x4(&vp);
-    VPm = XMMatrixTranspose(VPm);                                 // TRANSPOSE här
+    VPm = XMMatrixTranspose(VPm);                                 // TRANSPOSE har
     XMStoreFloat4x4(&cd.viewProjection, VPm);
 
     cd.cameraRight = camera.GetRight();
@@ -152,11 +137,6 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, ID3D11Buffer* cam
     ID3D11ShaderResourceView* srv = particleBuffer.GetSRV();
     if (!srv)
         return;
-
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     context->IASetInputLayout(nullptr);
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 
@@ -171,20 +151,17 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, ID3D11Buffer* cam
     // VS: particle buffer SRV
     context->VSSetShaderResources(0, 1, &srv);
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
+
     // Binda geometry shader
     context->GSSetShader(geometryShader, nullptr, 0);
 
     // Binda camera constant buffer till geometry shader (register b0)
     context->GSSetConstantBuffers(0, 1, &cameraBuffer);
-=======
-=======
->>>>>>> Stashed changes
+
     // GS: camera buffer
     ID3D11Buffer* camBuf = particleCameraBuffer.GetBuffer();
     context->GSSetConstantBuffers(0, 1, &camBuf);
->>>>>>> Stashed changes
+
 
     context->Draw(numParticles, 0);
 

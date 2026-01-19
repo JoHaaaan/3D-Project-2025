@@ -1,8 +1,3 @@
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
 // ParticlePS.hlsl
 
 struct PS_INPUT
@@ -14,15 +9,15 @@ struct PS_INPUT
 
 float4 main(PS_INPUT input) : SV_TARGET
 {
-    // UV går (0..1). Flytta till centrum och gör en cirkelmask
+    // UV gï¿½r (0..1). Flytta till centrum och gï¿½r en cirkelmask
     float2 p = input.uv * 2.0f - 1.0f; // (-1..1)
     float r2 = dot(p, p); // radius^2
 
-    // Hård cutoff (billigt): disc
+    // Hï¿½rd cutoff (billigt): disc
     // if (r2 > 1.0f) discard;
 
     // Mjuk kant (snyggare): 1 i mitten -> 0 vid kanten
-    // "feather" styr hur mjuk kanten är (större = mjukare)
+    // "feather" styr hur mjuk kanten ï¿½r (stï¿½rre = mjukare)
     const float feather = 0.15f;
     float alphaMask = 1.0f - smoothstep(1.0f - feather, 1.0f, r2);
 
@@ -36,7 +31,3 @@ float4 main(PS_INPUT input) : SV_TARGET
 
     return outColor;
 }
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
