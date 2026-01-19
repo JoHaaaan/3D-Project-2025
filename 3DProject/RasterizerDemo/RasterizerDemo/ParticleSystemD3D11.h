@@ -1,8 +1,13 @@
+// ============================
+// ParticleSystemD3D11.h
+// ============================
+
 #pragma once
 #include <d3d11_4.h>
 #include <DirectXMath.h>
 #include "StructuredBufferD3D11.h"
 #include "ConstantBufferD3D11.h"
+#include "CameraD3D11.h"
 
 using namespace DirectX;
 
@@ -20,11 +25,10 @@ struct Particle
 class ParticleSystemD3D11
 {
 private:
-
     // Matchar ParticleGS.hlsl
     struct ParticleCameraData
     {
-        XMFLOAT4X4 viewProjection;     // 64 bytes
+        XMFLOAT4X4 viewProjection;        // 64 bytes
         XMFLOAT3 cameraRight; float pad0; // 16 bytes
         XMFLOAT3 cameraUp;    float pad1; // 16 bytes
         // Total 96
@@ -74,11 +78,8 @@ public:
     ParticleSystemD3D11& operator=(ParticleSystemD3D11&& other) = delete;
 
     void Update(ID3D11DeviceContext* context, float deltaTime);
-    void Render(ID3D11DeviceContext* context, ID3D11Buffer* cameraBuffer);
+    void Render(ID3D11DeviceContext* context, const CameraD3D11& camera);
 
-    // Toggle API
-    void SetEmitterEnabled(bool enabled);
-    bool GetEmitterEnabled() const;
 
     // Toggle API
     void SetEmitterEnabled(bool enabled);

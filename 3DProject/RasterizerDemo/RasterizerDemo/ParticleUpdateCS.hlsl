@@ -34,7 +34,7 @@ float3 Rand3(uint index, float t)
     return float3(Hash(s + 1.0f), Hash(s + 2.0f), Hash(s + 3.0f));
 }
 
-// FIX 1: Samla all respawn-logik p� ett st�lle
+// FIX 1: Samla all respawn-logik pa ett stalle
 void RespawnParticle(inout Particle p, uint index, float seed)
 {
     p.position = emitterPosition;
@@ -42,7 +42,7 @@ void RespawnParticle(inout Particle p, uint index, float seed)
 
     float3 r = Rand3(index, seed);
 
-    // Samma "shape" p� spridningen som du haft innan
+    // Samma "shape" pa spridningen som du haft innan
     p.velocity.x = (r.x - 0.5f) * 4.0f;
     p.velocity.z = (r.z - 0.5f) * 4.0f;
     p.velocity.y = 2.0f + r.y * 2.0f;
@@ -65,7 +65,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     {
         if (emitterEnabled != 0)
         {
-            // FIX 1: anropa helper ist�llet f�r duplicerad kod
+            // FIX 1: anropa helper istallet for duplicerad kod
             RespawnParticle(p, index, deltaTime);
         }
 
@@ -78,7 +78,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     p.velocity.y += -9.82f * deltaTime;
     p.lifetime += deltaTime;
 
-    // Fade (0..1) baserat p� livsl�ngd
+    // Fade (0..1) baserat pa livslangd
     float t = saturate(p.lifetime / max(p.maxLifetime, 0.0001f));
     p.color.a = 1.0f - t;
 
@@ -87,7 +87,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     {
         if (emitterEnabled != 0)
         {
-            // FIX 1: samma helper h�r ocks�
+            // FIX 1: samma helper hor ocksa
             RespawnParticle(p, index, p.maxLifetime + deltaTime);
         }
         else

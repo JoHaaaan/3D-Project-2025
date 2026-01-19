@@ -118,6 +118,10 @@
     <FxCompile Include="CubeMapPS.hlsl" />
     <FxCompile Include="NormalMapPS.hlsl" />
     <FxCompile Include="ParallaxPS.hlsl" />
+    <FxCompile Include="ParticleGS.hlsl" />
+    <FxCompile Include="ParticlePS.hlsl" />
+    <FxCompile Include="ParticleUpdateCS.hlsl" />
+    <FxCompile Include="ParticleVS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="WindowHelper.h">
@@ -216,8 +220,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="VertexShader.cso" />
-    <None Include="PixelShader.cso" />
-    <None Include="LightingCS.cso" />
     <None Include="pineapple2_fixed.mtl" />
   </ItemGroup>
   <ItemGroup>
