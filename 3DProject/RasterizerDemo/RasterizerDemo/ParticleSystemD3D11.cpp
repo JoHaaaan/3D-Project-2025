@@ -27,6 +27,7 @@ ParticleSystemD3D11::ParticleSystemD3D11(ID3D11Device* device,
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // Skapa constant buffer för delta time (1 float)
     timeBuffer.Initialize(device, sizeof(float));
 
@@ -34,11 +35,16 @@ ParticleSystemD3D11::ParticleSystemD3D11(ID3D11Device* device,
 =======
 =======
 >>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
     // Constant buffers
     timeBuffer.Initialize(device, sizeof(TimeData));
     particleCameraBuffer.Initialize(device, sizeof(ParticleCameraData));
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -121,8 +127,11 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, ID3D11Buffer* cam
 {
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // Sätt input layout till nullptr (vertex pulling, ingen layout!)
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
     if (!vertexShader || !geometryShader || !pixelShader)
@@ -154,6 +163,9 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, ID3D11Buffer* cam
         return;
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
@@ -173,12 +185,15 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, ID3D11Buffer* cam
 
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // Binda geometry shader
     context->GSSetShader(geometryShader, nullptr, 0);
 
     // Binda camera constant buffer till geometry shader (register b0)
     context->GSSetConstantBuffers(0, 1, &cameraBuffer);
 =======
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
     // GS: camera buffer
