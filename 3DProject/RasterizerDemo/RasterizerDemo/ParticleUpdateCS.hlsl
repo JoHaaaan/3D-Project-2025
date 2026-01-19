@@ -1,5 +1,8 @@
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
 // ParticleUpdateCS.hlsl
 
 cbuffer TimeBuffer : register(b0)
@@ -103,4 +106,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
     Particles[index] = p;
 }
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes

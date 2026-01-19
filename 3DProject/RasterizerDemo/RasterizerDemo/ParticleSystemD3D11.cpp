@@ -26,15 +26,21 @@ ParticleSystemD3D11::ParticleSystemD3D11(ID3D11Device* device,
     computeShader = ShaderLoader::CreateComputeShader(device, "ParticleUpdateCS.cso");
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // Skapa constant buffer för delta time (1 float)
     timeBuffer.Initialize(device, sizeof(float));
 
     // Rensa temporary array
 =======
+=======
+>>>>>>> Stashed changes
     // Constant buffers
     timeBuffer.Initialize(device, sizeof(TimeData));
     particleCameraBuffer.Initialize(device, sizeof(ParticleCameraData));
 
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     delete[] particles;
 }
@@ -114,8 +120,11 @@ void ParticleSystemD3D11::Update(ID3D11DeviceContext* context, float deltaTime)
 void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, ID3D11Buffer* cameraBuffer)
 {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // Sätt input layout till nullptr (vertex pulling, ingen layout!)
 =======
+=======
+>>>>>>> Stashed changes
     if (!vertexShader || !geometryShader || !pixelShader)
         return;
 
@@ -144,6 +153,9 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, ID3D11Buffer* cam
     if (!srv)
         return;
 
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     context->IASetInputLayout(nullptr);
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
@@ -160,12 +172,15 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, ID3D11Buffer* cam
     context->VSSetShaderResources(0, 1, &srv);
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     // Binda geometry shader
     context->GSSetShader(geometryShader, nullptr, 0);
 
     // Binda camera constant buffer till geometry shader (register b0)
     context->GSSetConstantBuffers(0, 1, &cameraBuffer);
 =======
+=======
+>>>>>>> Stashed changes
     // GS: camera buffer
     ID3D11Buffer* camBuf = particleCameraBuffer.GetBuffer();
     context->GSSetConstantBuffers(0, 1, &camBuf);

@@ -21,7 +21,10 @@ class ParticleSystemD3D11
 {
 private:
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
     // Matchar ParticleGS.hlsl
     struct ParticleCameraData
     {
@@ -46,6 +49,9 @@ private:
     ConstantBufferD3D11 particleCameraBuffer;
     ConstantBufferD3D11 timeBuffer;
 
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     StructuredBufferD3D11 particleBuffer;
     unsigned int numParticles = 0;
@@ -77,6 +83,10 @@ public:
 
     void Update(ID3D11DeviceContext* context, float deltaTime);
     void Render(ID3D11DeviceContext* context, ID3D11Buffer* cameraBuffer);
+
+    // Toggle API
+    void SetEmitterEnabled(bool enabled);
+    bool GetEmitterEnabled() const;
 
     // Toggle API
     void SetEmitterEnabled(bool enabled);
