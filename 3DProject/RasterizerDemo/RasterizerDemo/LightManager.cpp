@@ -11,23 +11,23 @@ void LightManager::InitializeDefaultLights(ID3D11Device* device)
     // Light 0: Directional Light (The Sun)
     SetupDirectionalLight(m_lights[0]);
 
-    // Light 1: Spot Light (Green) - Above center, pointing down
+    // Light 1: Spot Light (White) - Above center, pointing down
     SetupSpotLight(m_lights[1],
-        XMFLOAT3(0.0f, 1.0f, 0.0f),   // Green
+        XMFLOAT3(1.0f, 1.0f, 1.0f),   // White
         XMFLOAT3(0.0f, 10.0f, 0.0f),  // Position
         XMFLOAT3(0.0f, -1.0f, 0.0f)); // Direction
 
-    // Light 2: Spot Light (Red)
+  // Light 2: Spot Light (White)
     SetupSpotLight(m_lights[2],
-        XMFLOAT3(1.0f, 0.0f, 0.0f),   // Red
-        XMFLOAT3(-10.0f, 5.0f, -5.0f),
+        XMFLOAT3(1.0f, 1.0f, 1.0f),   // White
+   XMFLOAT3(-10.0f, 5.0f, -5.0f),
         XMFLOAT3(1.0f, -0.5f, 1.0f));
 
-    // Light 3: Spot Light (Blue)
-    SetupSpotLight(m_lights[3],
-        XMFLOAT3(0.0f, 0.0f, 1.0f),   // Blue
+ // Light 3: Spot Light (White)
+SetupSpotLight(m_lights[3],
+      XMFLOAT3(1.0f, 1.0f, 1.0f),   // White
         XMFLOAT3(10.0f, 5.0f, -5.0f),
-        XMFLOAT3(-1.0f, -0.5f, 1.0f));
+  XMFLOAT3(-1.0f, -0.5f, 1.0f));
 
     // Create structured buffer
     m_lightBuffer.Initialize(device, sizeof(LightData), static_cast<UINT>(m_lights.size()), m_lights.data());
@@ -39,8 +39,8 @@ void LightManager::SetupDirectionalLight(LightData& light)
 {
     light.type = 0; // Directional
     light.enabled = 1;
-    light.color = XMFLOAT3(1.0f, 0.9f, 0.8f);
-    light.intensity = 2.0f;
+    light.color = XMFLOAT3(1.0f, 1.0f, 1.0f);  // White
+    light.intensity = 0.8f;  // Reduced from 2.0f for normal lighting
     light.position = XMFLOAT3(20.0f, 30.0f, -20.0f);
     light.direction = XMFLOAT3(-1.0f, -1.0f, 1.0f);
 
@@ -58,7 +58,7 @@ void LightManager::SetupSpotLight(LightData& light, const XMFLOAT3& color,
     light.type = 1; // Spot
     light.enabled = 1;
     light.color = color;
-    light.intensity = 10.0f;
+ light.intensity = 3.0f;  // Reduced from 10.0f for normal lighting
     light.position = position;
     light.direction = direction;
     light.range = 50.0f;
@@ -71,13 +71,13 @@ void LightManager::SetupSpotLight(LightData& light, const XMFLOAT3& color,
     XMVECTOR upVec = XMVectorSet(0, 1, 0, 0);
     if (fabsf(direction.y) > 0.9f)
     {
-        upVec = XMVectorSet(1, 0, 0, 0);
+      upVec = XMVectorSet(1, 0, 0, 0);
     }
 
     XMMATRIX view = XMMatrixLookToLH(lightPos, lightDir, upVec);
     XMMATRIX proj = XMMatrixPerspectiveFovLH(light.spotAngle, 1.0f, 0.5f, 50.0f);
 
-    XMStoreFloat4x4(&light.viewProj, XMMatrixTranspose(view * proj));
+  XMStoreFloat4x4(&light.viewProj, XMMatrixTranspose(view * proj));
 }
 
 DirectX::XMMATRIX LightManager::GetLightViewProj(size_t index) const

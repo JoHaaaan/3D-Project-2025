@@ -163,6 +163,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	// Normal map shader
 	ID3D11PixelShader* normalMapPS = ShaderLoader::CreatePixelShader(device, "NormalMapPS.cso");
 
+	// Parallax occlusion mapping shader
+	ID3D11PixelShader* parallaxPS = ShaderLoader::CreatePixelShader(device, "ParallaxPS.cso");
+
 	// Compute shader
 	ID3D11ComputeShader* lightingCS = ShaderLoader::CreateComputeShader(device, "LightingCS.cso");
 
@@ -211,6 +214,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	const MeshD3D11* sphereMesh = GetMesh("sphere.obj", device);
 	const MeshD3D11* sphereNormalMapMesh = GetMesh("sphereNormalMap.obj", device);
 	const MeshD3D11* simpleCubeNormal = GetMesh("SimpleCubeNormal.obj", device);
+	const MeshD3D11* simpleCubeParallax = GetMesh("SimpleCubeParallax.obj", device);
 
 	// Material setup
 	Material mat = {
@@ -272,7 +276,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	gameObjects.emplace_back(pineAppleMesh);
 	gameObjects[1].SetWorldMatrix(XMMatrixTranslation(0.0f, 0.0f, -14.0f));
 	gameObjects.emplace_back(sphereMesh);  // Changed to sphereMesh
-	gameObjects[2].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(-2.0f, 2.0f, 0.0f));
+	gameObjects[2].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(-5.0f, 2.0f, 0.0f));
 	gameObjects.emplace_back(simpleCubeMesh);
 	gameObjects[3].SetWorldMatrix(XMMatrixTranslation(2.0f, 2.0f, 0.0f));
 	gameObjects.emplace_back(simpleCubeMesh);
@@ -285,6 +289,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	gameObjects[7].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(6.0f, 3.0f, -3.0f));
 	gameObjects.emplace_back(simpleCubeNormal);
 	gameObjects[8].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(5.0f, 2.0f, 0.0f));
+	gameObjects.emplace_back(simpleCubeParallax);
+	gameObjects[9].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(-1.0f, 2.0f, 0.0f));
 
 
 
@@ -307,6 +313,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 	const size_t REFLECTIVE_OBJECT_INDEX = 2;  // Reflective sphere at index 2
 	const size_t NORMAL_MAP_OBJECT_INDEX = 8;  // SimpleCubeNormal at index 8
+	const size_t PARALLAX_OBJECT_INDEX = 9;    // SimpleCubeParallax at index 9
 
 	// Initialize QuadTree for frustum culling
 	// Define world bounds covering the entire scene
@@ -413,6 +420,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		// Update SimpleCube next to it for comparison
 		gameObjects[3].SetWorldMatrix(
 			XMMatrixRotationY(rotationAngle) * XMMatrixTranslation(2.0f, 2.0f, 0.0f)
+		);
+
+		// Update SimpleCubeParallax rotation to see parallax mapping effect
+		gameObjects[PARALLAX_OBJECT_INDEX].SetWorldMatrix(
+			XMMatrixRotationY(rotationAngle) * XMMatrixTranslation(-1.0f, 2.0f, 0.0f)
 		);
 
 		// Update QuadTree for moving objects
@@ -608,22 +620,115 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 					// Use normal map shader for SimpleCubeNormal
 					context->PSSetShader(normalMapPS, nullptr, 0);
 
-					// Bind the normal map texture to slot t1
+					// Bind the normal map texture to slot t1 BEFORE drawing
 					const MeshD3D11* mesh = objPtr->GetMesh();
+					ID3D11ShaderResourceView* normalMapSRV = nullptr;
 					if (mesh && mesh->GetNrOfSubMeshes() > 0)
 					{
-						ID3D11ShaderResourceView* normalMapSRV = mesh->GetNormalHeightSRV(0);
+						normalMapSRV = mesh->GetNormalHeightSRV(0);
+					}
+
+					// Draw with custom normal map binding
+					if (!mesh) continue;
+
+					// Update Matrix Buffer
+					MatrixPair matrixData;
+					XMMATRIX world = objPtr->GetWorldMatrix();
+					XMStoreFloat4x4(&matrixData.world, XMMatrixTranspose(world));
+					XMStoreFloat4x4(&matrixData.viewProj, XMMatrixTranspose(VIEW_PROJ));
+					constantBuffer.UpdateBuffer(context, &matrixData);
+
+					// Bind Vertex/Index Buffers
+					mesh->BindMeshBuffers(context);
+
+					// Render Submeshes with normal map
+					for (size_t i = 0; i < mesh->GetNrOfSubMeshes(); ++i)
+					{
+						// Update Material
+						const auto& meshMat = mesh->GetMaterial(i);
+						Material matData;
+						matData.ambient = meshMat.ambient;
+						matData.diffuse = meshMat.diffuse;
+						matData.specular = meshMat.specular;
+						matData.specularPower = meshMat.specularPower;
+						materialBuffer.UpdateBuffer(context, &matData);
+
+						// Bind diffuse texture (t0)
+						ID3D11ShaderResourceView* texture = mesh->GetDiffuseSRV(i);
+						if (!texture) texture = whiteTexView;
+						context->PSSetShaderResources(0, 1, &texture);
+
+						// Bind normal map texture (t1)
 						if (normalMapSRV)
 						{
 							context->PSSetShaderResources(1, 1, &normalMapSRV);
 						}
-					}
 
-					objPtr->Draw(context, constantBuffer, materialBuffer, VIEW_PROJ, whiteTexView);
+						// Draw Call
+						mesh->PerformSubMeshDrawCall(context, i);
+					}
 
 					// Unbind normal map and restore default shader
 					ID3D11ShaderResourceView* nullSRV = nullptr;
 					context->PSSetShaderResources(1, 1, &nullSRV);
+					context->PSSetShader(pShader, nullptr, 0);
+				}
+				else if (objIdx == PARALLAX_OBJECT_INDEX && parallaxPS)
+				{
+					// Use parallax occlusion mapping shader for SimpleCubeParallax
+					context->PSSetShader(parallaxPS, nullptr, 0);
+
+					// Get the mesh
+					const MeshD3D11* mesh = objPtr->GetMesh();
+					if (!mesh) continue;
+
+					// Get normal/height map
+					ID3D11ShaderResourceView* normalHeightSRV = nullptr;
+					if (mesh->GetNrOfSubMeshes() > 0)
+					{
+						normalHeightSRV = mesh->GetNormalHeightSRV(0);
+					}
+
+					// Update Matrix Buffer
+					MatrixPair matrixData;
+					XMMATRIX world = objPtr->GetWorldMatrix();
+					XMStoreFloat4x4(&matrixData.world, XMMatrixTranspose(world));
+					XMStoreFloat4x4(&matrixData.viewProj, XMMatrixTranspose(VIEW_PROJ));
+					constantBuffer.UpdateBuffer(context, &matrixData);
+
+					// Bind Vertex/Index Buffers
+					mesh->BindMeshBuffers(context);
+
+					// Render Submeshes with parallax mapping
+					for (size_t i = 0; i < mesh->GetNrOfSubMeshes(); ++i)
+					{
+						// Update Material
+						const auto& meshMat = mesh->GetMaterial(i);
+						Material matData;
+						matData.ambient = meshMat.ambient;
+						matData.diffuse = meshMat.diffuse;
+						matData.specular = meshMat.specular;
+						matData.specularPower = meshMat.specularPower;
+						materialBuffer.UpdateBuffer(context, &matData);
+
+						// Bind diffuse texture (t0)
+						ID3D11ShaderResourceView* texture = mesh->GetDiffuseSRV(i);
+						if (!texture) texture = whiteTexView;
+						context->PSSetShaderResources(0, 1, &texture);
+
+						// Bind normal/height map texture (t1)
+						if (normalHeightSRV)
+						{
+							context->PSSetShaderResources(1, 1, &normalHeightSRV);
+						}
+
+						// Draw Call
+						mesh->PerformSubMeshDrawCall(context, i);
+					}
+
+					// Unbind textures and restore default shader
+					ID3D11ShaderResourceView* nullSRVs[2] = { nullptr, nullptr };
+					context->PSSetShaderResources(0, 2, nullSRVs);
 					context->PSSetShader(pShader, nullptr, 0);
 				}
 				else
@@ -678,6 +783,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	}
 
 	// Cleanup
+	if (parallaxPS) parallaxPS->Release();
 	if (normalMapPS) normalMapPS->Release();
 	if (cubeMapPS) cubeMapPS->Release();
 	if (reflectionPS) reflectionPS->Release();
