@@ -1,9 +1,6 @@
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
 =======
-=======
->>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 // ParticlePS.hlsl
@@ -40,9 +37,6 @@ float4 main(PS_INPUT input) : SV_TARGET
     return outColor;
 }
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes

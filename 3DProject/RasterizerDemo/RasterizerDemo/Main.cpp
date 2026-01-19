@@ -115,7 +115,6 @@ void CreateComputeOutputResources(ID3D11Device* device, UINT width, UINT height,
     uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
     device->CreateUnorderedAccessView(texture, &uavDesc, &uav);
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
 }
 
 // Add cleanup function before wWinMain
@@ -164,13 +163,10 @@ void CleanupD3DResources(
 	UnloadMeshes();
 =======
 >>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
 }
 
 int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 {
-<<<<<<< Updated upstream
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
@@ -822,8 +818,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 =======
 =======
 >>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
     const UINT WIDTH = 1024;
@@ -1458,9 +1452,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
     return 0;
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes

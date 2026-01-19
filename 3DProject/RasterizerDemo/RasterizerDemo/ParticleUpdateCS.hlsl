@@ -1,9 +1,6 @@
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
 =======
-=======
->>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 // ParticleUpdateCS.hlsl
@@ -110,9 +107,6 @@ void main(uint3 DTid : SV_DispatchThreadID)
     Particles[index] = p;
 }
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes

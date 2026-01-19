@@ -1,9 +1,6 @@
 <<<<<<< Updated upstream
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
 =======
-=======
->>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 // ParticleGS.hlsl
@@ -80,9 +77,6 @@ void main(point GS_INPUT input[1], inout TriangleStream<GS_OUTPUT> output)
     output.Append(o);
 }
 <<<<<<< Updated upstream
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
 >>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
