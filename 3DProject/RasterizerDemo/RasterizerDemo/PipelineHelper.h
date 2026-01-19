@@ -17,7 +17,7 @@ struct SimpleVertex
 		{
 			pos[i] = position[i];
 			nrm[i] = normal[i];
-			
+
 		}
 		uv[0] = uvCoords[0];
 		uv[1] = uvCoords[1];

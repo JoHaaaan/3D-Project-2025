@@ -16,65 +16,65 @@ struct ID3D11ShaderResourceView;
 // Definition of Vertex to match usage in ParseFace
 struct Vertex
 {
-    DirectX::XMFLOAT3 Position;
-    DirectX::XMFLOAT3 Normal;
-    DirectX::XMFLOAT2 UV;
+	DirectX::XMFLOAT3 Position;
+	DirectX::XMFLOAT3 Normal;
+	DirectX::XMFLOAT2 UV;
 };
 
 // Simple material info used by ParseData
 struct MaterialInfo
 {
-    std::string name;
-    DirectX::XMFLOAT3 ambient{ 0.2f, 0.2f, 0.2f };
-    DirectX::XMFLOAT3 diffuse{ 0.8f, 0.8f, 0.8f };
-    DirectX::XMFLOAT3 specular{ 0.5f, 0.5f, 0.5f };
-    float specularPower{ 32.0f };
+	std::string name;
+	DirectX::XMFLOAT3 ambient{ 0.2f, 0.2f, 0.2f };
+	DirectX::XMFLOAT3 diffuse{ 0.8f, 0.8f, 0.8f };
+	DirectX::XMFLOAT3 specular{ 0.5f, 0.5f, 0.5f };
+	float specularPower{ 32.0f };
 
-    std::string mapKa; // Ambient map
-    std::string mapKd; // Diffuse map
-    std::string mapKs; // Specular map
-    std::string mapBump; // Normal/Height map for parallax occlusion mapping
+	std::string mapKa; // Ambient map
+	std::string mapKd; // Diffuse map
+	std::string mapKs; // Specular map
+	std::string mapBump; // Normal/Height map for parallax occlusion mapping
 };
 
 // Info about one submesh inside a mesh
 struct SubMeshInfo
 {
-    std::size_t startIndexValue = 0;
-    std::size_t nrOfIndicesInSubMesh = 0;
+	std::size_t startIndexValue = 0;
+	std::size_t nrOfIndicesInSubMesh = 0;
 
-    ID3D11ShaderResourceView* ambientTextureSRV = nullptr;
-    ID3D11ShaderResourceView* diffuseTextureSRV = nullptr;
-    ID3D11ShaderResourceView* specularTextureSRV = nullptr;
-    ID3D11ShaderResourceView* normalHeightTextureSRV = nullptr; // For parallax occlusion mapping
+	ID3D11ShaderResourceView* ambientTextureSRV = nullptr;
+	ID3D11ShaderResourceView* diffuseTextureSRV = nullptr;
+	ID3D11ShaderResourceView* specularTextureSRV = nullptr;
+	ID3D11ShaderResourceView* normalHeightTextureSRV = nullptr; // For parallax occlusion mapping
 
 
-    std::size_t materialIndex = 0;
-    std::size_t currentSubMeshMaterial = 0;
+	std::size_t materialIndex = 0;
+	std::size_t currentSubMeshMaterial = 0;
 };
 
 // All temporary data used while parsing a single OBJ
 struct ParseData
 {
-    // Geometry
-    std::vector<DirectX::XMFLOAT3> positions;
-    std::vector<DirectX::XMFLOAT3> normals;
-    std::vector<DirectX::XMFLOAT2> texCoords;
+	// Geometry
+	std::vector<DirectX::XMFLOAT3> positions;
+	std::vector<DirectX::XMFLOAT3> normals;
+	std::vector<DirectX::XMFLOAT2> texCoords;
 
-    // Cache to avoid duplicating vertices (String identifier -> Index)
-    std::unordered_map<std::string, unsigned int> vertexCache;
+	// Cache to avoid duplicating vertices (String identifier -> Index)
+	std::unordered_map<std::string, unsigned int> vertexCache;
 
-    // Final vertex buffer data
-    std::vector<Vertex> vertices;   
+	// Final vertex buffer data
+	std::vector<Vertex> vertices;
 
-    // Index data for the final mesh
-    std::vector<unsigned int> indexData;
+	// Index data for the final mesh
+	std::vector<unsigned int> indexData;
 
-    // Materials and submeshes
-    std::vector<MaterialInfo> parsedMaterials;
-    std::vector<SubMeshInfo> finishedSubMeshes;
+	// Materials and submeshes
+	std::vector<MaterialInfo> parsedMaterials;
+	std::vector<SubMeshInfo> finishedSubMeshes;
 
-    std::size_t currentSubmeshStartIndex = 0;
-    std::size_t currentSubMeshMaterial = 0;
+	std::size_t currentSubmeshStartIndex = 0;
+	std::size_t currentSubMeshMaterial = 0;
 };
 
 // Global data used by the parser

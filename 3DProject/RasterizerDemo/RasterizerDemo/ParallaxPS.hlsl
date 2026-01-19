@@ -37,9 +37,9 @@ struct PS_OUTPUT
 };
 
 // Parallax Occlusion Mapping parameters
-static const float heightScale = 0.08f;        // How "deep" the parallax effect is
-static const float minLayers = 16.0f;   // Minimum ray marching steps
-static const float maxLayers = 64.0f;      // Maximum ray marching steps
+static const float heightScale = 0.08f; // How "deep" the parallax effect is
+static const float minLayers = 16.0f; // Minimum ray marching steps
+static const float maxLayers = 64.0f; // Maximum ray marching steps
 
 // Compute TBN matrix using screen-space derivatives
 float3x3 ComputeTBN(float3 worldPos, float3 normal, float2 uv)
@@ -51,7 +51,7 @@ float3x3 ComputeTBN(float3 worldPos, float3 normal, float2 uv)
     float2 duv2 = ddy(uv);
     
     // Solve the linear system
-  float3 dp2perp = cross(dp2, normal);
+    float3 dp2perp = cross(dp2, normal);
     float3 dp1perp = cross(normal, dp1);
     
     float3 T = dp2perp * duv1.x + dp1perp * duv2.x;
@@ -67,7 +67,7 @@ float3x3 ComputeTBN(float3 worldPos, float3 normal, float2 uv)
 float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 dx, float2 dy)
 {
     // Number of depth layers (adaptive based on view angle)
-  float numLayers = lerp(maxLayers, minLayers, abs(dot(float3(0.0, 0.0, 1.0), viewDirTangent)));
+    float numLayers = lerp(maxLayers, minLayers, abs(dot(float3(0.0, 0.0, 1.0), viewDirTangent)));
     
     // Calculate the size of each layer
     float layerDepth = 1.0 / numLayers;
@@ -76,28 +76,28 @@ float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 
     float currentLayerDepth = 0.0;
     
     // The amount to shift the texture coordinates per layer (from vector P)
-float2 P = viewDirTangent.xy * heightScale;
+    float2 P = viewDirTangent.xy * heightScale;
     float2 deltaTexCoords = P / numLayers;
     
     // Get initial values
     float2 currentTexCoords = texCoords;
     
   // Use SampleGrad to properly support mipmapping without aliasing
-  float currentDepthMapValue = normalHeightTexture.SampleGrad(samplerState, currentTexCoords, dx, dy).a;
+    float currentDepthMapValue = normalHeightTexture.SampleGrad(samplerState, currentTexCoords, dx, dy).a;
     
     // Ray march through the height field
  [unroll(64)]
-    for(int i = 0; i < 64; i++)
+    for (int i = 0; i < 64; i++)
     {
         // Break if we've gone deep enough or exceeded actual layer count
-     if(currentLayerDepth >= currentDepthMapValue || i >= (int)numLayers)
-     break;
+        if (currentLayerDepth >= currentDepthMapValue || i >= (int) numLayers)
+            break;
     
         // Shift texture coordinates along direction of P
         currentTexCoords -= deltaTexCoords;
       
         // Get depthmap value at current texture coordinates (use SampleGrad)
-  currentDepthMapValue = normalHeightTexture.SampleGrad(samplerState, currentTexCoords, dx, dy).a;
+        currentDepthMapValue = normalHeightTexture.SampleGrad(samplerState, currentTexCoords, dx, dy).a;
   
  // Get depth of next layer
         currentLayerDepth += layerDepth;
@@ -109,12 +109,12 @@ float2 P = viewDirTangent.xy * heightScale;
     float2 prevTexCoords = currentTexCoords + deltaTexCoords;
   
     // Get depth after and before collision for linear interpolation
-  float afterDepth = currentDepthMapValue - currentLayerDepth;
-  float beforeDepth = normalHeightTexture.SampleGrad(samplerState, prevTexCoords, dx, dy).a - currentLayerDepth + layerDepth;
+    float afterDepth = currentDepthMapValue - currentLayerDepth;
+    float beforeDepth = normalHeightTexture.SampleGrad(samplerState, prevTexCoords, dx, dy).a - currentLayerDepth + layerDepth;
   
     // Interpolation of texture coordinates
     float weight = afterDepth / (afterDepth - beforeDepth);
- float2 finalTexCoords = prevTexCoords * weight + currentTexCoords * (1.0 - weight);
+    float2 finalTexCoords = prevTexCoords * weight + currentTexCoords * (1.0 - weight);
     
     return finalTexCoords;
 }
@@ -138,7 +138,7 @@ PS_OUTPUT main(PS_INPUT input)
     float3 viewDirWorld = normalize(cameraPosition - input.worldPos);
  
     // Transform view direction to tangent space
-  float3 viewDirTangent = normalize(mul(transpose(TBN), viewDirWorld));
+    float3 viewDirTangent = normalize(mul(transpose(TBN), viewDirWorld));
     
     // Perform Parallax Occlusion Mapping to get displaced UVs
     float2 parallaxUV = ParallaxOcclusionMapping(input.uv, viewDirTangent, dx, dy);

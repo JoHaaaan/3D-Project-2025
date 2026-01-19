@@ -304,7 +304,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 			gameObjects.emplace_back(sphereMesh);
 			const XMFLOAT3& lightPos = lights[i].position;
 			gameObjects.back().SetWorldMatrix(
-				XMMatrixScaling(0.2f, 0.2f, 0.2f) * 
+				XMMatrixScaling(0.2f, 0.2f, 0.2f) *
 				XMMatrixTranslation(lightPos.x, lightPos.y, lightPos.z)
 			);
 		}
