@@ -126,29 +126,29 @@ PS_OUTPUT main(PS_INPUT input)
     // Normalize the vertex normal
     float3 N = normalize(input.normal);
     
-    // *** CALCULATE TEXTURE GRADIENTS BEFORE THE LOOP ***
+// *** CALCULATE TEXTURE GRADIENTS BEFORE THE LOOP ***
     // This prevents aliasing by allowing proper mipmap selection during ray marching
     float2 dx = ddx(input.uv);
     float2 dy = ddy(input.uv);
     
-  // Compute TBN matrix using partial derivatives
+    // Compute TBN matrix using partial derivatives
     float3x3 TBN = ComputeTBN(input.worldPos, N, input.uv);
     
     // Calculate view direction in world space
     float3 viewDirWorld = normalize(cameraPosition - input.worldPos);
  
     // Transform view direction to tangent space
-    float3 viewDirTangent = normalize(mul(transpose(TBN), viewDirWorld));
+  float3 viewDirTangent = normalize(mul(transpose(TBN), viewDirWorld));
     
     // Perform Parallax Occlusion Mapping to get displaced UVs
     float2 parallaxUV = ParallaxOcclusionMapping(input.uv, viewDirTangent, dx, dy);
  
-    // Sample textures with the displaced UVs (using regular Sample is fine here)
-    float3 texColor = diffuseTexture.Sample(samplerState, parallaxUV).rgb;
+    // Sample textures with the displaced UVs - Use SampleGrad to ensure stable mipmapping
+    float3 texColor = diffuseTexture.SampleGrad(samplerState, parallaxUV, dx, dy).rgb;
     float3 diffuseColor = texColor * materialDiffuse;
     
-    // Sample normal map with displaced UVs
-    float3 normalMapSample = normalHeightTexture.Sample(samplerState, parallaxUV).rgb;
+    // Sample normal map with displaced UVs - Use SampleGrad to ensure stable mipmapping
+    float3 normalMapSample = normalHeightTexture.SampleGrad(samplerState, parallaxUV, dx, dy).rgb;
     
     // Convert from [0,1] to [-1,1] range
     float3 tangentNormal = normalMapSample * 2.0f - 1.0f;
@@ -156,7 +156,7 @@ PS_OUTPUT main(PS_INPUT input)
     // Transform normal from tangent space to world space
     float3 worldNormal = normalize(mul(tangentNormal, TBN));
     
- // Pack material properties
+    // Pack material properties
     float ambientStrength = saturate(dot(materialAmbient, float3(0.333f, 0.333f, 0.333f)));
     float specularStrength = saturate(dot(materialSpecular, float3(0.333f, 0.333f, 0.333f)));
     float specPacked = saturate(specularPower / 256.0f);
@@ -169,6 +169,6 @@ PS_OUTPUT main(PS_INPUT input)
 
     // RT2: world position + shininess
     o.Extra = float4(input.worldPos, specPacked);
-    
+
     return o;
 }
