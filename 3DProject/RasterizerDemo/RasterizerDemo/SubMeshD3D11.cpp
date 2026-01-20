@@ -1,5 +1,71 @@
 #include "SubMeshD3D11.h"
 
+SubMeshD3D11::~SubMeshD3D11()
+{
+	if (ambientTexture)
+	{
+		ambientTexture->Release();
+		ambientTexture = nullptr;
+	}
+	if (diffuseTexture)
+	{
+		diffuseTexture->Release();
+		diffuseTexture = nullptr;
+	}
+	if (specularTexture)
+	{
+		specularTexture->Release();
+		specularTexture = nullptr;
+	}
+	if (normalHeightTexture)
+	{
+		normalHeightTexture->Release();
+		normalHeightTexture = nullptr;
+	}
+}
+
+SubMeshD3D11::SubMeshD3D11(SubMeshD3D11&& other) noexcept
+	: startIndex(other.startIndex)
+	, nrOfIndices(other.nrOfIndices)
+	, ambientTexture(other.ambientTexture)
+	, diffuseTexture(other.diffuseTexture)
+	, specularTexture(other.specularTexture)
+	, normalHeightTexture(other.normalHeightTexture)
+{
+	// Transfer ownership - nullify the source pointers
+	other.ambientTexture = nullptr;
+	other.diffuseTexture = nullptr;
+	other.specularTexture = nullptr;
+	other.normalHeightTexture = nullptr;
+}
+
+SubMeshD3D11& SubMeshD3D11::operator=(SubMeshD3D11&& other) noexcept
+{
+	if (this != &other)
+	{
+		// Release our current resources
+		if (ambientTexture) ambientTexture->Release();
+		if (diffuseTexture) diffuseTexture->Release();
+		if (specularTexture) specularTexture->Release();
+		if (normalHeightTexture) normalHeightTexture->Release();
+
+		// Transfer ownership from other
+		startIndex = other.startIndex;
+		nrOfIndices = other.nrOfIndices;
+		ambientTexture = other.ambientTexture;
+		diffuseTexture = other.diffuseTexture;
+		specularTexture = other.specularTexture;
+		normalHeightTexture = other.normalHeightTexture;
+
+		// Nullify source pointers
+		other.ambientTexture = nullptr;
+		other.diffuseTexture = nullptr;
+		other.specularTexture = nullptr;
+		other.normalHeightTexture = nullptr;
+	}
+	return *this;
+}
+
 void SubMeshD3D11::Initialize(size_t startIndexValue, size_t nrOfIndicesInSubMesh, ID3D11ShaderResourceView* ambientTextureSRV, ID3D11ShaderResourceView* diffuseTextureSRV, ID3D11ShaderResourceView* specularTextureSRV, ID3D11ShaderResourceView* normalHeightTextureSRV)
 {
 	startIndex = startIndexValue;

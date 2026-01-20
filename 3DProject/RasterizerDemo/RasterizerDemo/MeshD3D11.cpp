@@ -33,7 +33,7 @@ void MeshD3D11::Initialize(ID3D11Device* device, const MeshData& meshInfo)
 			sm.normalHeightTextureSRV
 		);
 
-		subMeshes.push_back(subMesh);
+		subMeshes.push_back(std::move(subMesh));  // Use std::move to transfer ownership
 		subMeshMaterials.push_back(sm.material);
 
 	}

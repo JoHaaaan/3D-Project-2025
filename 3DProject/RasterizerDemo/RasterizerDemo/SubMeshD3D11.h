@@ -17,11 +17,15 @@ private:
 
 public:
 	SubMeshD3D11() = default;
-	~SubMeshD3D11() = default;
-	SubMeshD3D11(const SubMeshD3D11& other) = default;
-	SubMeshD3D11& operator=(const SubMeshD3D11& other) = default;
-	SubMeshD3D11(SubMeshD3D11&& other) = default;
-	SubMeshD3D11& operator=(SubMeshD3D11&& other) = default;
+	~SubMeshD3D11();
+	
+	// Delete copy operations to prevent accidental double-release
+	SubMeshD3D11(const SubMeshD3D11& other) = delete;
+	SubMeshD3D11& operator=(const SubMeshD3D11& other) = delete;
+	
+	// Allow move operations for vector storage
+	SubMeshD3D11(SubMeshD3D11&& other) noexcept;
+	SubMeshD3D11& operator=(SubMeshD3D11&& other) noexcept;
 
 	void Initialize(size_t startIndexValue, size_t nrOfIndicesInSubMesh,
 		ID3D11ShaderResourceView* ambientTextureSRV, ID3D11ShaderResourceView* diffuseTextureSRV,

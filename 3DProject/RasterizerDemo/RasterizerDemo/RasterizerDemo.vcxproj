@@ -168,7 +168,6 @@
     <ClCompile Include="RenderHelper.cpp" />
     <ClCompile Include="RenderTargetD3D11.cpp" />
     <ClCompile Include="SamplerD3D11.cpp" />
-    <ClCompile Include="ShaderD3D11.cpp" />
     <ClCompile Include="ShaderLoader.cpp" />
     <ClCompile Include="ShaderResourceTextureD3D11.cpp" />
     <ClCompile Include="ShadowMapD3D11.cpp" />
@@ -293,7 +292,6 @@
     <ClInclude Include="RenderHelper.h" />
     <ClInclude Include="RenderTargetD3D11.h" />
     <ClInclude Include="SamplerD3D11.h" />
-    <ClInclude Include="ShaderD3D11.h" />
     <ClInclude Include="ShaderLoader.h" />
     <ClInclude Include="ShaderResourceTextureD3D11.h" />
     <ClInclude Include="ShadowMapD3D11.h" />

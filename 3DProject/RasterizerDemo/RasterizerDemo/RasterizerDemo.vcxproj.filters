@@ -48,9 +48,6 @@
     <ClCompile Include="VertexBufferD3D11.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ShaderD3D11.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="SubMeshD3D11.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -152,9 +149,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="VertexBufferD3D11.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ShaderD3D11.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SubMeshD3D11.h">
