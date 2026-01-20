@@ -1,7 +1,6 @@
 #include "TextureLoader.h"
 #include <Windows.h>
 
-// Forward declare stbi_load - it's defined in Main.cpp with STB_IMAGE_IMPLEMENTATION
 extern "C" {
     unsigned char* stbi_load(char const* filename, int* x, int* y, int* channels_in_file, int desired_channels);
     void stbi_image_free(void* retval_from_stbi_load);

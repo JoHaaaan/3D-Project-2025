@@ -1,5 +1,5 @@
 #include "MeshD3D11.h"
-#include "PipelineHelper.h" // For SimpleVertex structure
+#include "PipelineHelper.h"
 
 void MeshD3D11::Initialize(ID3D11Device* device, const MeshData& meshInfo)
 {
