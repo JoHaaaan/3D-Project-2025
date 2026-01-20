@@ -16,7 +16,7 @@ void Render(
     ID3D11SamplerState* samplerState,
     const XMMATRIX& worldMatrix)
 {
-    extern DirectX::XMMATRIX VIEW_PROJ; // access from main.cpp for now
+    extern DirectX::XMMATRIX VIEW_PROJ;
 
     float clearColor[4] = { 0.f, 0.f, 0.f, 0.f };
     immediateContext->ClearRenderTargetView(rtv, clearColor);

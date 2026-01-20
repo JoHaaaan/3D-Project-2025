@@ -8,24 +8,24 @@ void LightManager::InitializeDefaultLights(ID3D11Device* device)
 {
 	m_lights.resize(4);
 
-	// Light 0: Directional Light (The Sun)
+	// Light 0: Directional Light
 	SetupDirectionalLight(m_lights[0]);
 
-	// Light 1: Spot Light (White) - Above center, pointing down
+	// Light 1: Spot Light Above center, pointing down
 	SetupSpotLight(m_lights[1],
-		XMFLOAT3(1.0f, 1.0f, 1.0f),   // White
-		XMFLOAT3(0.0f, 10.0f, 0.0f),  // Position
-		XMFLOAT3(0.0f, -1.0f, 0.0f)); // Direction
+		XMFLOAT3(1.0f, 1.0f, 1.0f),
+		XMFLOAT3(0.0f, 10.0f, 0.0f),
+		XMFLOAT3(0.0f, -1.0f, 0.0f));
 
-	// Light 2: Spot Light (White)
+	// Light 2: Spot Light 
 	SetupSpotLight(m_lights[2],
-		XMFLOAT3(1.0f, 1.0f, 1.0f),   // White
+		XMFLOAT3(1.0f, 1.0f, 1.0f),
 		XMFLOAT3(-10.0f, 5.0f, -5.0f),
 		XMFLOAT3(1.0f, -0.5f, 1.0f));
 
-	// Light 3: Spot Light (White)
+	// Light 3: Spot Light 
 	SetupSpotLight(m_lights[3],
-		XMFLOAT3(1.0f, 1.0f, 1.0f),   // White
+		XMFLOAT3(1.0f, 1.0f, 1.0f),
 		XMFLOAT3(10.0f, 5.0f, -5.0f),
 		XMFLOAT3(-1.0f, -0.5f, 1.0f));
 
@@ -37,10 +37,10 @@ void LightManager::InitializeDefaultLights(ID3D11Device* device)
 
 void LightManager::SetupDirectionalLight(LightData& light)
 {
-	light.type = 0; // Directional
+	light.type = 0;
 	light.enabled = 1;
-	light.color = XMFLOAT3(1.0f, 1.0f, 1.0f);  // White
-	light.intensity = 0.8f;  // Reduced from 2.0f for normal lighting
+	light.color = XMFLOAT3(1.0f, 1.0f, 1.0f);
+	light.intensity = 0.8f;
 	light.position = XMFLOAT3(20.0f, 30.0f, -20.0f);
 	light.direction = XMFLOAT3(-1.0f, -1.0f, 1.0f);
 
@@ -55,10 +55,10 @@ void LightManager::SetupDirectionalLight(LightData& light)
 void LightManager::SetupSpotLight(LightData& light, const XMFLOAT3& color,
 	const XMFLOAT3& position, const XMFLOAT3& direction)
 {
-	light.type = 1; // Spot
+	light.type = 1;
 	light.enabled = 1;
 	light.color = color;
-	light.intensity = 3.0f;  // Reduced from 10.0f for normal lighting
+	light.intensity = 3.0f;
 	light.position = position;
 	light.direction = direction;
 	light.range = 50.0f;
@@ -67,7 +67,6 @@ void LightManager::SetupSpotLight(LightData& light, const XMFLOAT3& color,
 	XMVECTOR lightPos = XMLoadFloat3(&light.position);
 	XMVECTOR lightDir = XMLoadFloat3(&light.direction);
 
-	// Choose up vector that's not parallel to direction
 	XMVECTOR upVec = XMVectorSet(0, 1, 0, 0);
 	if (fabsf(direction.y) > 0.9f)
 	{

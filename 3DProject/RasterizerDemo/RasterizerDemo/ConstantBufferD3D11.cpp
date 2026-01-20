@@ -126,7 +126,7 @@ void ConstantBufferD3D11::UpdateBuffer(ID3D11DeviceContext* context, const void*
         // Nollfyll hela bufferSize så padding alltid blir deterministisk
         std::memset(mapped.pData, 0, bufferSize);
 
-        // Kopiera endast faktisk datastorlek (inte alignedSize!)
+        // Kopiera endast faktisk datastorlek
         std::memcpy(mapped.pData, data, dataSize);
 
         context->Unmap(buffer, 0);

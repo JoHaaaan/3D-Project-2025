@@ -45,7 +45,6 @@ void ShaderResourceTextureD3D11::Initialize(ID3D11Device* device, UINT width, UI
     desc.Height = height;
     desc.MipLevels = 1;
     desc.ArraySize = 1;
-    // We assume 4 channels (RGBA) 8-bit per channel for standard textures
     desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     desc.SampleDesc.Count = 1;
     desc.SampleDesc.Quality = 0;
@@ -56,13 +55,11 @@ void ShaderResourceTextureD3D11::Initialize(ID3D11Device* device, UINT width, UI
 
     D3D11_SUBRESOURCE_DATA initData = {};
     initData.pSysMem = textureData;
-    // Pitch is the width of one row in bytes. 4 bytes per pixel.
     initData.SysMemPitch = width * 4;
 
     HRESULT hr = device->CreateTexture2D(&desc, &initData, &texture);
     if (FAILED(hr))
     {
-        // Simple error logging
         OutputDebugStringA("Failed to create Texture2D in ShaderResourceTextureD3D11\n");
         return;
     }
@@ -78,7 +75,6 @@ void ShaderResourceTextureD3D11::Initialize(ID3D11Device* device, UINT width, UI
 void ShaderResourceTextureD3D11::Initialize(ID3D11Device* device, const char* pathToTextureFile)
 {
     int width, height, channels;
-    // Force 4 channels so it matches DXGI_FORMAT_R8G8B8A8_UNORM
     unsigned char* data = stbi_load(pathToTextureFile, &width, &height, &channels, 4);
 
     if (data)

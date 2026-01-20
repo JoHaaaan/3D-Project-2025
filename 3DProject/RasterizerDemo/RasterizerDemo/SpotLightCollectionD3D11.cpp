@@ -18,19 +18,15 @@ void SpotLightCollectionD3D11::Initialize(ID3D11Device* device, const SpotLightD
     for (const auto& info : lightInfo.perLightInfo)
     {
         // -- Setup Shadow Camera --
-        // The FOV should match the spotlight angle (x2 often, but x1 covers the radius if angle is full cone)
-        // Usually spotlight angle is half-angle, so FOV = angle * 2. 
-        // Let's assume input 'angle' is the full FOV for simplicity, or adjust as needed.
         ProjectionInfo proj = {};
         proj.fovAngleY = info.angle;
-        proj.aspectRatio = 1.0f; // Shadow maps are square
+        proj.aspectRatio = 1.0f;
         proj.nearZ = info.projectionNearZ;
         proj.farZ = info.projectionFarZ;
 
         CameraD3D11 cam(device, proj, info.initialPosition);
 
         // Apply rotations
-        // RotateRight = Yaw (around Y), RotateForward = Pitch (around X)
         cam.RotateRight(info.rotationY);
         cam.RotateForward(info.rotationX);
 
@@ -39,14 +35,13 @@ void SpotLightCollectionD3D11::Initialize(ID3D11Device* device, const SpotLightD
         // -- Setup Light Buffer Data --
         LightBuffer lb = {};
         lb.colour = info.colour;
-        lb.angle = info.angle; // Passed to shader for spotlight cone calc
+        lb.angle = info.angle;
 
         // Get world vectors from camera
         lb.position = shadowCameras.back().GetPosition();
         lb.direction = shadowCameras.back().GetForward();
 
         // View-Projection Matrix for Shadows
-        // We transpose it for HLSL (column-major preference)
         XMFLOAT4X4 vp = shadowCameras.back().GetViewProjectionMatrix();
         XMMATRIX vpMat = XMLoadFloat4x4(&vp);
         XMStoreFloat4x4(&lb.vpMatrix, XMMatrixTranspose(vpMat));
@@ -55,15 +50,11 @@ void SpotLightCollectionD3D11::Initialize(ID3D11Device* device, const SpotLightD
     }
 
     // 3. Initialize Structured Buffer (Light Data)
-    // Dynamic = true so we can update lights if they move
     lightBuffer.Initialize(device, sizeof(LightBuffer), numLights, bufferData.data(), true);
 
     // 4. Initialize Shadow Maps (Depth Buffer Array)
-    // We create ONE depth buffer resource that is an array of textures.
-    // hasSRV = true (so we can read it in the Compute Shader)
-    // arraySize = numLights
     UINT shadowDim = lightInfo.shadowMapInfo.textureDimension;
-    if (shadowDim == 0) shadowDim = 1024; // Default safety
+    if (shadowDim == 0) shadowDim = 1024;
 
     shadowMaps.Initialize(device, shadowDim, shadowDim, true, static_cast<UINT>(numLights));
 }
@@ -74,11 +65,10 @@ void SpotLightCollectionD3D11::UpdateLightBuffers(ID3D11DeviceContext* context)
 
     for (size_t i = 0; i < shadowCameras.size(); ++i)
     {
-        // 1. Update Camera Constant Buffer (for the Vertex Shader in Shadow Pass)
+        // 1. Update Camera Constant Buffer
         shadowCameras[i].UpdateInternalConstantBuffer(context);
 
-        // 2. Update CPU-side LightBuffer data (for the Compute Shader)
-        // If lights moved, we need fresh matrices
+        // 2. Update CPU-side LightBuffer data
         XMFLOAT4X4 vp = shadowCameras[i].GetViewProjectionMatrix();
         XMMATRIX vpMat = XMLoadFloat4x4(&vp);
         XMStoreFloat4x4(&bufferData[i].vpMatrix, XMMatrixTranspose(vpMat));

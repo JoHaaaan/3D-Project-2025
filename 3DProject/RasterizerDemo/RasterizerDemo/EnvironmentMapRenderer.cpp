@@ -12,7 +12,7 @@ bool EnvironmentMapRenderer::Initialize(ID3D11Device* device, UINT resolution)
         return false;
     }
 
-    m_projInfo.fovAngleY = XM_PIDIV2; // 90 degrees
+    m_projInfo.fovAngleY = XM_PIDIV2;
     m_projInfo.aspectRatio = 1.0f;
     m_projInfo.nearZ = 0.1f;
     m_projInfo.farZ = 100.0f;

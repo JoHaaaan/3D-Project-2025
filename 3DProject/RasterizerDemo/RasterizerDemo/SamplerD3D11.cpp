@@ -22,14 +22,14 @@ void SamplerD3D11::Initialize(ID3D11Device* device, D3D11_TEXTURE_ADDRESS_MODE a
 	}
 
 	D3D11_SAMPLER_DESC desc = {};
-	desc.Filter = D3D11_FILTER_ANISOTROPIC;  // Changed from D3D11_FILTER_MIN_MAG_MIP_LINEAR
+	desc.Filter = D3D11_FILTER_ANISOTROPIC;
 	desc.AddressU = adressMode;
 	desc.AddressV = adressMode;
 	desc.AddressW = adressMode;
 	desc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 	desc.MinLOD = 0.0f;
 	desc.MaxLOD = D3D11_FLOAT32_MAX;
-	desc.MaxAnisotropy = 16;  // Added: Maximum anisotropic filtering samples
+	desc.MaxAnisotropy = 16;
 
 	if (borderColour.has_value()) {
 		for (int i = 0; i < 4; ++i) {

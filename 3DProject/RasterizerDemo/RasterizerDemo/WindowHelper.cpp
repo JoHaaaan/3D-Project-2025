@@ -3,13 +3,10 @@
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	// sort through and find what code to run for the message given
 	switch (message)
 	{
-		// this message is read when the window is closed
 	case WM_DESTROY:
 	{
-		// close the application entirely
 		PostQuitMessage(0);
 		return 0;
 	}
@@ -17,7 +14,6 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPara
 		break;
 	}
 
-	// Handle any messages the switch statement didn't by using default methodology
 	return DefWindowProc(hWnd, message, wParam, lParam);
 }
 

@@ -13,13 +13,13 @@ bool ShadowMapD3D11::Initialize(ID3D11Device* device, UINT width, UINT height, U
     m_width = width;
     m_height = height;
 
-    // 1. Create the Texture2DArray (Typeless to allow DSV and SRV)
+    // 1. Create the Texture2DArray
     D3D11_TEXTURE2D_DESC texDesc = {};
     texDesc.Width = width;
     texDesc.Height = height;
     texDesc.MipLevels = 1;
     texDesc.ArraySize = arraySize;
-    texDesc.Format = DXGI_FORMAT_R24G8_TYPELESS; // Allow different views
+    texDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
     texDesc.SampleDesc.Count = 1;
     texDesc.Usage = D3D11_USAGE_DEFAULT;
     texDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
@@ -30,7 +30,7 @@ bool ShadowMapD3D11::Initialize(ID3D11Device* device, UINT width, UINT height, U
     if (FAILED(device->CreateTexture2D(&texDesc, nullptr, &texture)))
         return false;
 
-    // 2. Create the SRV (to read ALL slices in the Compute Shader)
+    // 2. Create the SRV
     D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
     srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
@@ -45,12 +45,12 @@ bool ShadowMapD3D11::Initialize(ID3D11Device* device, UINT width, UINT height, U
         return false;
     }
 
-    // 3. Create a DSV for EACH slice (to render into them individually)
+    // 3. Create a DSV for EACH slice
     D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
     dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
     dsvDesc.Texture2DArray.MipSlice = 0;
-    dsvDesc.Texture2DArray.ArraySize = 1; // One slice at a time
+    dsvDesc.Texture2DArray.ArraySize = 1;
 
     for (UINT i = 0; i < arraySize; ++i)
     {

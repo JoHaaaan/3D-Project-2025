@@ -1,10 +1,10 @@
 #include "OBJParser.h"
 #include "MeshD3D11.h"
-#include "stb_image.h" // header only (STB_IMAGE_IMPLEMENTATION present in one TU - Main.cpp)
+#include "stb_image.h"
 
 // Initialize global maps
-std::string defaultDirectory = "objects/"; // Changed to use objects folder
-std::unordered_map<std::string, MeshD3D11*> loadedMeshes; // Changed to pointers
+std::string defaultDirectory = "objects/";
+std::unordered_map<std::string, MeshD3D11*> loadedMeshes;
 
 namespace
 {
@@ -26,7 +26,7 @@ void UnloadMeshes()
 	{
 		if (pair.second)
 		{
-			delete pair.second; // Invokes MeshD3D11 destructor -> releases buffers
+			delete pair.second;
 			pair.second = nullptr;
 		}
 	}
@@ -353,7 +353,7 @@ void ParseLine(const std::string& line, ParseData& data)
 
 void ParsePosition(const std::string& dataSection, ParseData& data)
 {
-	size_t currentPos = 0; // Assuming string starts at the data section's first character
+	size_t currentPos = 0;
 
 	DirectX::XMFLOAT3 toAdd;
 	toAdd.x = GetLineFloat(dataSection, currentPos);
@@ -369,18 +369,18 @@ void ParseTexCoord(const std::string& dataSection, ParseData& data)
 {
 	size_t pos = 0;
 	float u = GetLineFloat(dataSection, pos);
-	++pos; // skip space
+	++pos;
 	float v = GetLineFloat(dataSection, pos);
-	data.texCoords.push_back({ u, 1.0f - v }); // Invert V for DirectX
+	data.texCoords.push_back({ u, 1.0f - v });
 }
 
 void ParseNormal(const std::string& dataSection, ParseData& data)
 {
 	size_t pos = 0;
 	float x = GetLineFloat(dataSection, pos);
-	++pos; // skip space
+	++pos;
 	float y = GetLineFloat(dataSection, pos);
-	++pos; // skip space
+	++pos;
 	float z = GetLineFloat(dataSection, pos);
 	data.normals.push_back({ x, y, z });
 }
@@ -401,7 +401,7 @@ VertexData ParseFaceVertex(const std::string& dataSection, size_t& pos)
 	// Check for texture coordinate
 	if (pos < dataSection.size() && dataSection[pos] == '/')
 	{
-		pos++; // skip first slash
+		pos++;
 		if (pos < dataSection.size() && dataSection[pos] != '/')
 		{
 			vertex.tInd = GetLineInt(dataSection, pos);
@@ -410,7 +410,7 @@ VertexData ParseFaceVertex(const std::string& dataSection, size_t& pos)
 		// Check for normal
 		if (pos < dataSection.size() && dataSection[pos] == '/')
 		{
-			pos++; // skip second slash
+			pos++;
 			vertex.nInd = GetLineInt(dataSection, pos);
 		}
 	}
@@ -622,18 +622,18 @@ void ParseUseMtl(const std::string& dataSection, ParseData& data)
 void PushBackCurrentSubmesh(ParseData& data)
 {
 	if (data.indexData.size() <= data.currentSubmeshStartIndex)
-		return; // No indices for this submesh
+		return;
 
 	SubMeshInfo toAdd;
 	toAdd.startIndexValue = data.currentSubmeshStartIndex;
 	toAdd.nrOfIndicesInSubMesh = data.indexData.size() - toAdd.startIndexValue;
 	toAdd.currentSubMeshMaterial = data.currentSubMeshMaterial;
 
-	// Set texture SRVs to nullptr for now (texture loading happens in ParseOBJ)
+	// Set texture SRVs to nullptr
 	toAdd.ambientTextureSRV = nullptr;
 	toAdd.diffuseTextureSRV = nullptr;
 	toAdd.specularTextureSRV = nullptr;
-	toAdd.normalHeightTextureSRV = nullptr; // For parallax occlusion mapping
+	toAdd.normalHeightTextureSRV = nullptr;
 
 	data.finishedSubMeshes.push_back(toAdd);
 }

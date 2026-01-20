@@ -1,5 +1,5 @@
 #include "GameObject.h"
-#include "RenderHelper.h" // Needed for MatrixPair struct
+#include "RenderHelper.h" 
 
 using namespace DirectX;
 
@@ -58,7 +58,6 @@ void GameObject::Draw(ID3D11DeviceContext* context,
 	if (!m_mesh) return;
 
 	// 1. Update Matrix Buffer (World + ViewProj)
-	// Note: The shader expects Transposed matrices
 	MatrixPair matrixData;
 	XMMATRIX world = GetWorldMatrix();
 	XMStoreFloat4x4(&matrixData.world, XMMatrixTranspose(world));

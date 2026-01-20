@@ -4,21 +4,20 @@ void GBufferD3D11::Initialize(ID3D11Device* device,
     UINT width,
     UINT height)
 {
-    // Färg/Albedo (RGBA8 räcker fint)
     albedoRT.Initialize(device,
         width,
         height,
         DXGI_FORMAT_R16G16B16A16_FLOAT,
-        true); // hasSRV = true, vi vill läsa i lighting-pass
+        true);
 
-    // Normal – också RGBA8, vi packar normal i RGB (och ev. något i A)
+    // Normal
     normalRT.Initialize(device,
         width,
         height,
         DXGI_FORMAT_R16G16B16A16_FLOAT,
         true);
 
-    // Position – också RGBA8 för enkelhetens skull
+    // Position
     positionRT.Initialize(device,
         width,
         height,
