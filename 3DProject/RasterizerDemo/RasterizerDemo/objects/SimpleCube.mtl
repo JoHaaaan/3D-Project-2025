@@ -2,4 +2,4 @@
 
 newmtl Mat_0
 Kd 1.000000 1.000000 1.000000
-map_Kd Brick_Wall_Worn_sexkaitb_2K_BaseColor.jpg
+map_Kd ../textures/Brick_Wall_Worn_sexkaitb_2K_BaseColor.jpg

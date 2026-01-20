@@ -3,7 +3,7 @@
 #include "stb_image.h" // header only (STB_IMAGE_IMPLEMENTATION present in one TU - Main.cpp)
 
 // Initialize global maps
-std::string defaultDirectory = ""; // Adjust if needed
+std::string defaultDirectory = "objects/"; // Changed to use objects folder
 std::unordered_map<std::string, MeshD3D11*> loadedMeshes; // Changed to pointers
 
 namespace
@@ -503,7 +503,11 @@ void ParseMtlLib(const std::string& dataSection, ParseData& data)
 		return;
 	}
 
+	// Construct full path: defaultDirectory is already "objects/"
+	std::string fullMtlPath = defaultDirectory + mtlPath;
+
 	std::string fileContents;
+	// ReadFile will prepend defaultDirectory, but mtlPath already includes it, so pass relative path
 	ReadFile(mtlPath, fileContents);
 
 	std::istringstream mtlStream(fileContents);

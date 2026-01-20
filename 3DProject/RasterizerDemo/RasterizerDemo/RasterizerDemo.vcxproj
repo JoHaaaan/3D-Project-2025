@@ -310,6 +310,7 @@
     <Text Include="Test.txt" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="OBJParser" />
     <None Include="pineapple2_fixed.mtl" />
     <None Include="VertexShader.cso" />
   </ItemGroup>

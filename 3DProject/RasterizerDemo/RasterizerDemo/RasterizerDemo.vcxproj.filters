@@ -221,6 +221,7 @@
   <ItemGroup>
     <None Include="VertexShader.cso" />
     <None Include="pineapple2_fixed.mtl" />
+    <None Include="OBJParser" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="image.png">

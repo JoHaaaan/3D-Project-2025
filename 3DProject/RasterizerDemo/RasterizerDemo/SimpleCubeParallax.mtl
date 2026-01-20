@@ -1,7 +1,0 @@
-# SimpleCubeParallax.mtl - Material for parallax-mapped cube
-
-newmtl Mat_0
-Kd 1.000000 1.000000 1.000000
-map_Kd Brick_Wall_Worn_sexkaitb_2K_BaseColor.jpg
-map_Bump Brick_Wall_Worn_sexkaitb_2K_Bump.jpg
-
