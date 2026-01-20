@@ -161,6 +161,7 @@ void CleanupD3DResources(
 	if (pShader) { pShader->Release(); pShader = nullptr; }
 	if (vShader) { vShader->Release(); vShader = nullptr; }
 	if (rtv) { rtv->Release(); rtv = nullptr; }
+	if (whiteTexView) { whiteTexView->Release(); whiteTexView = nullptr; }
 	if (swapChain) { swapChain->Release(); swapChain = nullptr; }
 	if (context) { context->Release(); context = nullptr; }
 	if (device) { device->Release(); device = nullptr; }
@@ -338,7 +339,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	shadowSampler = CreateShadowSampler(device);
 
 	// [NEW] Particle system
-	ParticleSystemD3D11 particleSystem(device, 200, XMFLOAT3(-3.0f, 1.0f, 3.0f), XMFLOAT4(1, 1, 1, 1));
+	ParticleSystemD3D11 particleSystem(device, 200, XMFLOAT3(-3.0f, 1.0f, 3.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
+	ParticleSystemD3D11 particleSystem1(device, 200, XMFLOAT3(3.0f, 5.0f, 3.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f));
+
 	bool emitterEnabled = true;
 	particleSystem.SetEmitterEnabled(true);
 
@@ -501,6 +504,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 		// [NEW] Update particles
 		particleSystem.Update(context, dt);
+		particleSystem1.Update(context, dt);
 
 		// Update QuadTree
 		sceneTree.Clear();
@@ -790,6 +794,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 			context->OMSetBlendState(particleBlendState, nullptr, 0xffffffff);
 
 			particleSystem.Render(context, camera);
+			particleSystem1.Render(context, camera);
 
 			context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
 		}
