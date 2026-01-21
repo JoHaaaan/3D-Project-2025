@@ -35,11 +35,11 @@ static const float ASPECT_RATIO = 1280.0f / 720.0f;
 static const float NEAR_PLANE = 0.1f;
 static const float FAR_PLANE = 100.0f;
 
-// Global VIEW_PROJ matrix (required by RenderHelper)
+// Global VIEW_PROJ matrix
 XMMATRIX VIEW_PROJ;
 
 // Debug culling parameters
-static float DEBUG_CULLING_FOV_MULTIPLIER = 0.6f;  // Makes the frustum 60% of the camera FOV
+static float DEBUG_CULLING_FOV_MULTIPLIER = 0.6f;
 
 struct Material
 {
@@ -125,7 +125,7 @@ void CleanupD3DResources(
 	ID3D11RenderTargetView*& rtv,
 	ID3D11RasterizerState*& solidRasterizerState,
 	ID3D11RasterizerState*& wireframeRasterizerState,
-	ID3D11BlendState*& particleBlendState,            // [NEW]
+	ID3D11BlendState*& particleBlendState,
 	ID3D11VertexShader*& vShader,
 	ID3D11PixelShader*& pShader,
 	ID3D11VertexShader*& tessVS,
@@ -140,10 +140,10 @@ void CleanupD3DResources(
 	ID3D11ShaderResourceView*& whiteTexView,
 	ID3D11Texture2D*& lightingTex,
 	ID3D11UnorderedAccessView*& lightingUAV,
-	ID3D11RenderTargetView*& lightingRTV             // [NEW]
+	ID3D11RenderTargetView*& lightingRTV
 )
 {
-	if (lightingRTV) { lightingRTV->Release(); lightingRTV = nullptr; }          // [NEW]
+	if (lightingRTV) { lightingRTV->Release(); lightingRTV = nullptr; }
 	if (lightingUAV) { lightingUAV->Release(); lightingUAV = nullptr; }
 	if (lightingTex) { lightingTex->Release(); lightingTex = nullptr; }
 	if (lightingCS) { lightingCS->Release(); lightingCS = nullptr; }
@@ -155,7 +155,7 @@ void CleanupD3DResources(
 	if (tessHS) { tessHS->Release(); tessHS = nullptr; }
 	if (tessVS) { tessVS->Release(); tessVS = nullptr; }
 	if (shadowSampler) { shadowSampler->Release(); shadowSampler = nullptr; }
-	if (particleBlendState) { particleBlendState->Release(); particleBlendState = nullptr; } // [NEW]
+	if (particleBlendState) { particleBlendState->Release(); particleBlendState = nullptr; }
 	if (solidRasterizerState) { solidRasterizerState->Release(); solidRasterizerState = nullptr; }
 	if (wireframeRasterizerState) { wireframeRasterizerState->Release(); wireframeRasterizerState = nullptr; }
 	if (pShader) { pShader->Release(); pShader = nullptr; }
@@ -256,7 +256,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	ID3D11UnorderedAccessView* lightingUAV = nullptr;
 	CreateComputeOutputResources(device, WIDTH, HEIGHT, lightingTex, lightingUAV);
 
-	// [NEW] RTV for particle pass (render particles into same texture we later copy to backbuffer)
+	// [NEW] RTV for particle pass
 	ID3D11RenderTargetView* lightingRTV = nullptr;
 	if (lightingTex)
 	{
@@ -416,7 +416,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	OutputDebugStringA("4         - Toggle wireframe mode\n");
 	OutputDebugStringA("5         - Toggle tessellation\n");
 	OutputDebugStringA("6         - Toggle DEBUG CULLING (smaller frustum)\n");
-	OutputDebugStringA("9         - Toggle particle emitter\n"); // [NEW]
+	OutputDebugStringA("9         - Toggle particle emitter\n");
 	OutputDebugStringA("ESC       - Exit\n");
 	OutputDebugStringA("===========================================\n");
 
@@ -785,7 +785,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 			context->CSSetShader(nullptr, nullptr, 0);
 		}
 
-		// ----- PARTICLE PASS -----  [NEW]
+		// ----- PARTICLE PASS -----
 		if (lightingRTV && particleBlendState)
 		{
 			context->OMSetRenderTargets(1, &lightingRTV, myDSV);
@@ -810,7 +810,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		swapChain->Present(0, 0);
 	}
 
-	// Cleanup (single path)
+	// Cleanup
 	CleanupD3DResources(device, context, swapChain, rtv,
 		solidRasterizerState, wireframeRasterizerState, particleBlendState,
 		vShader, pShader, tessVS, tessHS, tessDS,
