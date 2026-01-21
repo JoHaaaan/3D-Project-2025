@@ -21,7 +21,7 @@ struct PS_INPUT
 {
     float4 position : SV_POSITION;
     float3 worldPos : WORLD_POSITION;
-    float3 normal : NORMAL;
+    float3 normal : NORMAL0;
     float2 uv : TEXCOORD0;
 };
 

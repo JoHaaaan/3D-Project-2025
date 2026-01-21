@@ -458,9 +458,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		bool key6Now = (GetAsyncKeyState('6') & 0x8000) != 0;
 		bool key9Now = (GetAsyncKeyState('9') & 0x8000) != 0;
 
-		if (key1Now && !key1Prev) { toggleData.showAlbedoOnly = !toggleData.showAlbedoOnly; lightingToggleCB.UpdateBuffer(context, &toggleData); }
-		if (key2Now && !key2Prev) { toggleData.enableDiffuse = !toggleData.enableDiffuse; lightingToggleCB.UpdateBuffer(context, &toggleData); }
-		if (key3Now && !key3Prev) { toggleData.enableSpecular = !toggleData.enableSpecular; lightingToggleCB.UpdateBuffer(context, &toggleData); }
+		if (key1Now && !key1Prev) { toggleData.showAlbedoOnly = !toggleData.showAlbedoOnly; }
+		if (key2Now && !key2Prev) { toggleData.enableDiffuse = !toggleData.enableDiffuse; }
+		if (key3Now && !key3Prev) { toggleData.enableSpecular = !toggleData.enableSpecular; }
+		if (key1Now && !key1Prev || key2Now && !key2Prev || key3Now && !key3Prev) 
+		{
+			lightingToggleCB.UpdateBuffer(context, &toggleData);
+		}
 		if (key4Now && !key4Prev) { wireframeEnabled = !wireframeEnabled; }
 		if (key5Now && !key5Prev) { tessellationEnabled = !tessellationEnabled; }
 		if (key6Now && !key6Prev) { debugCullingEnabled = !debugCullingEnabled; }
