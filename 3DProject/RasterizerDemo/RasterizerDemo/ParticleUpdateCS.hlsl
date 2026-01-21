@@ -4,7 +4,6 @@ cbuffer TimeBuffer : register(b0)
 {
     float deltaTime;
     float3 emitterPosition;
-
     uint emitterEnabled;
     uint particleCount;
     float2 pad;

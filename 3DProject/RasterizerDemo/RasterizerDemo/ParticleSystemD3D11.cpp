@@ -96,11 +96,11 @@ void ParticleSystemD3D11::Update(ID3D11DeviceContext* context, float deltaTime)
     unsigned int numGroups = static_cast<unsigned int>(std::ceil(numParticles / 32.0f));
     context->Dispatch(numGroups, 1, 1);
 
-    // Unbind UAV (viktigt innan render)
+    // Unbind UAV (before render)
     ID3D11UnorderedAccessView* nullUAV = nullptr;
     context->CSSetUnorderedAccessViews(0, 1, &nullUAV, nullptr);
 
-    // Unbind CS (valfritt men clean)
+    // Unbind CS
     context->CSSetShader(nullptr, nullptr, 0);
 }
 
@@ -109,11 +109,11 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, const CameraD3D11
     if (!vertexShader || !geometryShader || !pixelShader)
         return;
 
-    // Unbind tess stages så GS funkar rent
+	// Unbind tess stages so GS works
     context->HSSetShader(nullptr, nullptr, 0);
     context->DSSetShader(nullptr, nullptr, 0);
 
-    // ---- Camera buffer till GS ----
+    //Camera buffer to GS
     ParticleCameraData cd{};
     cd.pad0 = 0.0f;
     cd.pad1 = 0.0f;
@@ -179,9 +179,4 @@ XMFLOAT3 ParticleSystemD3D11::GetEmitterPosition() const
 void ParticleSystemD3D11::SetEmitterPosition(const XMFLOAT3& position)
 {
     emitterPosition = position;
-}
-
-unsigned int ParticleSystemD3D11::GetParticleCount() const
-{
-    return numParticles;
 }
