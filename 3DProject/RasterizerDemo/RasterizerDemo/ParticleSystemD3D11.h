@@ -4,7 +4,6 @@
 #include "StructuredBufferD3D11.h"
 #include "ConstantBufferD3D11.h"
 #include "CameraD3D11.h"
-
 using namespace DirectX;
 
 struct Particle
@@ -21,8 +20,7 @@ class ParticleSystemD3D11
 {
 
 private:
-
-	// Matches ParticleGS ParticleCameraBuffer
+	// Matches ParticleGS ParticleCameraBuffer, used for billboarding
     struct ParticleCameraData
     {
         XMFLOAT4X4 viewProjection;        
@@ -31,9 +29,9 @@ private:
         XMFLOAT3 cameraUp;    
         float pad1;
     };
-	// 96 bytes, padding for 16-byte aligned
+	// 96 bytes, padding for 16-byte alignments
 
-    // Matches ParticleUpdateCS Timebuffer
+	// Matches ParticleUpdateCS Timebuffer, used for physics update
     struct TimeData
     {
         float deltaTime;
@@ -43,14 +41,14 @@ private:
         float pad0;
         float pad1;
     };
-	// 32 bytes, padding for 16-byte aligned
+	// 32 bytes, padding for 16-byte alignment
 
-
-    // GPU resources owned/managed by this particle system.
+    // GPU constant buffers
     ConstantBufferD3D11 particleCameraBuffer;
     ConstantBufferD3D11 timeBuffer;
+
+    // GPU particle storage with SRV and UAV
     StructuredBufferD3D11 particleBuffer;
-    
     unsigned int numParticles = 0;
 
 	// Shaders used by the particle pipeline
@@ -66,7 +64,6 @@ private:
 
     // Initialize particle buffer with random starting values
     void InitializeParticles(Particle* particles, unsigned int count);
-
 public:
 
 	// Constructors and destructors
@@ -90,7 +87,4 @@ public:
 	// Toggles if new particles are emitted/spawned
     void SetEmitterEnabled(bool enabled);
     bool GetEmitterEnabled() const;
-
-    XMFLOAT3 GetEmitterPosition() const;
-    void SetEmitterPosition(const XMFLOAT3& position);
 };
