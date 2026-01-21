@@ -470,6 +470,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		{
 			emitterEnabled = !emitterEnabled;
 			particleSystem.SetEmitterEnabled(emitterEnabled);
+			particleSystem1.SetEmitterEnabled(emitterEnabled);
 		}
 
 		key1Prev = key1Now; key2Prev = key2Now; key3Prev = key3Now; key4Prev = key4Now;
