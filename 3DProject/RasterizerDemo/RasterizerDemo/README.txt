@@ -30,7 +30,8 @@ There is a reflective sphere at (4, 2, -2)
 6. Frustum Culling using Quadtree
 Press "6" to reduce frustum size for the frustum culling
 
-7. Press "9" to toggle the emission of particles
+7. GPU-based Billboarded Particle System
+Press "9" to toggle the emission of particles
 
 8. Normal Mapping
 Locate the rotating cube at position (5, 2, 0). 
