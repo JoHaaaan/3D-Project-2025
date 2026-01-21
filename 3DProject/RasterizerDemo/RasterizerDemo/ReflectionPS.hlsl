@@ -1,40 +1,50 @@
-struct PixelShaderInput
+// Reflection Pixel Shader
+// Uses cube map for reflection mapping
+
+cbuffer CameraBuffer : register(b3)
 {
-    float4 position : SV_POSITION;
-    float3 worldPos : WORLD_POSITION;  // Changed from WORLD_POS to match VertexShader output
-    float3 normal : NORMAL;
+    float3 cameraPosition;
+    float padding;
 };
 
-TextureCube reflectionTexture : register(t1);
-sampler standardSampler : register(s0);
-
-cbuffer CameraInfo : register(b3)
+struct PS_INPUT
 {
-    float3 cameraPos;
-    float padding;
+    float4 clipPosition : SV_POSITION;
+    float3 worldPosition : WORLD_POSITION;
+    float3 worldNormal : NORMAL;
+    float2 uv : TEXCOORD0;
 };
 
 struct PS_OUTPUT
 {
-    float4 Albedo : SV_Target0; // Color + ambient strength
-    float4 Normal : SV_Target1; // Packed normal + specular strength
-    float4 Extra : SV_Target2; // World pos + shininess
+    float4 Albedo : SV_Target0;
+    float4 Normal : SV_Target1;
+    float4 Extra : SV_Target2;
 };
 
-PS_OUTPUT main(PixelShaderInput input)
+TextureCube reflectionTexture : register(t1);
+SamplerState samplerState : register(s0);
+
+PS_OUTPUT main(PS_INPUT input)
 {
-    PS_OUTPUT o;
+    PS_OUTPUT output;
     
-    float3 normal = normalize(input.normal);
-    float3 incomingView = normalize(input.worldPos - cameraPos); // Calculate vector that goes FROM the camera, TO the fragment being processed, in world space
-    float3 reflectedView = reflect(incomingView, normal); // Use the HLSL reflect function to calculate how the incoming view vector is reflected, based on the normal of the fragment being processed
+    // Normalize the normal
+    float3 normalizedNormal = normalize(input.worldNormal);
     
-    float4 sampledValue = reflectionTexture.Sample(standardSampler, reflectedView); // Sample from reflectionTexture using the sampler and the reflected view vector
+    // Calculate incoming view direction
+    float3 incomingView = normalize(input.worldPosition - cameraPosition);
+    
+    // Calculate reflected view vector
+    float3 reflectedView = reflect(incomingView, normalizedNormal);
+    
+    // Sample reflection texture
+    float4 sampledValue = reflectionTexture.Sample(samplerState, reflectedView);
     
     // Output to G-Buffer format
-    o.Albedo = float4(sampledValue.rgb, 0.2f); // Reflection color + ambient strength
-    o.Normal = float4(normal * 0.5f + 0.5f, 0.5f); // Packed normal + specular strength
-    o.Extra = float4(input.worldPos, 0.5f); // World position + shininess
+    output.Albedo = float4(sampledValue.rgb, 0.2f);
+    output.Normal = float4(normalizedNormal * 0.5f + 0.5f, 0.5f);
+    output.Extra = float4(input.worldPosition, 0.5f);
 
-    return o;
+    return output;
 }

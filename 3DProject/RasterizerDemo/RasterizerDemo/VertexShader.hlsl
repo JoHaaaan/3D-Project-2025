@@ -1,31 +1,34 @@
+// Vertex Shader
+// Transforms vertices from local space to world and clip space
+
 cbuffer MatrixBuffer : register(b0)
 {
     float4x4 worldMatrix;
     float4x4 viewProjMatrix;
 };
 
-struct VertexShaderInput
+struct VS_INPUT
 {
-    float3 position : POSITION;   // Input position in local space
-    float3 normal   : NORMAL;     // Input normal in local space
-    float2 uv       : TEXCOORD;   // Input Texture coordinates
+    float3 position : POSITION;
+    float3 normal : NORMAL;
+    float2 uv : TEXCOORD0;
 };
 
-struct VertexShaderOutput
+struct VS_OUTPUT
 {
-    float4 clipPosition : SV_POSITION;    // Output position in clip space for rasterization
-    float3 worldPos     : WORLD_POSITION; // Output world-space position for lighting
-    float3 worldNormal  : NORMAL0;        // Output Normal in world space for lighting
-    float2 uv           : TEXCOORD0;      // Output texture coordinates
+    float4 clipPosition : SV_POSITION;
+    float3 worldPosition : WORLD_POSITION;
+    float3 worldNormal : NORMAL;
+    float2 uv : TEXCOORD0;
 };
 
-VertexShaderOutput main(VertexShaderInput input)
+VS_OUTPUT main(VS_INPUT input)
 {
-    VertexShaderOutput output;
+    VS_OUTPUT output;
 
     // Transform the position to world space
     float4 worldPosition = mul(float4(input.position, 1.0f), worldMatrix);
-    output.worldPos = worldPosition.xyz;
+    output.worldPosition = worldPosition.xyz;
 
     // Transform the position to clip space (combined view + projection)
     output.clipPosition = mul(worldPosition, viewProjMatrix);

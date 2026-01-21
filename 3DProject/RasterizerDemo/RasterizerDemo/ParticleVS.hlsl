@@ -1,34 +1,33 @@
-// ParticleVS.hlsl
+// Particle Vertex Shader
+// Reads particle data from structured buffer
 
 struct Particle
 {
     float3 position;
     float lifetime;
-
     float3 velocity;
     float maxLifetime;
-
     float4 color;
 };
-
-StructuredBuffer<Particle> Particles : register(t0);
 
 struct VS_OUTPUT
 {
     float3 position : POSITION;
     float4 color : COLOR;
-    float lifetime : TEXCOORD1; // skicka vidare till GS
+    float lifetime : TEXCOORD0;
 };
+
+StructuredBuffer<Particle> Particles : register(t0);
 
 VS_OUTPUT main(uint vertexID : SV_VertexID)
 {
-    VS_OUTPUT o;
+    VS_OUTPUT output;
 
-    Particle p = Particles[vertexID];
+    Particle particle = Particles[vertexID];
 
-    o.position = p.position;
-    o.color = p.color;
-    o.lifetime = p.lifetime;
+    output.position = particle.position;
+    output.color = particle.color;
+    output.lifetime = particle.lifetime;
 
-    return o;
+    return output;
 }

@@ -1,21 +1,22 @@
-// LightingCS.hlsl - Multi-Light Deferred Rendering (No Shadows)
+// Lighting Compute Shader
+// Multi-light deferred rendering with shadow mapping
 
-// ==== Light Data Structure ====
+// Light Data Structure
 struct LightData
 {
-    float4x4 viewProj;      // Light's view-projection matrix (for future shadow use)
-    float3 position;        // Light position
-    float intensity;        // Light intensity
-    float3 direction;       // Light direction (for spotlights)
-    float range;            // Light range
-    float3 color;           // Light color
-    float spotAngle;        // Spotlight cone angle
-    int type;               // 0 = Directional, 1 = Spot
-    int enabled;            // 1 = enabled, 0 = disabled
-    float2 padding;         // Alignment padding
+    float4x4 viewProj;
+    float3 position;
+    float intensity;
+    float3 direction;
+    float range;
+    float3 color;
+    float spotAngle;
+    int type;
+    int enabled;
+    float2 padding;
 };
 
-// ==== Constant Buffers ====
+// Constant Buffers
 cbuffer CameraBuffer : register(b2)
 {
     float3 cameraPosition;
@@ -27,23 +28,21 @@ cbuffer LightingToggleBuffer : register(b4)
     int showAlbedoOnly;
     int enableDiffuse;
     int enableSpecular;
-    int paddingToggle;
+    int padding_Toggle;
 };
 
-// ==== Resources ====
-Texture2D gAlbedo : register(t0);           // Albedo + ambient strength
-Texture2D gNormal : register(t1);           // Normal + specular strength
-Texture2D gWorldPos : register(t2);         // World position + shininess
-Texture2DArray shadowMaps : register(t3);   // Shadow depth maps (NEW!)
-
-StructuredBuffer<LightData> lights : register(t4);  // Light data
+// Resources
+Texture2D gAlbedo : register(t0);
+Texture2D gNormal : register(t1);
+Texture2D gWorldPos : register(t2);
+Texture2DArray shadowMaps : register(t3);
+StructuredBuffer<LightData> lights : register(t4);
 
 RWTexture2D<float4> outColor : register(u0);
 
-// ==== Shadow Sampler ====
 SamplerComparisonState shadowSampler : register(s1);
 
-// ==== Spotlight Attenuation ====
+// Calculate spotlight attenuation
 float CalculateSpotlight(float3 lightDir, float3 spotDirection, float spotAngle)
 {
     float cosAngle = dot(-lightDir, normalize(spotDirection));
@@ -54,36 +53,35 @@ float CalculateSpotlight(float3 lightDir, float3 spotDirection, float spotAngle)
     float epsilon = cosInner - cosOuter;
     float attenuation = saturate((cosAngle - cosOuter) / epsilon);
     
-    return attenuation * attenuation; // Square for smoother falloff
+    return attenuation * attenuation;
 }
 
-// ==== Shadow Calculation ====
-float CalculateShadow(float3 worldPos, float4x4 lightViewProj, uint lightIndex)
+// Calculate shadow factor
+float CalculateShadow(float3 worldPosition, float4x4 lightViewProj, uint lightIndex)
 {
-    // Transform world position to light's clip space
-    float4 lightSpacePos = mul(float4(worldPos, 1.0f), lightViewProj);
-    
+ // Transform world position to light's clip space
+    float4 lightSpacePosition = mul(float4(worldPosition, 1.0f), lightViewProj);
+ 
     // Perspective divide
-    lightSpacePos.xyz /= lightSpacePos.w;
+    lightSpacePosition.xyz /= lightSpacePosition.w;
     
     // Convert to texture coordinates [0,1]
     float2 shadowUV;
-    shadowUV.x = lightSpacePos.x * 0.5f + 0.5f;
-    shadowUV.y = -lightSpacePos.y * 0.5f + 0.5f;
+    shadowUV.x = lightSpacePosition.x * 0.5f + 0.5f;
+    shadowUV.y = -lightSpacePosition.y * 0.5f + 0.5f;
     
     // Check if position is within shadow map bounds
     if (shadowUV.x < 0.0f || shadowUV.x > 1.0f || shadowUV.y < 0.0f || shadowUV.y > 1.0f)
-  return 1.0f; // Outside shadow map = fully lit
+        return 1.0f;
     
-    float depth = lightSpacePos.z;
+    float depth = lightSpacePosition.z;
     
     // Check if depth is valid
     if (depth < 0.0f || depth > 1.0f)
         return 1.0f;
-  
+    
     // Sample shadow map with PCF (Percentage Closer Filtering)
-    // SampleCmpLevelZero does hardware PCF and returns 0 (in shadow) or 1 (lit)
- float shadow = shadowMaps.SampleCmpLevelZero(shadowSampler, float3(shadowUV, lightIndex), depth);
+    float shadow = shadowMaps.SampleCmpLevelZero(shadowSampler, float3(shadowUV, lightIndex), depth);
     
     return shadow;
 }
@@ -93,42 +91,42 @@ void main(uint3 DTid : SV_DispatchThreadID)
 {
     uint2 pixel = DTid.xy;
     
-    uint w, h;
-    gAlbedo.GetDimensions(w, h);
-    if (pixel.x >= w || pixel.y >= h)
+    uint width, height;
+    gAlbedo.GetDimensions(width, height);
+    if (pixel.x >= width || pixel.y >= height)
         return;
-    
-    // ==== Read G-Buffer ====
+  
+    // Read G-Buffer
     float4 albedoSample = gAlbedo.Load(int3(pixel, 0));
     float3 diffuseColor = albedoSample.rgb;
     float ambientStrength = albedoSample.a;
     
     float4 normalSample = gNormal.Load(int3(pixel, 0));
-    float3 nPacked = normalSample.rgb;
+    float3 normalPacked = normalSample.rgb;
     float specularStrength = normalSample.a;
     
-    float4 posSample = gWorldPos.Load(int3(pixel, 0));
-    float3 worldPos = posSample.xyz;
-    float specPacked = posSample.w;
+    float4 positionSample = gWorldPos.Load(int3(pixel, 0));
+    float3 worldPosition = positionSample.xyz;
+    float specularPacked = positionSample.w;
     
-    float3 normal = normalize(nPacked * 2.0f - 1.0f);
-    float specularPower = max(specPacked * 256.0f, 1.0f);
+    float3 normal = normalize(normalPacked * 2.0f - 1.0f);
+    float specularPower = max(specularPacked * 256.0f, 1.0f);
     
-    // ==== Material Setup ====
+// Material Setup
     float3 materialDiffuse = diffuseColor;
     float3 materialAmbient = ambientStrength * diffuseColor * 0.2f;
     float3 materialSpecular = specularStrength * float3(1.0f, 1.0f, 1.0f);
-    
-    // ==== Debug Mode ====
+  
+    // Debug Mode
     if (showAlbedoOnly != 0)
     {
         outColor[pixel] = float4(diffuseColor, 1.0f);
         return;
     }
     
-    // ==== Lighting Accumulation ====
-    float3 viewDir = normalize(cameraPosition - worldPos);
-    float3 lighting = materialAmbient; // Base ambient
+    // Lighting Accumulation
+    float3 viewDirection = normalize(cameraPosition - worldPosition);
+    float3 lighting = materialAmbient;
     
     // Iterate through all lights
     uint numLights, stride;
@@ -141,52 +139,52 @@ void main(uint3 DTid : SV_DispatchThreadID)
         if (light.enabled == 0)
             continue;
         
-        float3 lightDir;
+        float3 lightDirection;
         float attenuation = 1.0f;
-        
+    
         if (light.type == 0) // Directional Light
         {
-            lightDir = normalize(-light.direction);
+            lightDirection = normalize(-light.direction);
         }
         else if (light.type == 1) // Spotlight
         {
-            float3 toLight = light.position - worldPos;
+            float3 toLight = light.position - worldPosition;
             float distance = length(toLight);
-            lightDir = toLight / distance;
+            lightDirection = toLight / distance;
             
             // Distance attenuation
             attenuation = saturate(1.0f - (distance / light.range));
             attenuation *= attenuation;
-            
+  
             // Spotlight cone attenuation
-            float spotEffect = CalculateSpotlight(lightDir, light.direction, light.spotAngle);
+            float spotEffect = CalculateSpotlight(lightDirection, light.direction, light.spotAngle);
             attenuation *= spotEffect;
         }
         
         if (attenuation < 0.001f)
-         continue;
+            continue;
         
         // Calculate shadow factor
-        float shadow = CalculateShadow(worldPos, light.viewProj, i);
+        float shadow = CalculateShadow(worldPosition, light.viewProj, i);
         
         // Blinn-Phong lighting
-        float3 halfVec = normalize(lightDir + viewDir);
+        float3 halfVector = normalize(lightDirection + viewDirection);
         
         // Diffuse
         if (enableDiffuse != 0)
         {
-            float diffuseFactor = max(dot(normal, lightDir), 0.0f);
+            float diffuseFactor = max(dot(normal, lightDirection), 0.0f);
             float3 diffuse = diffuseFactor * light.intensity * light.color * materialDiffuse;
-            lighting += diffuse * attenuation * shadow; // Apply shadow
+            lighting += diffuse * attenuation * shadow;
         }
     
         // Specular
         if (enableSpecular != 0)
         {
-            float specAngle = max(dot(normal, halfVec), 0.0f);
-            float specularFactor = pow(specAngle, specularPower);
+            float specularAngle = max(dot(normal, halfVector), 0.0f);
+            float specularFactor = pow(specularAngle, specularPower);
             float3 specular = specularFactor * light.intensity * light.color * materialSpecular;
-            lighting += specular * attenuation * shadow; // Apply shadow
+            lighting += specular * attenuation * shadow;
         }
     }
     

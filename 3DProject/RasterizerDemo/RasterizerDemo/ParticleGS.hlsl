@@ -1,19 +1,21 @@
-// ParticleGS.hlsl
+
+// Particle Geometry Shader
+// Expands point primitives into camera-facing quads
 
 cbuffer ParticleCameraBuffer : register(b0)
 {
     float4x4 viewProjection;
     float3 cameraRight;
-    float pad0;
+    float padding0;
     float3 cameraUp;
-    float pad1;
+    float padding1;
 };
 
 struct GS_INPUT
 {
     float3 position : POSITION;
     float4 color : COLOR;
-    float lifetime : TEXCOORD1;
+    float lifetime : TEXCOORD0;
 };
 
 struct GS_OUTPUT
@@ -26,49 +28,51 @@ struct GS_OUTPUT
 [maxvertexcount(6)]
 void main(point GS_INPUT input[1], inout TriangleStream<GS_OUTPUT> output)
 {
-    // Inaktiv partikel: skapa inga vertices => ritas inte
+    // Inactive particle: skip rendering
     if (input[0].lifetime < 0.0f)
         return;
 
-    float3 particlePos = input[0].position;
+    float3 particlePosition = input[0].position;
 
     float quadSize = 0.3f;
     float3 right = cameraRight * quadSize;
     float3 up = cameraUp * quadSize;
 
-    float3 v1 = particlePos - right + up; // TL
-    float3 v2 = particlePos + right + up; // TR
-    float3 v3 = particlePos - right - up; // BL
-    float3 v4 = particlePos + right - up; // BR
+    // Calculate quad corners
+    float3 vertex1 = particlePosition - right + up;
+    float3 vertex2 = particlePosition + right + up;
+    float3 vertex3 = particlePosition - right - up;
+    float3 vertex4 = particlePosition + right - up;
 
     GS_OUTPUT o;
     o.color = input[0].color;
 
-    // Column-major: mul(v, M)
-    o.clipPosition = mul(float4(v1, 1.0f), viewProjection);
-    o.uv = float2(0, 0);
+    // First triangle
+    o.clipPosition = mul(float4(vertex1, 1.0f), viewProjection);
+    o.uv = float2(0.0f, 0.0f);
     output.Append(o);
 
-    o.clipPosition = mul(float4(v2, 1.0f), viewProjection);
-    o.uv = float2(1, 0);
+    o.clipPosition = mul(float4(vertex2, 1.0f), viewProjection);
+    o.uv = float2(1.0f, 0.0f);
     output.Append(o);
 
-    o.clipPosition = mul(float4(v3, 1.0f), viewProjection);
-    o.uv = float2(0, 1);
+    o.clipPosition = mul(float4(vertex3, 1.0f), viewProjection);
+    o.uv = float2(0.0f, 1.0f);
     output.Append(o);
 
     output.RestartStrip();
 
-    o.clipPosition = mul(float4(v2, 1.0f), viewProjection);
-    o.uv = float2(1, 0);
+    // Second triangle
+    o.clipPosition = mul(float4(vertex2, 1.0f), viewProjection);
+    o.uv = float2(1.0f, 0.0f);
     output.Append(o);
 
-    o.clipPosition = mul(float4(v4, 1.0f), viewProjection);
-    o.uv = float2(1, 1);
+    o.clipPosition = mul(float4(vertex4, 1.0f), viewProjection);
+    o.uv = float2(1.0f, 1.0f);
     output.Append(o);
 
-    o.clipPosition = mul(float4(v3, 1.0f), viewProjection);
-    o.uv = float2(0, 1);
+    o.clipPosition = mul(float4(vertex3, 1.0f), viewProjection);
+    o.uv = float2(0.0f, 1.0f);
     output.Append(o);
 }
 

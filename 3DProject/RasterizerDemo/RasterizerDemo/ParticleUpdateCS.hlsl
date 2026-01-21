@@ -1,4 +1,5 @@
-// ParticleUpdateCS.hlsl
+// Particle Update Compute Shader
+// Updates particle simulation and handles respawning
 
 cbuffer TimeBuffer : register(b0)
 {
@@ -6,48 +7,48 @@ cbuffer TimeBuffer : register(b0)
     float3 emitterPosition;
     uint emitterEnabled;
     uint particleCount;
-    float2 pad;
+    float2 padding;
 };
 
 struct Particle
 {
     float3 position;
     float lifetime;
-
     float3 velocity;
     float maxLifetime;
-
     float4 color;
 };
 
 RWStructuredBuffer<Particle> Particles : register(u0);
 
+// Hash function for pseudo-random number generation
 float Hash(float n)
 {
     return frac(sin(n) * 43758.5453f);
 }
 
-float3 Rand3(uint index, float t)
+// Generate random 3D vector
+float3 Random3D(uint index, float time)
 {
-    float s = (float) index * 12.9898f + t * 78.233f;
-    return float3(Hash(s + 1.0f), Hash(s + 2.0f), Hash(s + 3.0f));
+    float seed = (float)index * 12.9898f + time * 78.233f;
+    return float3(Hash(seed + 1.0f), Hash(seed + 2.0f), Hash(seed + 3.0f));
 }
 
-// FIX 1: Samla all respawn-logik pa ett stalle
-void RespawnParticle(inout Particle p, uint index, float seed)
+// Respawn particle at emitter position with random velocity
+void RespawnParticle(inout Particle particle, uint index, float seed)
 {
-    p.position = emitterPosition;
-    p.lifetime = 0.0f;
+    particle.position = emitterPosition;
+    particle.lifetime = 0.0f;
 
-    float3 r = Rand3(index, seed);
+    float3 randomValues = Random3D(index, seed);
 
-    // Samma "shape" pa spridningen som du haft innan
-    p.velocity.x = (r.x - 0.5f) * 4.0f;
-    p.velocity.z = (r.z - 0.5f) * 4.0f;
-    p.velocity.y = 2.0f + r.y * 2.0f;
+    // Random velocity spread
+    particle.velocity.x = (randomValues.x - 0.5f) * 4.0f;
+    particle.velocity.z = (randomValues.z - 0.5f) * 4.0f;
+    particle.velocity.y = 2.0f + randomValues.y * 2.0f;
 
-    // Starta alltid med full alpha
-    p.color.a = 1.0f;
+    // Start with full alpha
+    particle.color.a = 1.0f;
 }
 
 [numthreads(32, 1, 1)]
@@ -57,47 +58,45 @@ void main(uint3 DTid : SV_DispatchThreadID)
     if (index >= particleCount)
         return;
 
-    Particle p = Particles[index];
+    Particle particle = Particles[index];
 
-    // Inaktiv partikel (pool)
-    if (p.lifetime < 0.0f)
+    // Handle inactive particles
+    if (particle.lifetime < 0.0f)
     {
         if (emitterEnabled != 0)
         {
-            // FIX 1: anropa helper istallet for duplicerad kod
-            RespawnParticle(p, index, deltaTime);
+            RespawnParticle(particle, index, deltaTime);
         }
 
-        Particles[index] = p;
+        Particles[index] = particle;
         return;
     }
 
-    // Simulera aktiv
-    p.position += p.velocity * deltaTime;
-    p.velocity.y += -9.82f * deltaTime;
-    p.lifetime += deltaTime;
+    // Simulate active particles
+    particle.position += particle.velocity * deltaTime;
+    particle.velocity.y += -9.82f * deltaTime;
+    particle.lifetime += deltaTime;
 
-    // Fade (0..1) baserat pa livslangd
-    float t = saturate(p.lifetime / max(p.maxLifetime, 0.0001f));
-    p.color.a = 1.0f - t;
+    // Fade based on lifetime
+    float normalizedLifetime = saturate(particle.lifetime / max(particle.maxLifetime, 0.0001f));
+    particle.color.a = 1.0f - normalizedLifetime;
 
-    // D�d?
-    if (p.lifetime >= p.maxLifetime)
+    // Handle particle death
+    if (particle.lifetime >= particle.maxLifetime)
     {
         if (emitterEnabled != 0)
         {
-            // FIX 1: samma helper hor ocksa
-            RespawnParticle(p, index, p.maxLifetime + deltaTime);
+            RespawnParticle(particle, index, particle.maxLifetime + deltaTime);
         }
         else
         {
-            // Emitter av: markera som inaktiv
-            p.lifetime = -1.0f;
-            p.velocity = float3(0, 0, 0);
-            p.color.a = 0.0f;
+            // Mark as inactive
+            particle.lifetime = -1.0f;
+            particle.velocity = float3(0.0f, 0.0f, 0.0f);
+            particle.color.a = 0.0f;
         }
     }
 
-    Particles[index] = p;
+    Particles[index] = particle;
 }
 

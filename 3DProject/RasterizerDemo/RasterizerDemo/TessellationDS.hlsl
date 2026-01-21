@@ -1,98 +1,90 @@
+// Tessellation Domain Shader
+// Interpolates tessellated vertices and applies Phong tessellation
+
 cbuffer MatrixBuffer : register(b0)
 {
     float4x4 worldMatrix;
     float4x4 viewProjMatrix;
 };
 
-struct VertexShaderOutput
+struct HS_CONSTANT_OUTPUT
 {
-    float3 worldPos : WORLD_POS;
-    float3 normal : NORMAL;
-    float2 uv : UV;
+    float edges[3] : SV_TessFactor;
+    float inside : SV_InsideTessFactor;
 };
 
-struct HS_CONSTANT_DATA_OUTPUT
+struct HS_OUTPUT
 {
-    float EdgeTessFactor[3] : SV_TessFactor;
-    float InsideTessFactor : SV_InsideTessFactor;
+    float3 worldPosition : WORLD_POSITION;
+    float3 worldNormal : NORMAL;
+    float2 uv : TEXCOORD0;
+};
+
+struct DS_OUTPUT
+{
+    float4 clipPosition : SV_POSITION;
+  float3 worldPosition : WORLD_POSITION;
+    float3 worldNormal : NORMAL;
+    float2 uv : TEXCOORD0;
 };
 
 #define NUM_CONTROL_POINTS 3
 
-struct HullShaderOutput
-{
-    float3 worldPos : WORLD_POSITION;
-    float3 normal : NORMAL;
-    float2 uv : TEXCOORD0;
-};
-
-struct DomainShaderOutput
-{
-    float4 position : SV_POSITION;
-    float3 worldPos : WORLD_POSITION;
-    float3 normal : NORMAL;
-    float2 uv : TEXCOORD0;
-};
-
 // Phong tessellation parameter (0 = linear interpolation, 1 = full Phong projection)
-static const float PhongAlpha = 0.75f;
+static const float PHONG_ALPHA = 0.75f;
 
 // Project a position onto the plane defined by a point on the plane and its normal
-float3 ProjectToPlane(float3 pos, float3 planePoint, float3 planeNormal)
+float3 ProjectToPlane(float3 position, float3 planePoint, float3 planeNormal)
 {
- // Calculate vector from plane point to the position we want to project
-    float3 vec = pos - planePoint;
+    // Calculate vector from plane point to the position we want to project
+    float3 toPosition = position - planePoint;
     
     // Project onto normal and subtract to get the projected point
-    // This moves the position onto the plane
-    float distance = dot(vec, planeNormal);
-    return pos - distance * planeNormal;
+    float distanceToPlane = dot(toPosition, planeNormal);
+    return position - distanceToPlane * planeNormal;
 }
 
 [domain("tri")]
-DomainShaderOutput main(HS_CONSTANT_DATA_OUTPUT input, float3 barycentric : SV_DomainLocation, const OutputPatch<HullShaderOutput, NUM_CONTROL_POINTS> patch)
+DS_OUTPUT main(HS_CONSTANT_OUTPUT input, float3 barycentricCoords : SV_DomainLocation, const OutputPatch<HS_OUTPUT, NUM_CONTROL_POINTS> patch)
 {
-    DomainShaderOutput output;
+    DS_OUTPUT output;
 
-    // Standard linear interpolation (what we had before)
-    float3 linearPos = patch[0].worldPos * barycentric.x + 
-    patch[1].worldPos * barycentric.y + 
-    patch[2].worldPos * barycentric.z;
+    // Standard linear interpolation
+    float3 linearPosition = patch[0].worldPosition * barycentricCoords.x + 
+        patch[1].worldPosition * barycentricCoords.y + 
+    patch[2].worldPosition * barycentricCoords.z;
     
     // Phong Tessellation: Project the linear position onto the three planes
-    // defined by each vertex position and normal
     
-    // Project onto plane 0 (defined by vertex 0 and its normal)
-    float3 proj0 = ProjectToPlane(linearPos, patch[0].worldPos, patch[0].normal);
+    // Project onto plane 0
+    float3 projection0 = ProjectToPlane(linearPosition, patch[0].worldPosition, patch[0].worldNormal);
     
-    // Project onto plane 1 (defined by vertex 1 and its normal)
-    float3 proj1 = ProjectToPlane(linearPos, patch[1].worldPos, patch[1].normal);
+    // Project onto plane 1
+    float3 projection1 = ProjectToPlane(linearPosition, patch[1].worldPosition, patch[1].worldNormal);
     
-    // Project onto plane 2 (defined by vertex 2 and its normal)
-    float3 proj2 = ProjectToPlane(linearPos, patch[2].worldPos, patch[2].normal);
+    // Project onto plane 2
+    float3 projection2 = ProjectToPlane(linearPosition, patch[2].worldPosition, patch[2].worldNormal);
     
     // Interpolate the projected positions using barycentric coordinates
-    float3 phongPos = proj0 * barycentric.x + 
-    proj1 * barycentric.y + 
-    proj2 * barycentric.z;
+    float3 phongPosition = projection0 * barycentricCoords.x + 
+     projection1 * barycentricCoords.y + 
+        projection2 * barycentricCoords.z;
     
     // Blend between linear interpolation and Phong projection
-    // PhongAlpha = 0: pure linear (flat triangles)
-    // PhongAlpha = 1: full Phong projection (smoothest)
-    output.worldPos = lerp(linearPos, phongPos, PhongAlpha);
+    output.worldPosition = lerp(linearPosition, phongPosition, PHONG_ALPHA);
     
-    // Interpolate normal (same as before)
-    output.normal = normalize(patch[0].normal * barycentric.x + 
-    patch[1].normal * barycentric.y + 
-    patch[2].normal * barycentric.z);
+    // Interpolate normal
+    output.worldNormal = normalize(patch[0].worldNormal * barycentricCoords.x + 
+        patch[1].worldNormal * barycentricCoords.y + 
+        patch[2].worldNormal * barycentricCoords.z);
     
-    // Interpolate UV (same as before)
-    output.uv = patch[0].uv * barycentric.x + 
-    patch[1].uv * barycentric.y + 
-    patch[2].uv * barycentric.z;
+    // Interpolate UV
+    output.uv = patch[0].uv * barycentricCoords.x + 
+        patch[1].uv * barycentricCoords.y + 
+        patch[2].uv * barycentricCoords.z;
 
     // Transform to clip space
-    output.position = mul(float4(output.worldPos, 1), viewProjMatrix);
+    output.clipPosition = mul(float4(output.worldPosition, 1.0f), viewProjMatrix);
 
     return output;
 }
