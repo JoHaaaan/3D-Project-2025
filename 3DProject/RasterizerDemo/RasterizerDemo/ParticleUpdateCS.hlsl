@@ -1,4 +1,8 @@
-// ParticleUpdateCS.hlsl
+// =====================================================================
+// PARTICLE UPDATE COMPUTE SHADER
+// =====================================================================
+// GPU-based particle simulation using compute shaders
+// Demonstrates: UAV write access, parallel processing, particle lifecycle management
 
 cbuffer TimeBuffer : register(b0)
 {
@@ -19,33 +23,33 @@ struct Particle
 {
     float3 position;
     float lifetime;
-
     float3 velocity;
     float maxLifetime;
-
     float4 color;
 };
 
+// Read-write access to particle buffer (UAV = Unordered Access View)
 RWStructuredBuffer<Particle> Particles : register(u0);
 
+// Pseudo-random number generation for particle spawning
 float Hash(float n)
 {
     return frac(sin(n) * 43758.5453f);
 }
 
-float3 Rand3(uint index, float t)
+float3 Random3D(uint index, float time)
 {
-    float s = (float) index * 12.9898f + t * 78.233f;
-    return float3(Hash(s + 1.0f), Hash(s + 2.0f), Hash(s + 3.0f));
+    float seed = (float)index * 12.9898f + time * 78.233f;
+    return float3(Hash(seed + 1.0f), Hash(seed + 2.0f), Hash(seed + 3.0f));
 }
 
 // NEW: gemensam respawn-funktion
 void RespawnParticle(inout Particle p, uint index, float seed)
 {
-    p.position = emitterPosition;
-    p.lifetime = 0.0f;
+    particle.position = emitterPosition;
+    particle.lifetime = 0.0f;
 
-    float3 r = Rand3(index, seed);
+    float3 randomValues = Random3D(index, seed);
 
     // random velocity i [min..max]
     p.velocity = lerp(velocityMin, velocityMax, r);
@@ -54,6 +58,7 @@ void RespawnParticle(inout Particle p, uint index, float seed)
     p.color.a = 1.0f;
 }
 
+// Compute shader dispatch: 32 threads per group, processes all particles in parallel
 [numthreads(32, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
@@ -61,14 +66,14 @@ void main(uint3 DTid : SV_DispatchThreadID)
     if (index >= particleCount)
         return;
 
-    Particle p = Particles[index];
+    Particle particle = Particles[index];
 
     if (p.lifetime < 0.0f)
     {
         if (emitterEnabled != 0)
             RespawnParticle(p, index, deltaTime);
 
-        Particles[index] = p;
+        Particles[index] = particle;
         return;
     }
 
@@ -92,5 +97,6 @@ void main(uint3 DTid : SV_DispatchThreadID)
         }
     }
 
-    Particles[index] = p;
+    // Write updated particle back to buffer
+    Particles[index] = particle;
 }

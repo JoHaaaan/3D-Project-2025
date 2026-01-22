@@ -1,7 +1,6 @@
 #include "D3D11Helper.h"
 #include <iostream>
 
-// Skapar device, context och swap chain
 bool CreateInterfaces(ID3D11Device*& device,
     ID3D11DeviceContext*& immediateContext,
     IDXGISwapChain*& swapChain,
@@ -52,7 +51,6 @@ bool CreateInterfaces(ID3D11Device*& device,
     return !FAILED(hr);
 }
 
-// Skapar RTV från backbuffer
 bool CreateRenderTargetView(ID3D11Device* device,
     IDXGISwapChain* swapChain,
     ID3D11RenderTargetView*& rtv)
@@ -79,8 +77,6 @@ bool CreateRenderTargetView(ID3D11Device* device,
     return true;
 }
 
-// Den här kan du ha kvar om du vill använda den för andra depth-resurser senare.
-// Den används inte längre i SetupD3D11.
 bool CreateDepthStencil(ID3D11Device* device,
     UINT width,
     UINT height,
@@ -116,7 +112,6 @@ bool CreateDepthStencil(ID3D11Device* device,
     return true;
 }
 
-// Ställer in viewport
 void SetViewport(D3D11_VIEWPORT& viewport,
     UINT width,
     UINT height)
@@ -129,7 +124,6 @@ void SetViewport(D3D11_VIEWPORT& viewport,
     viewport.MaxDepth = 1.0f;
 }
 
-// Enkel “setup”-funktion som bara skapar device/swapchain/RTV/viewport
 bool SetupD3D11(UINT width,
     UINT height,
     HWND window,
@@ -151,7 +145,6 @@ bool SetupD3D11(UINT width,
         return false;
     }
 
-    // Ingen depth här längre – det sköter DepthBufferD3D11
     SetViewport(viewport, width, height);
 
     return true;

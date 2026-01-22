@@ -1,60 +1,61 @@
+// ========================================
+// G-BUFFER PIXEL SHADER
+// ========================================
+// Part 1 of 2: Deferred Rendering Pipeline (Geometry Pass -> Lighting Pass)
+// Outputs material and geometric data to multiple render targets (G-Buffer)
+// No lighting calculations here - data only!
 
 cbuffer MaterialBuffer : register(b2)
 {
     float3 materialAmbient;
     float padding1;
-
     float3 materialDiffuse;
     float padding2;
-
     float3 materialSpecular;
-    float specularPower; // t.ex. upp till ~256
+    float specularPower;
 };
 
 struct PS_INPUT
 {
-    float4 position : SV_POSITION; // clip-space
-    float3 worldPos : WORLD_POSITION; // world-space position
-    float3 normal : NORMAL; // world-space normal
-    float2 uv : TEXCOORD0; // UV
+    float4 clipPosition : SV_POSITION;
+    float3 worldPosition : WORLD_POSITION;
+    float3 worldNormal : NORMAL;
+    float2 uv : TEXCOORD0;
+};
+
+struct PS_OUTPUT
+{
+    float4 Albedo : SV_Target0;    // RGB: diffuse color, A: ambient strength
+    float4 Normal : SV_Target1;    // RGB: world normal (packed), A: specular strength
+    float4 Extra : SV_Target2;     // RGB: world position, A: specular power
 };
 
 Texture2D shaderTexture : register(t0);
 SamplerState samplerState : register(s0);
 
-struct PS_OUTPUT
-{
-    float4 Albedo : SV_Target0; // färg + specPower
-    float4 Normal : SV_Target1; // packad normal
-    float4 Extra : SV_Target2; // worldPos (eller annat)
-};
-
 PS_OUTPUT main(PS_INPUT input)
 {
-    PS_OUTPUT o;
+    PS_OUTPUT output;
 
-    // Diffus färg = textur * materialets diffuse-komponent
+    // Sample and modulate diffuse texture
     float3 texColor = shaderTexture.Sample(samplerState, input.uv).rgb;
     float3 diffuseColor = texColor * materialDiffuse;
 
-    // Beräkna "styrka" för ambient och specular från materialfärgerna.
-    // Här tar vi medelvärdet av RGB som ett enkelt mått i intervallet 0..1.
+    // Pack material strength values into alpha channels
     float ambientStrength = saturate(dot(materialAmbient, float3(0.333f, 0.333f, 0.333f)));
     float specularStrength = saturate(dot(materialSpecular, float3(0.333f, 0.333f, 0.333f)));
+    float specularPacked = saturate(specularPower / 256.0f);
 
-    // Packa specularPower (t.ex. 0..256) in i alpha [0,1]
-    float specPacked = saturate(specularPower / 256.0f);
+    // RT0: Base color and ambient strength
+    output.Albedo = float4(diffuseColor, ambientStrength);
 
-    // RT0: diffus färg + ambient-styrka i alpha
-    o.Albedo = float4(diffuseColor, ambientStrength);
+    // RT1: World normal (packed to [0,1]) and specular strength
+    float3 normalizedNormal = normalize(input.worldNormal);
+    output.Normal = float4(normalizedNormal * 0.5f + 0.5f, specularStrength);
 
-    // RT1: packad normal + specular-styrka i alpha
-    float3 n = normalize(input.normal);
-    o.Normal = float4(n * 0.5f + 0.5f, specularStrength);
+    // RT2: World position (for lighting calculations) and shininess
+    output.Extra = float4(input.worldPosition, specularPacked);
 
-    // RT2: world position + shininess-packning i alpha
-    o.Extra = float4(input.worldPos, specPacked);
-
-    return o;
+    return output;
 }
 

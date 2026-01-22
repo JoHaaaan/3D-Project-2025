@@ -39,7 +39,7 @@ struct MeshData
 		ID3D11ShaderResourceView* ambientTextureSRV;
 		ID3D11ShaderResourceView* diffuseTextureSRV;
 		ID3D11ShaderResourceView* specularTextureSRV;
-		ID3D11ShaderResourceView* normalHeightTextureSRV; // For parallax occlusion mapping
+		ID3D11ShaderResourceView* normalHeightTextureSRV;
 		MaterialData material;
 		size_t materialIndex;
 	};
@@ -54,7 +54,7 @@ private:
 	std::vector<MeshData::MaterialData> subMeshMaterials;
 	VertexBufferD3D11 vertexBuffer;
 	IndexBufferD3D11 indexBuffer;
-	DirectX::BoundingBox localBoundingBox;  // Local-space bounding box
+	DirectX::BoundingBox localBoundingBox;
 
 public:
 	MeshD3D11() = default;
@@ -76,6 +76,5 @@ public:
 	ID3D11ShaderResourceView* GetNormalHeightSRV(size_t subMeshIndex) const;
 	const MeshData::MaterialData& GetMaterial(size_t subMeshIndex) const;
 
-	// Get the local-space bounding box
 	const DirectX::BoundingBox& GetLocalBoundingBox() const { return localBoundingBox; }
 };

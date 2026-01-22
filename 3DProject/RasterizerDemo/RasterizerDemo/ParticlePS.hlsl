@@ -1,4 +1,8 @@
-// ParticlePS.hlsl
+// ========================================
+// PARTICLE PIXEL SHADER
+// ========================================
+// Part 3 of 3: Particle Rendering Pipeline (VS -> GS -> PS)
+// Creates soft circular particles with radial alpha falloff
 
 struct PS_INPUT
 {
@@ -7,27 +11,22 @@ struct PS_INPUT
     float2 uv : TEXCOORD0;
 };
 
-float4 main(PS_INPUT input) : SV_TARGET
+float4 main(PS_INPUT input) : SV_Target
 {
-    // UV g�r (0..1). Flytta till centrum och g�r en cirkelmask
-    float2 p = input.uv * 2.0f - 1.0f; // (-1..1)
-    float r2 = dot(p, p); // radius^2
+    // Transform UV from [0,1] to [-1,1] centered coordinates
+    float2 centeredUV = input.uv * 2.0f - 1.0f;
+    float radiusSquared = dot(centeredUV, centeredUV);
 
-    // H�rd cutoff (billigt): disc
-    // if (r2 > 1.0f) discard;
+    // Smooth radial falloff for soft particle edges (no hard circle border)
+    const float FEATHER = 0.15f;
+    float alphaMask = 1.0f - smoothstep(1.0f - FEATHER, 1.0f, radiusSquared);
 
-    // Mjuk kant (snyggare): 1 i mitten -> 0 vid kanten
-    // "feather" styr hur mjuk kanten �r (st�rre = mjukare)
-    const float feather = 0.15f;
-    float alphaMask = 1.0f - smoothstep(1.0f - feather, 1.0f, r2);
+    float4 outputColor = input.color;
+    outputColor.a *= alphaMask;
 
-    // Kombinera med partikelns alpha (som du nu fadar i compute shadern)
-    float4 outColor = input.color;
-    outColor.a *= alphaMask;
-
-    // Om du vill att helt transparenta pixlar inte ska bidra alls:
-    if (outColor.a <= 0.001f)
+    // Early discard for performance (skip fully transparent fragments)
+    if (outputColor.a <= 0.001f)
         discard;
 
-    return outColor;
+    return outputColor;
 }

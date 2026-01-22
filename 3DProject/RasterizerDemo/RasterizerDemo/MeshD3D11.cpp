@@ -33,7 +33,7 @@ void MeshD3D11::Initialize(ID3D11Device* device, const MeshData& meshInfo)
 			sm.normalHeightTextureSRV
 		);
 
-		subMeshes.push_back(std::move(subMesh));  // Use std::move to transfer ownership
+		subMeshes.push_back(std::move(subMesh));
 		subMeshMaterials.push_back(sm.material);
 
 	}
@@ -41,7 +41,6 @@ void MeshD3D11::Initialize(ID3D11Device* device, const MeshData& meshInfo)
 	// Calculate local-space bounding box from vertex data
 	if (meshInfo.vertexInfo.vertexData && meshInfo.vertexInfo.nrOfVerticesInBuffer > 0)
 	{
-		// Assume vertex format is SimpleVertex (pos[3], nrm[3], uv[2])
 		const float* vertexData = static_cast<const float*>(meshInfo.vertexInfo.vertexData);
 		size_t vertexStride = meshInfo.vertexInfo.sizeOfVertex / sizeof(float);
 
@@ -64,7 +63,6 @@ void MeshD3D11::Initialize(ID3D11Device* device, const MeshData& meshInfo)
 			maxPos.z = (std::max)(maxPos.z, z);
 		}
 
-		// Calculate center and extents
 		DirectX::XMFLOAT3 center(
 			(minPos.x + maxPos.x) * 0.5f,
 			(minPos.y + maxPos.y) * 0.5f,

@@ -1,3 +1,48 @@
+/* =============================================
+ * ADVANCED REAL-TIME RENDERING TECHNIQUES DEMO
+ * =============================================
+ * 
+ * RENDERING PIPELINE ARCHITECTURE:
+ * 
+ * 1. SHADOW MAPPING PASS
+ *    - Depth-only rendering from each light's perspective
+ *    - Stores depth information for shadow calculations
+ * 
+ * 2. ENVIRONMENT MAP PASS
+ *    - Renders scene 6 times to create cube map for reflections
+ *    - Used by reflective objects for dynamic environment mapping
+ * 
+ * 3. GEOMETRY PASS (Deferred Rendering)
+ *    - Renders scene geometry to G-Buffer (3 render targets)
+ *    - Stores: Albedo, Normals, World Position, Material properties
+ *    - Special shaders for specific techniques:
+ *      * Tessellation: Adaptive LOD based on camera distance
+ *      * Reflection: Cube map sampling
+ *      * Normal Mapping: Derivative-based TBN construction
+ *      * Parallax Occlusion Mapping: Ray marching through height maps
+ * 
+ * 4. LIGHTING PASS (Compute Shader)
+ *    - Reads G-Buffer and calculates lighting for all lights
+ *    - Multi-light support with shadows
+ *    - Outputs to UAV texture
+ * 
+ * 5. PARTICLE PASS (Forward Rendering)
+ *    - GPU-based particle simulation using compute shaders
+ *    - Geometry shader billboard expansion
+ *    - Additive blending for effects
+ * 
+ * ADVANCED TECHNIQUES DEMONSTRATED:
+ * - Deferred Rendering with G-Buffer
+ * - Compute Shader Lighting & Particle Simulation
+ * - Hardware Tessellation with Phong smoothing
+ * - Shadow Mapping with PCF
+ * - Dynamic Environment Mapping (Cube Maps)
+ * - Normal Mapping (derivative-based)
+ * - Parallax Occlusion Mapping
+ * - QuadTree Spatial Partitioning for Frustum Culling
+ * - Geometry Shader Amplification (Particles)
+ * ============================================= */
+
 #include <Windows.h>
 #include <chrono>
 #include <vector>

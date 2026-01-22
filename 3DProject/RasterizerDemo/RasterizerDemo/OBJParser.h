@@ -6,14 +6,13 @@
 #include <sstream>
 #include <fstream>
 #include <DirectXMath.h>
-#include <d3d11.h> // Needed for ID3D11Device
-#include <unordered_map>
+#include <d3d11.h>
 
 // Forward declarations
-class MeshD3D11; // Use the class name directly
+class MeshD3D11;
 struct ID3D11ShaderResourceView;
 
-// Definition of Vertex to match usage in ParseFace
+// Vertex structure matching the OBJ file format (position, normal, UV)
 struct Vertex
 {
 	DirectX::XMFLOAT3 Position;
@@ -21,7 +20,7 @@ struct Vertex
 	DirectX::XMFLOAT2 UV;
 };
 
-// Simple material info used by ParseData
+// Material properties parsed from MTL files
 struct MaterialInfo
 {
 	std::string name;
@@ -30,13 +29,13 @@ struct MaterialInfo
 	DirectX::XMFLOAT3 specular{ 0.5f, 0.5f, 0.5f };
 	float specularPower{ 32.0f };
 
-	std::string mapKa; // Ambient map
-	std::string mapKd; // Diffuse map
-	std::string mapKs; // Specular map
-	std::string mapBump; // Normal/Height map for parallax occlusion mapping
+	std::string mapKa;
+	std::string mapKd;
+	std::string mapKs;
+	std::string mapBump;
 };
 
-// Info about one submesh inside a mesh
+// Submesh data within a mesh (material group)
 struct SubMeshInfo
 {
 	std::size_t startIndexValue = 0;
@@ -45,31 +44,24 @@ struct SubMeshInfo
 	ID3D11ShaderResourceView* ambientTextureSRV = nullptr;
 	ID3D11ShaderResourceView* diffuseTextureSRV = nullptr;
 	ID3D11ShaderResourceView* specularTextureSRV = nullptr;
-	ID3D11ShaderResourceView* normalHeightTextureSRV = nullptr; // For parallax occlusion mapping
-
+	ID3D11ShaderResourceView* normalHeightTextureSRV = nullptr;
 
 	std::size_t materialIndex = 0;
 	std::size_t currentSubMeshMaterial = 0;
 };
 
-// All temporary data used while parsing a single OBJ
+// Intermediate data structure used during OBJ parsing
 struct ParseData
 {
-	// Geometry
 	std::vector<DirectX::XMFLOAT3> positions;
 	std::vector<DirectX::XMFLOAT3> normals;
 	std::vector<DirectX::XMFLOAT2> texCoords;
 
-	// Cache to avoid duplicating vertices (String identifier -> Index)
 	std::unordered_map<std::string, unsigned int> vertexCache;
 
-	// Final vertex buffer data
 	std::vector<Vertex> vertices;
-
-	// Index data for the final mesh
 	std::vector<unsigned int> indexData;
 
-	// Materials and submeshes
 	std::vector<MaterialInfo> parsedMaterials;
 	std::vector<SubMeshInfo> finishedSubMeshes;
 
@@ -77,34 +69,31 @@ struct ParseData
 	std::size_t currentSubMeshMaterial = 0;
 };
 
-// Global data used by the parser
+// Global mesh cache and default directory for OBJ files
 extern std::string defaultDirectory;
-// Note: Changed Mesh to MeshD3D11 to match your class name
-extern std::unordered_map<std::string, MeshD3D11*> loadedMeshes; // Changed to pointers
+extern std::unordered_map<std::string, MeshD3D11*> loadedMeshes;
 
 struct TextureResource;
 extern std::unordered_map<std::string, TextureResource> loadedTextures;
 
-// Small helper functions to read tokens from a line
+// Token parsing utilities
 float GetLineFloat(const std::string& line, std::size_t& currentLinePos);
-int   GetLineInt(const std::string& line, std::size_t& currentLinePos);
+int GetLineInt(const std::string& line, std::size_t& currentLinePos);
 std::string GetLineString(const std::string& line, std::size_t& currentLinePos);
 
-// Public entry point
-// UPDATED: Now requires device to initialize the buffers
+// Retrieves or loads a mesh from cache
 const MeshD3D11* GetMesh(const std::string& path, ID3D11Device* device);
 
-// File reading
+// File I/O
 void ReadFile(const std::string& path, std::string& toFill);
 
-// OBJ level parsing
-// UPDATED: Now requires device
+// OBJ parsing entry point
 void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11Device* device);
 
-// Per line parsing
+// Line-by-line parsing dispatcher
 void ParseLine(const std::string& line, ParseData& data);
 
-// Handlers for specific identifiers
+// OBJ element parsers
 void ParsePosition(const std::string& dataSection, ParseData& data);
 void ParseTexCoord(const std::string& dataSection, ParseData& data);
 void ParseNormal(const std::string& dataSection, ParseData& data);
@@ -112,9 +101,8 @@ void ParseFace(const std::string& dataSection, ParseData& data);
 void ParseMtlLib(const std::string& dataSection, ParseData& data);
 void ParseUseMtl(const std::string& dataSection, ParseData& data);
 
-// Helper to finish and store the current submesh
+// Finalizes the current submesh and adds it to the list
 void PushBackCurrentSubmesh(ParseData& data);
 
+// Cleanup for cached meshes
 void UnloadMeshes();
-
-const MeshD3D11* GetMesh(const std::string& path, ID3D11Device* device);

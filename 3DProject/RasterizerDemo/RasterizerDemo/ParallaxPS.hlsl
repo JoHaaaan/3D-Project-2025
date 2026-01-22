@@ -1,5 +1,8 @@
-// Parallax Occlusion Mapping Pixel Shader
-// Uses height data from alpha channel to perform ray marching for depth parallax
+// ========================================
+// PARALLAX OCCLUSION MAPPING PIXEL SHADER
+// ========================================
+// Advanced technique: Ray marches through height map for realistic surface depth
+// Demonstrates: POM algorithm, adaptive sampling, tangent-space transformations
 
 cbuffer MaterialBuffer : register(b2)
 {
@@ -19,15 +22,11 @@ cbuffer CameraBuffer : register(b3)
 
 struct PS_INPUT
 {
-    float4 position : SV_POSITION;
-    float3 worldPos : WORLD_POSITION;
-    float3 normal : NORMAL;
+    float4 clipPosition : SV_POSITION;
+    float3 worldPosition : WORLD_POSITION;
+    float3 worldNormal : NORMAL;
     float2 uv : TEXCOORD0;
 };
-
-Texture2D diffuseTexture : register(t0);
-Texture2D normalHeightTexture : register(t1); // RGB = normal, A = height
-SamplerState samplerState : register(s0);
 
 struct PS_OUTPUT
 {
@@ -36,139 +35,107 @@ struct PS_OUTPUT
     float4 Extra : SV_Target2;
 };
 
-// Parallax Occlusion Mapping parameters
-static const float heightScale = 0.08f; // How "deep" the parallax effect is
-static const float minLayers = 16.0f; // Minimum ray marching steps
-static const float maxLayers = 64.0f; // Maximum ray marching steps
+Texture2D diffuseTexture : register(t0);
+Texture2D normalHeightTexture : register(t1);  // RGB: normal, A: height
+SamplerState samplerState : register(s0);
 
-// Compute TBN matrix using screen-space derivatives
-float3x3 ComputeTBN(float3 worldPos, float3 normal, float2 uv)
+// POM tuning parameters
+static const float HEIGHT_SCALE = 0.08f;
+static const float MIN_LAYERS = 16.0f;
+static const float MAX_LAYERS = 64.0f;
+
+// Constructs tangent-space basis using screen-space derivatives
+float3x3 ComputeTBN(float3 worldPosition, float3 worldNormal, float2 uv)
 {
-  // Get edge vectors of the pixel triangle
-    float3 dp1 = ddx(worldPos);
-    float3 dp2 = ddy(worldPos);
+    float3 dp1 = ddx(worldPosition);
+    float3 dp2 = ddy(worldPosition);
     float2 duv1 = ddx(uv);
     float2 duv2 = ddy(uv);
     
-    // Solve the linear system
-    float3 dp2perp = cross(dp2, normal);
-    float3 dp1perp = cross(normal, dp1);
+    float3 dp2perp = cross(dp2, worldNormal);
+    float3 dp1perp = cross(worldNormal, dp1);
     
-    float3 T = dp2perp * duv1.x + dp1perp * duv2.x;
-    float3 B = dp2perp * duv1.y + dp1perp * duv2.y;
+    float3 tangent = dp2perp * duv1.x + dp1perp * duv2.x;
+    float3 bitangent = dp2perp * duv1.y + dp1perp * duv2.y;
     
-    // Construct a scale-invariant frame
-    float invmax = rsqrt(max(dot(T, T), dot(B, B)));
+    float invmax = rsqrt(max(dot(tangent, tangent), dot(bitangent, bitangent)));
     
-    return float3x3(T * invmax, B * invmax, normal);
+    return float3x3(tangent * invmax, bitangent * invmax, worldNormal);
 }
 
-// Parallax Occlusion Mapping with ray marching
-float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 dx, float2 dy)
+// Ray marches through height field to find surface intersection
+// Adaptive layer count: steep viewing angles need more samples
+float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 gradientX, float2 gradientY)
 {
-    // Number of depth layers (adaptive based on view angle)
-    float numLayers = lerp(maxLayers, minLayers, abs(dot(float3(0.0, 0.0, 1.0), viewDirTangent)));
+    // Adaptive sampling based on viewing angle (perpendicular = fewer samples)
+    float numLayers = lerp(MAX_LAYERS, MIN_LAYERS, abs(dot(float3(0.0f, 0.0f, 1.0f), viewDirTangent)));
     
-    // Calculate the size of each layer
-    float layerDepth = 1.0 / numLayers;
+    float layerDepth = 1.0f / numLayers;
+    float currentLayerDepth = 0.0f;
     
-    // Depth of current layer
-    float currentLayerDepth = 0.0;
-    
-    // The amount to shift the texture coordinates per layer (from vector P)
-    float2 P = viewDirTangent.xy * heightScale;
-    float2 deltaTexCoords = P / numLayers;
-    
-    // Get initial values
+    float2 parallaxOffset = viewDirTangent.xy * HEIGHT_SCALE;
+    float2 deltaTexCoords = parallaxOffset / numLayers;
+  
     float2 currentTexCoords = texCoords;
+    float currentDepthMapValue = normalHeightTexture.SampleGrad(samplerState, currentTexCoords, gradientX, gradientY).a;
     
-  // Use SampleGrad to properly support mipmapping without aliasing
-    float currentDepthMapValue = normalHeightTexture.SampleGrad(samplerState, currentTexCoords, dx, dy).a;
-    
-    // Ray march through the height field
- [unroll(64)]
+    // Ray march through height field until intersection found
+    [unroll(64)]
     for (int i = 0; i < 64; i++)
     {
-        // Break if we've gone deep enough or exceeded actual layer count
         if (currentLayerDepth >= currentDepthMapValue || i >= (int) numLayers)
             break;
     
-        // Shift texture coordinates along direction of P
         currentTexCoords -= deltaTexCoords;
-      
-        // Get depthmap value at current texture coordinates (use SampleGrad)
-        currentDepthMapValue = normalHeightTexture.SampleGrad(samplerState, currentTexCoords, dx, dy).a;
-  
- // Get depth of next layer
+        currentDepthMapValue = normalHeightTexture.SampleGrad(samplerState, currentTexCoords, gradientX, gradientY).a;
         currentLayerDepth += layerDepth;
     }
     
-    // -- Parallax Occlusion Mapping interpolation (smoothing) --
-  
-  // Get texture coordinates before collision (reverse operations)
+    // Linear interpolation between last two samples for smooth result
     float2 prevTexCoords = currentTexCoords + deltaTexCoords;
   
-    // Get depth after and before collision for linear interpolation
     float afterDepth = currentDepthMapValue - currentLayerDepth;
-    float beforeDepth = normalHeightTexture.SampleGrad(samplerState, prevTexCoords, dx, dy).a - currentLayerDepth + layerDepth;
+    float beforeDepth = normalHeightTexture.SampleGrad(samplerState, prevTexCoords, gradientX, gradientY).a - currentLayerDepth + layerDepth;
   
-    // Interpolation of texture coordinates
     float weight = afterDepth / (afterDepth - beforeDepth);
-    float2 finalTexCoords = prevTexCoords * weight + currentTexCoords * (1.0 - weight);
+    float2 finalTexCoords = prevTexCoords * weight + currentTexCoords * (1.0f - weight);
     
     return finalTexCoords;
 }
 
 PS_OUTPUT main(PS_INPUT input)
 {
-    PS_OUTPUT o;
+    PS_OUTPUT output;
     
-    // Normalize the vertex normal
-    float3 N = normalize(input.normal);
+    float3 normalizedNormal = normalize(input.worldNormal);
     
-// *** CALCULATE TEXTURE GRADIENTS BEFORE THE LOOP ***
-    // This prevents aliasing by allowing proper mipmap selection during ray marching
-    float2 dx = ddx(input.uv);
-    float2 dy = ddy(input.uv);
+    // Cache gradients before POM (required for proper mipmap sampling)
+    float2 gradientX = ddx(input.uv);
+    float2 gradientY = ddy(input.uv);
     
-    // Compute TBN matrix using partial derivatives
-    float3x3 TBN = ComputeTBN(input.worldPos, N, input.uv);
+    float3x3 TBN = ComputeTBN(input.worldPosition, normalizedNormal, input.uv);
     
-    // Calculate view direction in world space
-    float3 viewDirWorld = normalize(cameraPosition - input.worldPos);
- 
-    // Transform view direction to tangent space
+    float3 viewDirWorld = normalize(cameraPosition - input.worldPosition);
     float3 viewDirTangent = normalize(mul(transpose(TBN), viewDirWorld));
-    
-    // Perform Parallax Occlusion Mapping to get displaced UVs
-    float2 parallaxUV = ParallaxOcclusionMapping(input.uv, viewDirTangent, dx, dy);
+  
+    // Calculate displaced UV coordinates using POM
+    float2 parallaxUV = ParallaxOcclusionMapping(input.uv, viewDirTangent, gradientX, gradientY);
  
-    // Sample textures with the displaced UVs - Use SampleGrad to ensure stable mipmapping
-    float3 texColor = diffuseTexture.SampleGrad(samplerState, parallaxUV, dx, dy).rgb;
+    // Sample textures at displaced coordinates
+    float3 texColor = diffuseTexture.SampleGrad(samplerState, parallaxUV, gradientX, gradientY).rgb;
     float3 diffuseColor = texColor * materialDiffuse;
     
-    // Sample normal map with displaced UVs - Use SampleGrad to ensure stable mipmapping
-    float3 normalMapSample = normalHeightTexture.SampleGrad(samplerState, parallaxUV, dx, dy).rgb;
-    
-    // Convert from [0,1] to [-1,1] range
+    float3 normalMapSample = normalHeightTexture.SampleGrad(samplerState, parallaxUV, gradientX, gradientY).rgb;
     float3 tangentNormal = normalMapSample * 2.0f - 1.0f;
-    
-    // Transform normal from tangent space to world space
     float3 worldNormal = normalize(mul(tangentNormal, TBN));
-    
-    // Pack material properties
+
     float ambientStrength = saturate(dot(materialAmbient, float3(0.333f, 0.333f, 0.333f)));
     float specularStrength = saturate(dot(materialSpecular, float3(0.333f, 0.333f, 0.333f)));
-    float specPacked = saturate(specularPower / 256.0f);
+    float specularPacked = saturate(specularPower / 256.0f);
     
-    // RT0: diffuse color + ambient strength
-    o.Albedo = float4(diffuseColor, ambientStrength);
-    
-    // RT1: packed normal (using the normal-mapped normal) + specular strength
-    o.Normal = float4(worldNormal * 0.5f + 0.5f, specularStrength);
+    output.Albedo = float4(diffuseColor, ambientStrength);
+    output.Normal = float4(worldNormal * 0.5f + 0.5f, specularStrength);
+    output.Extra = float4(input.worldPosition, specularPacked);
 
-    // RT2: world position + shininess
-    o.Extra = float4(input.worldPos, specPacked);
-
-    return o;
+    return output;
 }

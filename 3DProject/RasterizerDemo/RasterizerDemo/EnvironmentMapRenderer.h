@@ -44,22 +44,21 @@ private:
 	CameraD3D11 m_cameras[6];
 	ProjectionInfo m_projInfo;
 
-	// Camera rotation values for each face (DirectX cube map orientation)
-	// Order: +X (right), -X (left), +Y (up), -Y (down), +Z (forward), -Z (back)
+	// Camera orientations for DirectX cube map faces: +X, -X, +Y, -Y, +Z, -Z
 	float m_upRotations[6] = {
-		0.0f,        // +X face: no roll
-		0.0f,      // -X face: no roll
-		0.0f,    // +Y face: no roll
-		DirectX::XM_PI,     // -Y face: 180 roll (flip upside down)
-		0.0f,   // +Z face: no roll
-		0.0f      // -Z face: no roll
+		0.0f,
+		0.0f,
+		0.0f,
+		DirectX::XM_PI,
+		0.0f,
+		0.0f
 	};
 	float m_rightRotations[6] = {
-		DirectX::XM_PIDIV2, // +X face: 90 right
-		-DirectX::XM_PIDIV2,    // -X face: -90 right
-		0.0f,// +Y face: 0 (then pitch up)
-		0.0f,     // -Y face: 0 (then pitch down)
-		0.0f,          // +Z face: 0 (look forward)
-		DirectX::XM_PI     // -Z face: 180 (look back)
+		DirectX::XM_PIDIV2,
+		-DirectX::XM_PIDIV2,
+		0.0f,
+		0.0f,
+		0.0f,
+		DirectX::XM_PI
 	};
-};
+};};

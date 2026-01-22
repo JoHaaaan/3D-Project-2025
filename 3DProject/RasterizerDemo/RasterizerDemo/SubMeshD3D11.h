@@ -13,7 +13,7 @@ private:
 	ID3D11ShaderResourceView* ambientTexture = nullptr;
 	ID3D11ShaderResourceView* diffuseTexture = nullptr;
 	ID3D11ShaderResourceView* specularTexture = nullptr;
-	ID3D11ShaderResourceView* normalHeightTexture = nullptr; // For parallax occlusion mapping
+	ID3D11ShaderResourceView* normalHeightTexture = nullptr;
 
 public:
 	SubMeshD3D11() = default;

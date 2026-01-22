@@ -6,11 +6,7 @@ class ConstantBufferD3D11
 {
 private:
     ID3D11Buffer* buffer = nullptr;
-
-    // bufferSize = 16-byte aligned size (GPU buffer size)
     size_t bufferSize = 0;
-
-    // dataSize = actual size of the data struct you pass in
     size_t dataSize = 0;
 
 public:
@@ -26,8 +22,8 @@ public:
 
     void Initialize(ID3D11Device* device, size_t byteSize, void* initialData = nullptr);
 
-    size_t GetSize() const;      // returns aligned GPU size
-    size_t GetDataSize() const;  // returns logical struct size
+    size_t GetSize() const;
+    size_t GetDataSize() const;
 
     ID3D11Buffer* GetBuffer() const;
 

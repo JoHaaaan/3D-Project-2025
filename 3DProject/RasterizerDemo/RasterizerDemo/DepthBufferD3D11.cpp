@@ -7,7 +7,6 @@ DepthBufferD3D11::DepthBufferD3D11(ID3D11Device* device, UINT width, UINT height
 
 DepthBufferD3D11::~DepthBufferD3D11()
 {
-    // Släpp alla DepthStencilViews först (views håller referenser till texturen)
     for (size_t i = 0; i < depthStencilViews.size(); ++i)
     {
         if (depthStencilViews[i])
@@ -18,14 +17,12 @@ DepthBufferD3D11::~DepthBufferD3D11()
     }
     depthStencilViews.clear();
 
-    // Släpp SRV efter DSV:erna
     if (srv)
     {
         srv->Release();
         srv = nullptr;
     }
 
-    // Släpp den underliggande texturen sist
     if (texture)
     {
         texture->Release();
@@ -36,7 +33,6 @@ DepthBufferD3D11::~DepthBufferD3D11()
 
 void DepthBufferD3D11::Initialize(ID3D11Device* device, UINT width, UINT height, bool hasSRV, UINT arraySize)
 {
-    // Släpp ev. gamla resurser om Initialize kallas flera gånger
     for (size_t i = 0; i < depthStencilViews.size(); ++i)
     {
         if (depthStencilViews[i])
@@ -65,7 +61,6 @@ void DepthBufferD3D11::Initialize(ID3D11Device* device, UINT width, UINT height,
     if (arraySize == 0)
         arraySize = 1;
 
-    // Välj formatfamilj
     DXGI_FORMAT texFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
     DXGI_FORMAT dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
     DXGI_FORMAT srvFormat = DXGI_FORMAT_UNKNOWN;
@@ -74,21 +69,20 @@ void DepthBufferD3D11::Initialize(ID3D11Device* device, UINT width, UINT height,
 
     if (hasSRV)
     {
-        // Typeless bas så vi kan göra både DSV och SRV
+        // Use typeless format to enable both DSV and SRV creation
         texFormat = DXGI_FORMAT_R24G8_TYPELESS;
         dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
         srvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
         bindFlags |= D3D11_BIND_SHADER_RESOURCE;
     }
 
-    // Skapa texturen
     D3D11_TEXTURE2D_DESC texDesc = {};
     texDesc.Width = width;
     texDesc.Height = height;
     texDesc.MipLevels = 1;
     texDesc.ArraySize = arraySize;
     texDesc.Format = texFormat;
-    texDesc.SampleDesc.Count = 1; // ingen MSAA i den här versionen
+    texDesc.SampleDesc.Count = 1;
     texDesc.SampleDesc.Quality = 0;
     texDesc.Usage = D3D11_USAGE_DEFAULT;
     texDesc.BindFlags = bindFlags;
@@ -99,7 +93,6 @@ void DepthBufferD3D11::Initialize(ID3D11Device* device, UINT width, UINT height,
     if (FAILED(hr))
         return;
 
-    // Skapa en DSV per slice
     depthStencilViews.resize(arraySize);
 
     for (UINT i = 0; i < arraySize; ++i)
@@ -127,7 +120,6 @@ void DepthBufferD3D11::Initialize(ID3D11Device* device, UINT width, UINT height,
         }
     }
 
-    // Skapa SRV om vi ska kunna läsa depth i shader
     if (hasSRV)
     {
         D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
