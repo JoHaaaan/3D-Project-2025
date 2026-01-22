@@ -1,11 +1,29 @@
 #include "ShadowMapD3D11.h"
 
+
+// ========================================
+// SHADOW MAP - Multi-Light Shadow Mapping
+// ========================================
+// Texture2D array storing depth from light perspective (one slice per light)
+// Typeless format enables DSV writes and SRV reads for shadow comparison
+
+
 ShadowMapD3D11::~ShadowMapD3D11()
 {
-    if (m_srv) m_srv->Release();
-    for (auto* dsv : m_dsvs) {
-        if (dsv) dsv->Release();
+    // Release SRV used for sampling shadow depth in shaders
+    if (m_srv)
+    {
+        m_srv->Release();
+        m_srv = nullptr;
     }
+
+    // Release all DSVs
+    for (auto* dsv : m_dsvs)
+    {
+        if (dsv)
+            dsv->Release();
+    }
+    m_dsvs.clear();
 }
 
 bool ShadowMapD3D11::Initialize(ID3D11Device* device, UINT width, UINT height, UINT arraySize)
@@ -13,7 +31,7 @@ bool ShadowMapD3D11::Initialize(ID3D11Device* device, UINT width, UINT height, U
     m_width = width;
     m_height = height;
 
-    // 1. Create the Texture2DArray
+    // Create Texture2D array with typeless format for both DSV and SRV
     D3D11_TEXTURE2D_DESC texDesc = {};
     texDesc.Width = width;
     texDesc.Height = height;
@@ -30,7 +48,7 @@ bool ShadowMapD3D11::Initialize(ID3D11Device* device, UINT width, UINT height, U
     if (FAILED(device->CreateTexture2D(&texDesc, nullptr, &texture)))
         return false;
 
-    // 2. Create the SRV
+    // Creates a SRV so shaders can read the shadow map array
     D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
     srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
     srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
@@ -45,12 +63,12 @@ bool ShadowMapD3D11::Initialize(ID3D11Device* device, UINT width, UINT height, U
         return false;
     }
 
-    // 3. Create a DSV for EACH slice
+    // Create one DSV per array slice (for rendering depth from each light)
     D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
     dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
     dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY;
     dsvDesc.Texture2DArray.MipSlice = 0;
-    dsvDesc.Texture2DArray.ArraySize = 1;
+    dsvDesc.Texture2DArray.ArraySize = 1; // one slice per DSV
 
     for (UINT i = 0; i < arraySize; ++i)
     {
@@ -70,6 +88,7 @@ bool ShadowMapD3D11::Initialize(ID3D11Device* device, UINT width, UINT height, U
 
 ID3D11DepthStencilView* ShadowMapD3D11::GetDSV(UINT sliceIndex) const
 {
+    // Returns DSV for a specific shadow slice
     if (sliceIndex < m_dsvs.size())
         return m_dsvs[sliceIndex];
     return nullptr;

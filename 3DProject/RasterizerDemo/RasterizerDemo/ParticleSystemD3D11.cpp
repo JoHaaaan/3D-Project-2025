@@ -166,14 +166,18 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, const CameraD3D11
     if (!srv)
         return;
 
-    // Point list topology: each particle is a single point
+    // Vertex pulling: no vertex buffer or input layout needed
+    // VS reads particle data directly from StructuredBuffer using SV_VertexID
     context->IASetInputLayout(nullptr);
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
-
+    
+    
+    // No vertex buffer is bound because vertex data comes from the SRV in the VS.
     UINT stride = 0, offset = 0;
     ID3D11Buffer* nullVB = nullptr;
     context->IASetVertexBuffers(0, 1, &nullVB, &stride, &offset);
 
+    // Bind particle StructuredBuffer as SRV (vertex pulling source).
     context->VSSetShader(vertexShader, nullptr, 0);
     context->GSSetShader(geometryShader, nullptr, 0);
     context->PSSetShader(pixelShader, nullptr, 0);
