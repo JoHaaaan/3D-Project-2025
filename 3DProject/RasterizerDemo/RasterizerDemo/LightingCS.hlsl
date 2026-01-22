@@ -112,7 +112,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     float3 normal = normalize(normalPacked * 2.0f - 1.0f);
     float specularPower = max(specularPacked * 256.0f, 1.0f);
     
-// Material Setup
+    // Material Setup
     float3 materialDiffuse = diffuseColor;
     float3 materialAmbient = ambientStrength * diffuseColor * 0.2f;
     float3 materialSpecular = specularStrength * float3(1.0f, 1.0f, 1.0f);
@@ -166,10 +166,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         
         // Calculate shadow factor
         float shadow = CalculateShadow(worldPosition, light.viewProj, i);
-        
-        // Blinn-Phong lighting
-        float3 halfVector = normalize(lightDirection + viewDirection);
-        
+
         // Diffuse
         if (enableDiffuse != 0)
         {
@@ -181,6 +178,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
         // Specular
         if (enableSpecular != 0)
         {
+            float3 halfVector = normalize(lightDirection + viewDirection);
             float specularAngle = max(dot(normal, halfVector), 0.0f);
             float specularFactor = pow(specularAngle, specularPower);
             float3 specular = specularFactor * light.intensity * light.color * materialSpecular;

@@ -1,5 +1,5 @@
 // Cube Map Pixel Shader
-// Simple forward rendering for cube map generation with Blinn-Phong lighting
+// Forward rendering with Blinn-Phong lighting for cube map generation
 
 cbuffer MaterialBuffer : register(b2)
 {
@@ -28,35 +28,28 @@ struct PS_INPUT
 Texture2D shaderTexture : register(t0);
 SamplerState samplerState : register(s0);
 
-// Simple directional light for cube map rendering
 static const float3 LIGHT_DIRECTION = normalize(float3(-1.0f, -1.0f, 1.0f));
 static const float3 LIGHT_COLOR = float3(1.0f, 0.95f, 0.9f);
 static const float AMBIENT_STRENGTH = 0.3f;
 
 float4 main(PS_INPUT input) : SV_Target
 {
-    // Sample texture
     float3 texColor = shaderTexture.Sample(samplerState, input.uv).rgb;
     float3 diffuseColor = texColor * materialDiffuse;
     
-    // Normalize the normal
     float3 normalizedNormal = normalize(input.worldNormal);
     
-    // Calculate ambient
     float3 ambient = AMBIENT_STRENGTH * diffuseColor;
     
-    // Calculate diffuse lighting (Lambertian)
     float NdotL = max(dot(normalizedNormal, -LIGHT_DIRECTION), 0.0f);
     float3 diffuse = NdotL * LIGHT_COLOR * diffuseColor;
   
-    // Calculate specular (Blinn-Phong)
     float3 viewDir = normalize(cameraPosition - input.worldPosition);
     float3 halfDir = normalize(-LIGHT_DIRECTION + viewDir);
     float NdotH = max(dot(normalizedNormal, halfDir), 0.0f);
     float specularFactor = pow(NdotH, max(specularPower, 1.0f));
     float3 specular = specularFactor * LIGHT_COLOR * materialSpecular * 0.5f;
   
-    // Combine all lighting components
     float3 finalColor = ambient + diffuse + specular;
     
     return float4(finalColor, 1.0f);

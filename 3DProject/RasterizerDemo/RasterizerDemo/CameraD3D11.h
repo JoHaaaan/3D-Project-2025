@@ -62,6 +62,5 @@ public:
 
 	DirectX::XMFLOAT4X4 GetViewProjectionMatrix() const;
 
-	// Create a bounding frustum for culling
 	DirectX::BoundingFrustum GetBoundingFrustum() const;
 };

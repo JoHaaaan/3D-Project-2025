@@ -8,28 +8,23 @@ void LightManager::InitializeDefaultLights(ID3D11Device* device)
 {
 	m_lights.resize(4);
 
-	// Light 0: Directional Light
 	SetupDirectionalLight(m_lights[0]);
 
-	// Light 1: Spot Light Above center, pointing down
 	SetupSpotLight(m_lights[1],
 		XMFLOAT3(1.0f, 1.0f, 1.0f),
 		XMFLOAT3(0.0f, 10.0f, 0.0f),
 		XMFLOAT3(0.0f, -1.0f, 0.0f));
 
-	// Light 2: Spot Light 
 	SetupSpotLight(m_lights[2],
 		XMFLOAT3(1.0f, 1.0f, 1.0f),
 		XMFLOAT3(-10.0f, 5.0f, -5.0f),
 		XMFLOAT3(1.0f, -0.5f, 1.0f));
 
-	// Light 3: Spot Light 
 	SetupSpotLight(m_lights[3],
 		XMFLOAT3(1.0f, 1.0f, 1.0f),
 		XMFLOAT3(10.0f, 5.0f, -5.0f),
 		XMFLOAT3(-1.0f, -0.5f, 1.0f));
 
-	// Create structured buffer
 	m_lightBuffer.Initialize(device, sizeof(LightData), static_cast<UINT>(m_lights.size()), m_lights.data());
 
 	OutputDebugStringA("LightManager: Initialized 4 lights\n");

@@ -48,10 +48,12 @@ void CameraD3D11::MoveInDirection(float amount, const XMFLOAT3& direction)
     pos = XMVectorAdd(pos, XMVectorScale(XMVector3Normalize(dir), amount));
     XMStoreFloat3(&position, pos);
 }
+
 void CameraD3D11::SetPosition(const DirectX::XMFLOAT3& p)
 {
     position = p;
 }
+
 void CameraD3D11::MoveForward(float amount)
 {
     MoveInDirection(amount, forward);
@@ -70,7 +72,6 @@ void CameraD3D11::MoveUp(float amount)
     XMStoreFloat3(&position, pos);
 }
 
-// Rotate the camera around a given axis
 void CameraD3D11::RotateAroundAxis(float amount, const XMFLOAT3& axis)
 {
     XMVECTOR axisVec = XMLoadFloat3(&axis);
@@ -119,26 +120,22 @@ void CameraD3D11::RotateUp(float amount)
     RotateAroundAxis(amount, forward);
 }
 
-// Accessors
 const XMFLOAT3& CameraD3D11::GetPosition() const { return position; }
 const XMFLOAT3& CameraD3D11::GetForward()  const { return forward; }
 const XMFLOAT3& CameraD3D11::GetRight()    const { return right; }
 const XMFLOAT3& CameraD3D11::GetUp()       const { return up; }
 
-// Update the GPU constant buffer with the latest camera position
 void CameraD3D11::UpdateInternalConstantBuffer(ID3D11DeviceContext* context)
 {
     CameraBufferType cb{ position, 0.0f };
     cameraBuffer.UpdateBuffer(context, &cb);
 }
 
-// Return the underlying D3D11 buffer for binding to the pipeline
 ID3D11Buffer* CameraD3D11::GetConstantBuffer() const
 {
     return cameraBuffer.GetBuffer();
 }
 
-// Compute and return the view-projection matrix
 DirectX::XMFLOAT4X4 CameraD3D11::GetViewProjectionMatrix() const
 {
     XMVECTOR posV = XMLoadFloat3(&position);
@@ -159,10 +156,8 @@ DirectX::XMFLOAT4X4 CameraD3D11::GetViewProjectionMatrix() const
     return vp;
 }
 
-// Create a bounding frustum for culling
 DirectX::BoundingFrustum CameraD3D11::GetBoundingFrustum() const
 {
-    // Create frustum from projection matrix
     XMMATRIX proj = XMMatrixPerspectiveFovLH(
         projInfo.fovAngleY,
         projInfo.aspectRatio,
@@ -172,7 +167,6 @@ DirectX::BoundingFrustum CameraD3D11::GetBoundingFrustum() const
 
     DirectX::BoundingFrustum frustum(proj);
 
-    // Transform frustum to world space using view matrix
     XMVECTOR posV = XMLoadFloat3(&position);
     XMVECTOR lookAtV = XMVectorAdd(posV, XMLoadFloat3(&forward));
     XMVECTOR upV = XMLoadFloat3(&up);

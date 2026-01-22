@@ -1,5 +1,5 @@
 #include "ConstantBufferD3D11.h"
-#include <cstring> // memcpy, memset
+#include <cstring>
 
 ConstantBufferD3D11::ConstantBufferD3D11(ID3D11Device* device, size_t byteSize, void* initialData)
 {
@@ -53,7 +53,7 @@ void ConstantBufferD3D11::Initialize(ID3D11Device* device, size_t byteSize, void
 
     dataSize = byteSize;
 
-    // Constant buffers must be 16-byte aligned in size
+    // 16-byte alignment required by D3D11 constant buffers
     UINT alignedSize = (static_cast<UINT>(byteSize) + 15u) & ~15u;
     bufferSize = alignedSize;
 
@@ -63,8 +63,6 @@ void ConstantBufferD3D11::Initialize(ID3D11Device* device, size_t byteSize, void
     desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-    // Om initialData finns: skapa en temporär init-buffert som är aligned och nollpad:ad
-    // så vi inte skickar oinitierad padding till GPU.
     if (initialData)
     {
         void* temp = ::operator new(alignedSize);
@@ -123,12 +121,8 @@ void ConstantBufferD3D11::UpdateBuffer(ID3D11DeviceContext* context, const void*
     HRESULT hr = context->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
     if (SUCCEEDED(hr))
     {
-        // Nollfyll hela bufferSize så padding alltid blir deterministisk
         std::memset(mapped.pData, 0, bufferSize);
-
-        // Kopiera endast faktisk datastorlek
         std::memcpy(mapped.pData, data, dataSize);
-
         context->Unmap(buffer, 0);
     }
 }
