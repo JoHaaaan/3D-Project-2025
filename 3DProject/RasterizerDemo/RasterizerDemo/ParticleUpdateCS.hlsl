@@ -1,5 +1,8 @@
-// Particle Update Compute Shader
-// Updates particle simulation and handles respawning
+// =====================================================================
+// PARTICLE UPDATE COMPUTE SHADER
+// =====================================================================
+// GPU-based particle simulation using compute shaders
+// Demonstrates: UAV write access, parallel processing, particle lifecycle management
 
 cbuffer TimeBuffer : register(b0)
 {
@@ -19,22 +22,22 @@ struct Particle
     float4 color;
 };
 
+// Read-write access to particle buffer (UAV = Unordered Access View)
 RWStructuredBuffer<Particle> Particles : register(u0);
 
-// Hash function for pseudo-random number generation
+// Pseudo-random number generation for particle spawning
 float Hash(float n)
 {
     return frac(sin(n) * 43758.5453f);
 }
 
-// Generate random 3D vector
 float3 Random3D(uint index, float time)
 {
     float seed = (float)index * 12.9898f + time * 78.233f;
     return float3(Hash(seed + 1.0f), Hash(seed + 2.0f), Hash(seed + 3.0f));
 }
 
-// Respawn particle at emitter position with random velocity
+// Particle respawning logic (called when particle dies or starts)
 void RespawnParticle(inout Particle particle, uint index, float seed)
 {
     particle.position = emitterPosition;
@@ -42,15 +45,15 @@ void RespawnParticle(inout Particle particle, uint index, float seed)
 
     float3 randomValues = Random3D(index, seed);
 
-    // Random velocity spread
+    // Randomized initial velocity (fountain-like spread)
     particle.velocity.x = (randomValues.x - 0.5f) * 4.0f;
     particle.velocity.z = (randomValues.z - 0.5f) * 4.0f;
     particle.velocity.y = 2.0f + randomValues.y * 2.0f;
 
-    // Start with full alpha
     particle.color.a = 1.0f;
 }
 
+// Compute shader dispatch: 32 threads per group, processes all particles in parallel
 [numthreads(32, 1, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
@@ -60,7 +63,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
     Particle particle = Particles[index];
 
-    // Handle inactive particles
+    // Handle inactive/dead particles
     if (particle.lifetime < 0.0f)
     {
         if (emitterEnabled != 0)
@@ -72,16 +75,16 @@ void main(uint3 DTid : SV_DispatchThreadID)
         return;
     }
 
-    // Simulate active particles
+    // Physics simulation: Euler integration with gravity
     particle.position += particle.velocity * deltaTime;
-    particle.velocity.y += -9.82f * deltaTime;
+    particle.velocity.y += -9.82f * deltaTime; // Gravity acceleration
     particle.lifetime += deltaTime;
 
-    // Fade based on lifetime
+    // Fade out particle as it ages
     float normalizedLifetime = saturate(particle.lifetime / max(particle.maxLifetime, 0.0001f));
     particle.color.a = 1.0f - normalizedLifetime;
 
-    // Handle particle death
+    // Particle death and respawn logic
     if (particle.lifetime >= particle.maxLifetime)
     {
         if (emitterEnabled != 0)
@@ -90,13 +93,13 @@ void main(uint3 DTid : SV_DispatchThreadID)
         }
         else
         {
-            // Mark as inactive
-            particle.lifetime = -1.0f;
+            particle.lifetime = -1.0f; // Mark as inactive
             particle.velocity = float3(0.0f, 0.0f, 0.0f);
             particle.color.a = 0.0f;
         }
     }
 
+    // Write updated particle back to buffer
     Particles[index] = particle;
 }
 

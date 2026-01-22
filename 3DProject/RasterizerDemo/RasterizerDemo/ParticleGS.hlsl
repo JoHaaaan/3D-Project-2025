@@ -1,6 +1,9 @@
-
-// Particle Geometry Shader
-// Expands point primitives into camera-facing quads
+// ========================================
+// PARTICLE GEOMETRY SHADER
+// ========================================
+// Part 2 of 3: Particle Rendering Pipeline (VS -> GS -> PS)
+// Expands each point primitive into a camera-facing billboard quad
+// Demonstrates geometry shader amplification (1 point -> 6 vertices = 2 triangles)
 
 cbuffer ParticleCameraBuffer : register(b0)
 {
@@ -28,17 +31,18 @@ struct GS_OUTPUT
 [maxvertexcount(6)]
 void main(point GS_INPUT input[1], inout TriangleStream<GS_OUTPUT> output)
 {
-    // Inactive particle: skip rendering
+    // Cull dead particles (lifetime managed by compute shader)
     if (input[0].lifetime < 0.0f)
         return;
 
     float3 particlePosition = input[0].position;
 
+    // Billboard size and orientation (always faces camera)
     float quadSize = 0.3f;
     float3 right = cameraRight * quadSize;
     float3 up = cameraUp * quadSize;
 
-    // Calculate quad corners
+    // Build quad vertices around particle center
     float3 vertex1 = particlePosition - right + up;
     float3 vertex2 = particlePosition + right + up;
     float3 vertex3 = particlePosition - right - up;
@@ -47,7 +51,7 @@ void main(point GS_INPUT input[1], inout TriangleStream<GS_OUTPUT> output)
     GS_OUTPUT o;
     o.color = input[0].color;
 
-    // First triangle
+    // Emit first triangle (top-left, top-right, bottom-left)
     o.clipPosition = mul(float4(vertex1, 1.0f), viewProjection);
     o.uv = float2(0.0f, 0.0f);
     output.Append(o);
@@ -62,7 +66,7 @@ void main(point GS_INPUT input[1], inout TriangleStream<GS_OUTPUT> output)
 
     output.RestartStrip();
 
-    // Second triangle
+    // Emit second triangle (top-right, bottom-right, bottom-left)
     o.clipPosition = mul(float4(vertex2, 1.0f), viewProjection);
     o.uv = float2(1.0f, 0.0f);
     output.Append(o);

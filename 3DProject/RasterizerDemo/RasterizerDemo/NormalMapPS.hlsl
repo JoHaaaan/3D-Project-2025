@@ -1,5 +1,8 @@
-// Normal Map Pixel Shader
-// Uses partial derivatives to compute TBN matrix for normal mapping
+// ========================================
+// NORMAL MAP PIXEL SHADER
+// ========================================
+// Demonstrates normal mapping with derivative-based TBN matrix construction
+// Key technique: Screen-space derivatives for tangent-space basis without vertex attributes
 
 cbuffer MaterialBuffer : register(b2)
 {
@@ -8,7 +11,7 @@ cbuffer MaterialBuffer : register(b2)
     float3 materialDiffuse;
     float padding2;
     float3 materialSpecular;
- float specularPower;
+    float specularPower;
 };
 
 struct PS_INPUT
@@ -30,23 +33,24 @@ Texture2D diffuseTexture : register(t0);
 Texture2D normalMapTexture : register(t1);
 SamplerState samplerState : register(s0);
 
-// Compute TBN matrix using screen-space derivatives
+// Constructs tangent-space basis (TBN) using screen-space derivatives
+// This eliminates need for per-vertex tangent/bitangent attributes
 float3x3 ComputeTBN(float3 worldPosition, float3 worldNormal, float2 uv)
 {
-    // Get edge vectors of the pixel triangle
+    // Calculate position and UV deltas across the triangle
     float3 dp1 = ddx(worldPosition);
     float3 dp2 = ddy(worldPosition);
     float2 duv1 = ddx(uv);
     float2 duv2 = ddy(uv);
     
-    // Solve the linear system
+    // Solve for tangent and bitangent using the inverse UV transformation
     float3 dp2perp = cross(dp2, worldNormal);
     float3 dp1perp = cross(worldNormal, dp1);
     
     float3 tangent = dp2perp * duv1.x + dp1perp * duv2.x;
     float3 bitangent = dp2perp * duv1.y + dp1perp * duv2.y;
     
-    // Construct a scale-invariant frame
+    // Normalize to create orthonormal basis
     float invmax = rsqrt(max(dot(tangent, tangent), dot(bitangent, bitangent)));
     
     return float3x3(tangent * invmax, bitangent * invmax, worldNormal);
@@ -56,37 +60,28 @@ PS_OUTPUT main(PS_INPUT input)
 {
     PS_OUTPUT output;
 
-    // Sample diffuse texture
     float3 texColor = diffuseTexture.Sample(samplerState, input.uv).rgb;
     float3 diffuseColor = texColor * materialDiffuse;
 
-    // Sample normal map (stored in tangent space, 0-1 range)
+    // Normal map stores normals in tangent space with [0,1] encoding
     float3 normalMapSample = normalMapTexture.Sample(samplerState, input.uv).rgb;
-    
-    // Convert from [0,1] to [-1,1] range
     float3 tangentNormal = normalMapSample * 2.0f - 1.0f;
     
-    // Normalize the vertex normal
     float3 normalizedNormal = normalize(input.worldNormal);
     
-    // Compute TBN matrix using partial derivatives
+    // Build TBN matrix on-the-fly using derivatives
     float3x3 TBN = ComputeTBN(input.worldPosition, normalizedNormal, input.uv);
     
-    // Transform normal from tangent space to world space
+    // Transform perturbed normal from tangent space to world space
     float3 worldNormal = normalize(mul(tangentNormal, TBN));
 
-    // Pack material properties
+    // Pack material properties for G-Buffer
     float ambientStrength = saturate(dot(materialAmbient, float3(0.333f, 0.333f, 0.333f)));
     float specularStrength = saturate(dot(materialSpecular, float3(0.333f, 0.333f, 0.333f)));
     float specularPacked = saturate(specularPower / 256.0f);
 
-    // RT0: Albedo + ambient strength
     output.Albedo = float4(diffuseColor, ambientStrength);
-
-    // RT1: Packed normal + specular strength
     output.Normal = float4(worldNormal * 0.5f + 0.5f, specularStrength);
-
-    // RT2: World position + shininess
     output.Extra = float4(input.worldPosition, specularPacked);
 
     return output;

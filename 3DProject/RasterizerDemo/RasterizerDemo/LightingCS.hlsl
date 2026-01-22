@@ -1,5 +1,9 @@
-// Lighting Compute Shader
-// Multi-light deferred rendering with shadow mapping
+// ========================================
+// DEFERRED LIGHTING COMPUTE SHADER
+// ========================================
+// Part 2 of 2: Deferred Rendering Pipeline (Geometry Pass -> Lighting Pass)
+// Reads G-Buffer and computes lighting for all lights in a single pass
+// Key techniques: Compute shader parallelism, multi-light support, shadow mapping
 
 // Light Data Structure
 struct LightData
@@ -31,7 +35,7 @@ cbuffer LightingToggleBuffer : register(b4)
     int padding_Toggle;
 };
 
-// Resources
+// G-Buffer input textures (from geometry pass)
 Texture2D gAlbedo : register(t0);
 Texture2D gNormal : register(t1);
 Texture2D gWorldPos : register(t2);
@@ -42,50 +46,48 @@ RWTexture2D<float4> outColor : register(u0);
 
 SamplerComparisonState shadowSampler : register(s1);
 
-// Calculate spotlight attenuation
+// Spotlight cone attenuation calculation
 float CalculateSpotlight(float3 lightDir, float3 spotDirection, float spotAngle)
 {
     float cosAngle = dot(-lightDir, normalize(spotDirection));
     float cosInner = cos(spotAngle * 0.5f);
     float cosOuter = cos(spotAngle);
     
-    // Smooth falloff from inner to outer cone
     float epsilon = cosInner - cosOuter;
     float attenuation = saturate((cosAngle - cosOuter) / epsilon);
     
     return attenuation * attenuation;
 }
 
-// Calculate shadow factor
+// PCF shadow mapping with single sample
 float CalculateShadow(float3 worldPosition, float4x4 lightViewProj, uint lightIndex)
 {
- // Transform world position to light's clip space
+    // Transform world position to light's clip space
     float4 lightSpacePosition = mul(float4(worldPosition, 1.0f), lightViewProj);
  
-    // Perspective divide
     lightSpacePosition.xyz /= lightSpacePosition.w;
     
-    // Convert to texture coordinates [0,1]
+    // Convert to shadow map texture coordinates
     float2 shadowUV;
     shadowUV.x = lightSpacePosition.x * 0.5f + 0.5f;
     shadowUV.y = -lightSpacePosition.y * 0.5f + 0.5f;
     
-    // Check if position is within shadow map bounds
+    // Bounds check
     if (shadowUV.x < 0.0f || shadowUV.x > 1.0f || shadowUV.y < 0.0f || shadowUV.y > 1.0f)
         return 1.0f;
     
     float depth = lightSpacePosition.z;
     
-    // Check if depth is valid
     if (depth < 0.0f || depth > 1.0f)
         return 1.0f;
     
-    // Sample shadow map with PCF (Percentage Closer Filtering)
+    // Sample shadow map with comparison (returns 0 if in shadow, 1 if lit)
     float shadow = shadowMaps.SampleCmpLevelZero(shadowSampler, float3(shadowUV, lightIndex), depth);
     
     return shadow;
 }
 
+// Compute shader processes screen pixels in parallel (16x16 thread groups)
 [numthreads(16, 16, 1)]
 void main(uint3 DTid : SV_DispatchThreadID)
 {
@@ -96,7 +98,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     if (pixel.x >= width || pixel.y >= height)
         return;
   
-    // Read G-Buffer
+    // Unpack G-Buffer data
     float4 albedoSample = gAlbedo.Load(int3(pixel, 0));
     float3 diffuseColor = albedoSample.rgb;
     float ambientStrength = albedoSample.a;
@@ -109,26 +111,26 @@ void main(uint3 DTid : SV_DispatchThreadID)
     float3 worldPosition = positionSample.xyz;
     float specularPacked = positionSample.w;
     
+    // Reconstruct world-space normal and material properties
     float3 normal = normalize(normalPacked * 2.0f - 1.0f);
     float specularPower = max(specularPacked * 256.0f, 1.0f);
     
-    // Material Setup
     float3 materialDiffuse = diffuseColor;
     float3 materialAmbient = ambientStrength * diffuseColor * 0.2f;
     float3 materialSpecular = specularStrength * float3(1.0f, 1.0f, 1.0f);
   
-    // Debug Mode
+    // Debug visualization mode
     if (showAlbedoOnly != 0)
     {
         outColor[pixel] = float4(diffuseColor, 1.0f);
         return;
     }
     
-    // Lighting Accumulation
+    // Lighting accumulation (Blinn-Phong model)
     float3 viewDirection = normalize(cameraPosition - worldPosition);
     float3 lighting = materialAmbient;
     
-    // Iterate through all lights
+    // Iterate through all lights and accumulate contributions
     uint numLights, stride;
     lights.GetDimensions(numLights, stride);
     
@@ -152,7 +154,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
             float distance = length(toLight);
             lightDirection = toLight / distance;
             
-            // Distance attenuation
+            // Distance attenuation (quadratic falloff)
             attenuation = saturate(1.0f - (distance / light.range));
             attenuation *= attenuation;
   
@@ -164,10 +166,13 @@ void main(uint3 DTid : SV_DispatchThreadID)
         if (attenuation < 0.001f)
             continue;
         
-        // Calculate shadow factor
+        // Shadow mapping
         float shadow = CalculateShadow(worldPosition, light.viewProj, i);
-
-        // Diffuse
+        
+        // Blinn-Phong lighting model
+        float3 halfVector = normalize(lightDirection + viewDirection);
+        
+        // Diffuse (Lambertian)
         if (enableDiffuse != 0)
         {
             float diffuseFactor = max(dot(normal, lightDirection), 0.0f);
@@ -175,10 +180,9 @@ void main(uint3 DTid : SV_DispatchThreadID)
             lighting += diffuse * attenuation * shadow;
         }
     
-        // Specular
+        // Specular (Blinn-Phong)
         if (enableSpecular != 0)
         {
-            float3 halfVector = normalize(lightDirection + viewDirection);
             float specularAngle = max(dot(normal, halfVector), 0.0f);
             float specularFactor = pow(specularAngle, specularPower);
             float3 specular = specularFactor * light.intensity * light.color * materialSpecular;

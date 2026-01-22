@@ -1,5 +1,8 @@
-// Parallax Occlusion Mapping Pixel Shader
-// Performs ray marching through height data to create realistic surface depth
+// ========================================
+// PARALLAX OCCLUSION MAPPING PIXEL SHADER
+// ========================================
+// Advanced technique: Ray marches through height map for realistic surface depth
+// Demonstrates: POM algorithm, adaptive sampling, tangent-space transformations
 
 cbuffer MaterialBuffer : register(b2)
 {
@@ -33,9 +36,10 @@ struct PS_OUTPUT
 };
 
 Texture2D diffuseTexture : register(t0);
-Texture2D normalHeightTexture : register(t1);
+Texture2D normalHeightTexture : register(t1);  // RGB: normal, A: height
 SamplerState samplerState : register(s0);
 
+// POM tuning parameters
 static const float HEIGHT_SCALE = 0.08f;
 static const float MIN_LAYERS = 16.0f;
 static const float MAX_LAYERS = 64.0f;
@@ -59,10 +63,11 @@ float3x3 ComputeTBN(float3 worldPosition, float3 worldNormal, float2 uv)
     return float3x3(tangent * invmax, bitangent * invmax, worldNormal);
 }
 
-// Ray marches through height map to calculate displaced texture coordinates
+// Ray marches through height field to find surface intersection
+// Adaptive layer count: steep viewing angles need more samples
 float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 gradientX, float2 gradientY)
 {
-    // Adaptive layer count based on viewing angle
+    // Adaptive sampling based on viewing angle (perpendicular = fewer samples)
     float numLayers = lerp(MAX_LAYERS, MIN_LAYERS, abs(dot(float3(0.0f, 0.0f, 1.0f), viewDirTangent)));
     
     float layerDepth = 1.0f / numLayers;
@@ -74,7 +79,7 @@ float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 
     float2 currentTexCoords = texCoords;
     float currentDepthMapValue = normalHeightTexture.SampleGrad(samplerState, currentTexCoords, gradientX, gradientY).a;
     
-    // Ray march until intersection found
+    // Ray march through height field until intersection found
     [unroll(64)]
     for (int i = 0; i < 64; i++)
     {
@@ -86,7 +91,7 @@ float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 
         currentLayerDepth += layerDepth;
     }
     
-    // Interpolate between last two samples for smooth result
+    // Linear interpolation between last two samples for smooth result
     float2 prevTexCoords = currentTexCoords + deltaTexCoords;
   
     float afterDepth = currentDepthMapValue - currentLayerDepth;
@@ -104,7 +109,7 @@ PS_OUTPUT main(PS_INPUT input)
     
     float3 normalizedNormal = normalize(input.worldNormal);
     
-    // Cache texture gradients before parallax calculation
+    // Cache gradients before POM (required for proper mipmap sampling)
     float2 gradientX = ddx(input.uv);
     float2 gradientY = ddy(input.uv);
     
@@ -113,8 +118,10 @@ PS_OUTPUT main(PS_INPUT input)
     float3 viewDirWorld = normalize(cameraPosition - input.worldPosition);
     float3 viewDirTangent = normalize(mul(transpose(TBN), viewDirWorld));
   
+    // Calculate displaced UV coordinates using POM
     float2 parallaxUV = ParallaxOcclusionMapping(input.uv, viewDirTangent, gradientX, gradientY);
  
+    // Sample textures at displaced coordinates
     float3 texColor = diffuseTexture.SampleGrad(samplerState, parallaxUV, gradientX, gradientY).rgb;
     float3 diffuseColor = texColor * materialDiffuse;
     
