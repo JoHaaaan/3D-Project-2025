@@ -161,7 +161,7 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, const CameraD3D11
 
     particleCameraBuffer.UpdateBuffer(context, &cd);
 
-    // SRV to Vertex Shader
+    // Bind particle buffer as SRV (read-only) for vertex shader
     ID3D11ShaderResourceView* srv = particleBuffer.GetSRV();
     if (!srv)
         return;

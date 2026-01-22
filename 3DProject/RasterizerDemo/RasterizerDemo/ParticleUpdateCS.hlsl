@@ -12,11 +12,11 @@ cbuffer TimeBuffer : register(b0)
     uint emitterEnabled;
     uint particleCount;
 
-    float3 velocityMin; // NEW
-    float pad2; // align
+    float3 velocityMin;
+    float pad2;
 
-    float3 velocityMax; // NEW
-    float pad3; // align
+    float3 velocityMax;
+    float pad3;
 };
 
 struct Particle
@@ -43,19 +43,18 @@ float3 Random3D(uint index, float time)
     return float3(Hash(seed + 1.0f), Hash(seed + 2.0f), Hash(seed + 3.0f));
 }
 
-// NEW: gemensam respawn-funktion
-void RespawnParticle(inout Particle p, uint index, float seed)
+// Respawn particle with random velocity in a defined range
+void RespawnParticle(inout Particle particle, uint index, float seed)
 {
     particle.position = emitterPosition;
     particle.lifetime = 0.0f;
 
     float3 randomValues = Random3D(index, seed);
 
-    // random velocity i [min..max]
-    p.velocity = lerp(velocityMin, velocityMax, r);
+    // Randomized initial velocity (fountain-like spread)
+    particle.velocity = lerp(velocityMin, velocityMax, randomValues.x);
 
-    // reset alpha
-    p.color.a = 1.0f;
+    particle.color.a = 1.0f;
 }
 
 // Compute shader dispatch: 32 threads per group, processes all particles in parallel
@@ -67,33 +66,34 @@ void main(uint3 DTid : SV_DispatchThreadID)
         return;
 
     Particle particle = Particles[index];
-
-    if (p.lifetime < 0.0f)
+    
+    // Handle inactive/dead particles
+    if (particle.lifetime < 0.0f)
     {
         if (emitterEnabled != 0)
-            RespawnParticle(p, index, deltaTime);
+            RespawnParticle(particle, index, deltaTime);
 
         Particles[index] = particle;
         return;
     }
 
-    // simulate
-    p.position += p.velocity * deltaTime;
-    p.velocity.y += -2.82f * deltaTime;
-    p.lifetime += deltaTime;
+    // Physics simulation: Euler integration with gravity
+    particle.position += particle.velocity * deltaTime;
+    particle.velocity.y += -9.82f * deltaTime; // Gravity acceleration
+    particle.lifetime += deltaTime;
 
-    float t = saturate(p.lifetime / max(p.maxLifetime, 0.0001f));
-    p.color.a = 1.0f - t;
+    float normalizedLifetime = saturate(particle.lifetime / max(particle.maxLifetime, 0.0001f));
+    particle.color.a = 1.0f - normalizedLifetime;
 
-    if (p.lifetime >= p.maxLifetime)
+    if (particle.lifetime >= particle.maxLifetime)
     {
         if (emitterEnabled != 0)
-            RespawnParticle(p, index, p.maxLifetime + deltaTime);
+            RespawnParticle(particle, index, particle.maxLifetime + deltaTime);
         else
         {
-            p.lifetime = -1.0f;
-            p.velocity = float3(0, 0, 0);
-            p.color.a = 0.0f;
+            particle.lifetime = -1.0f;
+            particle.velocity = float3(0, 0, 0);
+            particle.color.a = 0.0f;
         }
     }
 

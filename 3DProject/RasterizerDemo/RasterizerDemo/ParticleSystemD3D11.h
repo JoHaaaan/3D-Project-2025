@@ -89,8 +89,6 @@ public:
     void Update(ID3D11DeviceContext* context, float deltaTime);
     void Render(ID3D11DeviceContext* context, const CameraD3D11& camera);
 
-    void SetVelocityRange(const XMFLOAT3& minVelocity, const XMFLOAT3& maxVelocity);
-
 	// Toggles if new particles are emitted/spawned
     void SetEmitterEnabled(bool enabled);
     bool GetEmitterEnabled() const;
