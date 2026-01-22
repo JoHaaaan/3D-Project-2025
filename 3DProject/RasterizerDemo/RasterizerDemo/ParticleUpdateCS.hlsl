@@ -4,9 +4,15 @@ cbuffer TimeBuffer : register(b0)
 {
     float deltaTime;
     float3 emitterPosition;
+
     uint emitterEnabled;
     uint particleCount;
-    float2 pad;
+
+    float3 velocityMin; // NEW
+    float pad2; // align
+
+    float3 velocityMax; // NEW
+    float pad3; // align
 };
 
 struct Particle
@@ -33,7 +39,7 @@ float3 Rand3(uint index, float t)
     return float3(Hash(s + 1.0f), Hash(s + 2.0f), Hash(s + 3.0f));
 }
 
-// FIX 1: Samla all respawn-logik pa ett stalle
+// NEW: gemensam respawn-funktion
 void RespawnParticle(inout Particle p, uint index, float seed)
 {
     p.position = emitterPosition;
@@ -41,12 +47,10 @@ void RespawnParticle(inout Particle p, uint index, float seed)
 
     float3 r = Rand3(index, seed);
 
-    // Samma "shape" pa spridningen som du haft innan
-    p.velocity.x = (r.x - 0.5f) * 4.0f;
-    p.velocity.z = (r.z - 0.5f) * 4.0f;
-    p.velocity.y = 2.0f + r.y * 2.0f;
+    // random velocity i [min..max]
+    p.velocity = lerp(velocityMin, velocityMax, r);
 
-    // Starta alltid med full alpha
+    // reset alpha
     p.color.a = 1.0f;
 }
 
@@ -59,39 +63,29 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
     Particle p = Particles[index];
 
-    // Inaktiv partikel (pool)
     if (p.lifetime < 0.0f)
     {
         if (emitterEnabled != 0)
-        {
-            // FIX 1: anropa helper istallet for duplicerad kod
             RespawnParticle(p, index, deltaTime);
-        }
 
         Particles[index] = p;
         return;
     }
 
-    // Simulera aktiv
+    // simulate
     p.position += p.velocity * deltaTime;
-    p.velocity.y += -9.82f * deltaTime;
+    p.velocity.y += -2.82f * deltaTime;
     p.lifetime += deltaTime;
 
-    // Fade (0..1) baserat pa livslangd
     float t = saturate(p.lifetime / max(p.maxLifetime, 0.0001f));
     p.color.a = 1.0f - t;
 
-    // D�d?
     if (p.lifetime >= p.maxLifetime)
     {
         if (emitterEnabled != 0)
-        {
-            // FIX 1: samma helper hor ocksa
             RespawnParticle(p, index, p.maxLifetime + deltaTime);
-        }
         else
         {
-            // Emitter av: markera som inaktiv
             p.lifetime = -1.0f;
             p.velocity = float3(0, 0, 0);
             p.color.a = 0.0f;
@@ -100,4 +94,3 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
     Particles[index] = p;
 }
-

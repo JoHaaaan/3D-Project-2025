@@ -38,10 +38,11 @@ private:
         XMFLOAT3 emitterPosition;
         UINT emitterEnabled;
         UINT particleCount;
-        float pad0;
-        float pad1;
-    };
-	// 32 bytes, padding for 16-byte alignment
+        XMFLOAT3 velocityMin; 
+        float pad2;
+        XMFLOAT3 velocityMax; 
+        float pad3;
+	}; // 48 bytes, padding for 16-byte alignments
 
     // GPU constant buffers
     ConstantBufferD3D11 particleCameraBuffer;
@@ -61,6 +62,10 @@ private:
     XMFLOAT3 emitterPosition = XMFLOAT3(0.0f, 0.0f, 0.0f);
     XMFLOAT4 particleColor = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
     bool emitterEnabled = true;
+
+    // Velocity range used both for CPU init and GPU respawn
+    XMFLOAT3 velocityMin = XMFLOAT3(-2.0f, -0.1f, -2.0f);
+    XMFLOAT3 velocityMax = XMFLOAT3(2.0f, 0.6f, 2.0f);
 
     // Initialize particle buffer with random starting values
     void InitializeParticles(Particle* particles, unsigned int count);
@@ -83,6 +88,8 @@ public:
 	// Update and render
     void Update(ID3D11DeviceContext* context, float deltaTime);
     void Render(ID3D11DeviceContext* context, const CameraD3D11& camera);
+
+    void SetVelocityRange(const XMFLOAT3& minVelocity, const XMFLOAT3& maxVelocity);
 
 	// Toggles if new particles are emitted/spawned
     void SetEmitterEnabled(bool enabled);
