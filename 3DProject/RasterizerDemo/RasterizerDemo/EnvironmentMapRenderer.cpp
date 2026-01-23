@@ -4,9 +4,7 @@
 
 using namespace DirectX;
 
-// ========================================
 // ENVIRONMENT MAP RENDERER
-// ========================================
 // Dynamic cube map generation for real-time reflections
 // Renders scene from 6 perspectives to create environment map
 

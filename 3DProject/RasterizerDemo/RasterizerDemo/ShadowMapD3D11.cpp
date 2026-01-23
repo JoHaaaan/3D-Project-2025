@@ -1,9 +1,7 @@
 #include "ShadowMapD3D11.h"
 
 
-// ========================================
 // SHADOW MAP - Multi-Light Shadow Mapping
-// ========================================
 // Texture2D array storing depth from light perspective (one slice per light)
 // Typeless format enables DSV writes and SRV reads for shadow comparison
 

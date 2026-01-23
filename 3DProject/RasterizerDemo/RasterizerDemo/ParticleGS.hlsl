@@ -1,7 +1,4 @@
-// ========================================
 // PARTICLE GEOMETRY SHADER
-// ========================================
-// Part 2 of 3: Particle Rendering Pipeline (VS -> GS -> PS)
 // Expands each point primitive into a camera-facing billboard quad
 // Demonstrates geometry shader amplification (1 point -> 6 vertices = 2 triangles)
 

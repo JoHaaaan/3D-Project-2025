@@ -1,6 +1,4 @@
-// ========================================
 // REFLECTION PIXEL SHADER
-// ========================================
 // Demonstrates environment mapping using cube maps
 // Key technique: Dynamic reflection sampling based on view-dependent reflection vector
 

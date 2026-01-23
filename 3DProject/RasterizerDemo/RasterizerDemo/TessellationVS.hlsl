@@ -1,7 +1,4 @@
-// ========================================
 // TESSELLATION VERTEX SHADER
-// ========================================
-// Part 1 of 4: Tessellation Pipeline (VS -> HS -> Tessellator -> DS -> PS)
 // Prepares mesh data in world space for tessellation stages
 
 cbuffer MatrixBuffer : register(b0)

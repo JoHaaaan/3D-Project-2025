@@ -1,6 +1,6 @@
 #pragma once
 
-#include <optional> // Needs C++ 17 or higher
+#include <optional>
 #include <array>
 
 #include <d3d11_4.h>

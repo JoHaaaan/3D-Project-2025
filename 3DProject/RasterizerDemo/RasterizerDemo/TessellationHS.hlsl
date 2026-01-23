@@ -1,7 +1,4 @@
-// ========================================
 // TESSELLATION HULL SHADER
-// ========================================
-// Part 2 of 4: Tessellation Pipeline (VS -> HS -> Tessellator -> DS -> PS)
 // Calculates adaptive tessellation factors based on camera distance (LOD system)
 
 cbuffer CameraBuffer : register(b3)

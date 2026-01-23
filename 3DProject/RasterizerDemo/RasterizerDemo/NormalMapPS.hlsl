@@ -1,6 +1,4 @@
-// ========================================
 // NORMAL MAP PIXEL SHADER
-// ========================================
 // Demonstrates normal mapping with derivative-based TBN matrix construction
 // Key technique: Screen-space derivatives for tangent-space basis without vertex attributes
 

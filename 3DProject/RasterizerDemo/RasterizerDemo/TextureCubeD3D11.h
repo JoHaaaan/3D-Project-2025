@@ -6,7 +6,7 @@ class TextureCubeD3D11
 private:
     ID3D11Texture2D* m_textureCube = nullptr;
     ID3D11ShaderResourceView* m_srv = nullptr;
-    ID3D11RenderTargetView* m_rtvs[6] = { nullptr }; // One RTV per cube face
+    ID3D11RenderTargetView* m_rtvs[6] = { nullptr };
     ID3D11DepthStencilView* m_dsv = nullptr;
     ID3D11Texture2D* m_depthTexture = nullptr;
 

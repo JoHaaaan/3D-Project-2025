@@ -1,9 +1,7 @@
 #include "DepthBufferD3D11.h"
 
 
-// ========================================
 // DEPTH BUFFER
-// ========================================
 // Supports standard depth testing, shadow mapping (SRV), and texture arrays
 // Format: 24-bit depth + 8-bit stencil (D24_UNORM_S8_UINT)
 // Typeless format (R24G8_TYPELESS) enables both DSV and SRV creation for shadow mapping

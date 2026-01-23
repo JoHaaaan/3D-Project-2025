@@ -3,9 +3,7 @@
 #include <cmath>
 #include <random>
 
-// ========================================
 // PARTICLE SYSTEM - GPU-Based Simulation
-// ========================================
 // Demonstrates compute shader particle updates with geometry shader billboarding
 // Key techniques: Structured buffers (SRV+UAV), compute shaders, geometry shader expansion
 

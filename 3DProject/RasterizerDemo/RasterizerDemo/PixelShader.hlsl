@@ -1,7 +1,4 @@
-// ========================================
 // G-BUFFER PIXEL SHADER
-// ========================================
-// Part 1 of 2: Deferred Rendering Pipeline (Geometry Pass -> Lighting Pass)
 // Outputs material and geometric data to multiple render targets (G-Buffer)
 // No lighting calculations here - data only!
 

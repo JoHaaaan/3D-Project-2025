@@ -4,9 +4,7 @@
 
 using namespace DirectX;
 
-// ========================================
 // LIGHT MANAGER - Multi-Light System
-// ========================================
 // Manages directional and spot lights with shadow mapping support
 // Key techniques: Structured buffer for light data, light-space transformations
 

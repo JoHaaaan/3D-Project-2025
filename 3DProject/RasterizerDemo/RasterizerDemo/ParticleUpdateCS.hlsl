@@ -1,6 +1,4 @@
-// =====================================================================
 // PARTICLE UPDATE COMPUTE SHADER
-// =====================================================================
 // GPU-based particle simulation using compute shaders
 // Demonstrates: UAV write access, parallel processing, particle lifecycle management
 

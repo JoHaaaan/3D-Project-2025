@@ -1,7 +1,4 @@
-// ========================================
 // TESSELLATION DOMAIN SHADER
-// ========================================
-// Part 3 of 4: Tessellation Pipeline (VS -> HS -> Tessellator -> DS -> PS)
 // Evaluates tessellated vertices using Phong tessellation for smooth surfaces
 
 cbuffer MatrixBuffer : register(b0)

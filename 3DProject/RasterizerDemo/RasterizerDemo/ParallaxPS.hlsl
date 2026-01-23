@@ -1,6 +1,4 @@
-// ========================================
 // PARALLAX OCCLUSION MAPPING PIXEL SHADER
-// ========================================
 // Advanced technique: Ray marches through height map for realistic surface depth
 // Demonstrates: POM algorithm, adaptive sampling, tangent-space transformations
 
