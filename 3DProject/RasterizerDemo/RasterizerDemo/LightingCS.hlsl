@@ -1,7 +1,4 @@
-// ========================================
 // DEFERRED LIGHTING COMPUTE SHADER
-// ========================================
-// Part 2 of 2: Deferred Rendering Pipeline (Geometry Pass -> Lighting Pass)
 // Reads G-Buffer and computes lighting for all lights in a single pass
 // Key techniques: Compute shader parallelism, multi-light support, shadow mapping
 
