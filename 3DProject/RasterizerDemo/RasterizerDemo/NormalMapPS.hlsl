@@ -44,9 +44,12 @@ float3x3 ComputeTBN(float3 worldPosition, float3 worldNormal, float2 uv)
     // Solve for tangent and bitangent using the inverse UV transformation
     float3 dp2perp = cross(dp2, worldNormal);
     float3 dp1perp = cross(worldNormal, dp1);
-    
+
     float3 tangent = dp2perp * duv1.x + dp1perp * duv2.x;
     float3 bitangent = dp2perp * duv1.y + dp1perp * duv2.y;
+    
+    // Flip bitangent to correct for DirectX coordinate system
+    bitangent = -bitangent;
     
     // Normalize to create orthonormal basis
     float invmax = rsqrt(max(dot(tangent, tangent), dot(bitangent, bitangent)));
@@ -66,12 +69,15 @@ PS_OUTPUT main(PS_INPUT input)
     float3 tangentNormal = normalMapSample * 2.0f - 1.0f;
     
     float3 normalizedNormal = normalize(input.worldNormal);
-    
+ 
     // Build TBN matrix on-the-fly using derivatives
     float3x3 TBN = ComputeTBN(input.worldPosition, normalizedNormal, input.uv);
     
     // Transform perturbed normal from tangent space to world space
     float3 worldNormal = normalize(mul(tangentNormal, TBN));
+    
+    // INVERT THE NORMAL - the TBN is producing inverted results
+    worldNormal = worldNormal;
 
     // Pack material properties for G-Buffer
     float ambientStrength = saturate(dot(materialAmbient, float3(0.333f, 0.333f, 0.333f)));
