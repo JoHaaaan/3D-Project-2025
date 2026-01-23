@@ -361,7 +361,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	
 	
 	gameObjects.emplace_back(simpleCubeMesh);
-	gameObjects[0].SetWorldMatrix(XMMatrixScaling(15.0f, 10.0f, 2.5f) * XMMatrixTranslation(0.0f, 6.0f, 10.0f));
+	gameObjects[0].SetWorldMatrix(XMMatrixScaling(15.0f, 9.0f, 2.5f) * XMMatrixTranslation(0.0f, 9.0f, 10.0f));
 	gameObjects.emplace_back(sphereMesh);
 	gameObjects[1].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(4.0f, 2.0f, 0.0f));
 	gameObjects.emplace_back(simpleCubeMesh);

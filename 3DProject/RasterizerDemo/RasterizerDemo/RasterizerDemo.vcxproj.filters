@@ -210,19 +210,7 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="Test.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="VertexShader.cso" />
-    <None Include="pineapple2_fixed.mtl" />
     <None Include="OBJParser" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="image.png">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="..\..\..\..\..\..\Desktop\Poliigon_GrassPatchyGround_4585\Poliigon_GrassPatchyGround_4585_Preview1.png">
-      <Filter>Resource Files</Filter>
-    </Image>
   </ItemGroup>
 </Project>

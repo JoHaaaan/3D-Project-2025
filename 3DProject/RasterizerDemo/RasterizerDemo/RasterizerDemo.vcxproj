@@ -323,16 +323,8 @@
     <ClInclude Include="WindowHelper.h" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="Test.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="OBJParser" />
-    <None Include="pineapple2_fixed.mtl" />
     <None Include="VertexShader.cso" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="..\..\..\..\..\..\Desktop\Poliigon_GrassPatchyGround_4585\Poliigon_GrassPatchyGround_4585_Preview1.png" />
-    <Image Include="image.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
