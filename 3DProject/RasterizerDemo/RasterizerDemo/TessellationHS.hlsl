@@ -8,10 +8,10 @@ cbuffer CameraBuffer : register(b3)
 };
 
 // Adaptive tessellation LOD settings
-static const float MIN_TESS_DISTANCE = 1.0f;   // Close to camera: max detail
-static const float MAX_TESS_DISTANCE = 10.0f;  // Far from camera: min detail
-static const float MAX_TESS_FACTOR = 4.0f;     // Maximum subdivisions
-static const float MIN_TESS_FACTOR = 1.0f;     // Minimum subdivisions (no tessellation)
+static const float MIN_TESS_DISTANCE = 1.0f;
+static const float MAX_TESS_DISTANCE = 10.0f;
+static const float MAX_TESS_FACTOR = 4.0f;
+static const float MIN_TESS_FACTOR = 1.0f;
 
 struct HS_INPUT
 {
@@ -29,8 +29,8 @@ struct HS_OUTPUT
 
 struct HS_CONSTANT_OUTPUT
 {
-    float edges[3] : SV_TessFactor;      // Tessellation factor for each triangle edge
-    float inside : SV_InsideTessFactor;  // Tessellation factor for interior
+    float edges[3] : SV_TessFactor;
+    float inside : SV_InsideTessFactor;
 };
 
 #define NUM_CONTROL_POINTS 3
@@ -72,9 +72,9 @@ HS_CONSTANT_OUTPUT PatchConstantFunc(InputPatch<HS_INPUT, NUM_CONTROL_POINTS> pa
 }
 
 // Hull shader configuration and control point passthrough
-[domain("tri")]                          // Triangle domain
-[partitioning("fractional_odd")]         // Smooth LOD transitions
-[outputtopology("triangle_cw")]          // Clockwise winding
+[domain("tri")]
+[partitioning("fractional_odd")]
+[outputtopology("triangle_cw")]
 [outputcontrolpoints(NUM_CONTROL_POINTS)]
 [patchconstantfunc("PatchConstantFunc")]
 HS_OUTPUT main(InputPatch<HS_INPUT, NUM_CONTROL_POINTS> patch, uint i : SV_OutputControlPointID)
