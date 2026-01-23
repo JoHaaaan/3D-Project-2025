@@ -52,7 +52,6 @@ DS_OUTPUT main(HS_CONSTANT_OUTPUT input, float3 barycentricCoords : SV_DomainLoc
         patch[2].worldPosition * barycentricCoords.z;
     
     // Phong Tessellation: smooth the surface by projecting onto control point tangent planes
-    // This creates a curved approximation instead of flat triangles
     
     float3 projection0 = ProjectToPlane(linearPosition, patch[0].worldPosition, patch[0].worldNormal);
     float3 projection1 = ProjectToPlane(linearPosition, patch[1].worldPosition, patch[1].worldNormal);
@@ -63,7 +62,7 @@ DS_OUTPUT main(HS_CONSTANT_OUTPUT input, float3 barycentricCoords : SV_DomainLoc
         projection1 * barycentricCoords.y + 
         projection2 * barycentricCoords.z;
     
-    // Blend between flat and smooth (PHONG_ALPHA controls smoothing strength)
+    // Blend between flat and smooth
     output.worldPosition = lerp(linearPosition, phongPosition, PHONG_ALPHA);
     
     // Interpolate normal for lighting
@@ -76,7 +75,7 @@ DS_OUTPUT main(HS_CONSTANT_OUTPUT input, float3 barycentricCoords : SV_DomainLoc
         patch[1].uv * barycentricCoords.y + 
         patch[2].uv * barycentricCoords.z;
 
-    // Final projection to clip space (this is why VS doesn't do it)
+    // Final projection to clip space
     output.clipPosition = mul(float4(output.worldPosition, 1.0f), viewProjMatrix);
 
     return output;

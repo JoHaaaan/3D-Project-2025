@@ -1,5 +1,5 @@
 // TESSELLATION HULL SHADER
-// Calculates adaptive tessellation factors based on camera distance (LOD system)
+// Calculates adaptive tessellation based on camera distance (LOD system)
 
 cbuffer CameraBuffer : register(b3)
 {
@@ -35,7 +35,7 @@ struct HS_CONSTANT_OUTPUT
 
 #define NUM_CONTROL_POINTS 3
 
-// Dynamic LOD: more detail close to camera, less detail far away
+// Dynamic LOD
 float CalculateTessellationFactor(float3 worldPosition)
 {
     float distance = length(cameraPosition - worldPosition);

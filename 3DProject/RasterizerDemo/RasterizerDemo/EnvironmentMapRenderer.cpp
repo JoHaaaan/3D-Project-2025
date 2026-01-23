@@ -28,7 +28,7 @@ bool EnvironmentMapRenderer::Initialize(ID3D11Device* device, UINT resolution)
 
 void EnvironmentMapRenderer::InitializeCameras(ID3D11Device* device)
 {
-    // Set up 6 cameras for cube map faces: +X, -X, +Y, -Y, +Z, -Z
+    // Set up 6 cameras for cube map
     for (int i = 0; i < 6; ++i)
     {
         m_cameras[i].Initialize(device, m_projInfo, XMFLOAT3(0.0f, 0.0f, 0.0f));
@@ -71,7 +71,7 @@ void EnvironmentMapRenderer::RenderEnvironmentMap(
         m_cameras[i].SetPosition(objectPosition);
     }
 
-    // Render scene 6 times (once per cube face)
+    // Render scene 6 times
     for (int faceIndex = 0; faceIndex < 6; ++faceIndex)
     {
         // Bind current cube face as render target

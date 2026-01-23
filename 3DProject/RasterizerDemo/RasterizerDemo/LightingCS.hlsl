@@ -147,11 +147,11 @@ void main(uint3 DTid : SV_DispatchThreadID)
         float3 lightDirection;
         float attenuation = 1.0f;
     
-        if (light.type == 0) // Directional Light
+        if (light.type == 0)
         {
             lightDirection = normalize(-light.direction);
         }
-        else if (light.type == 1) // Spotlight
+        else if (light.type == 1)
         {
             float3 toLight = light.position - worldPosition;
             float distance = length(toLight);

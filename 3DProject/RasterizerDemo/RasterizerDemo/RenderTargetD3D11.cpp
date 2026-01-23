@@ -26,7 +26,7 @@ void RenderTargetD3D11::Initialize(ID3D11Device* device,
     DXGI_FORMAT format,
     bool hasSRV)
 {
-    // Släpp gamla resurser om Initialize kallas igen
+	// Release old resources if Initialize is called again
     if (rtv)
     {
         rtv->Release();
@@ -48,7 +48,7 @@ void RenderTargetD3D11::Initialize(ID3D11Device* device,
     if (!device)
         return;
 
-    // 1) Beskriv själva texturen vi ska rita till
+	// 1) Describe the texture we will render to
     D3D11_TEXTURE2D_DESC texDesc = {};
     texDesc.Width = width;
     texDesc.Height = height;
@@ -65,12 +65,12 @@ void RenderTargetD3D11::Initialize(ID3D11Device* device,
     if (hasSRV)
         texDesc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
 
-    // 2) Skapa texturen på GPU:n
+	// 2) Create the texture on the GPU
     HRESULT hr = device->CreateTexture2D(&texDesc, nullptr, &texture);
     if (FAILED(hr))
         return;
 
-    // 3) Skapa RTV så vi kan rita till texturen
+	// 3) Create RTV so we can render to the texture
     hr = device->CreateRenderTargetView(texture, nullptr, &rtv);
     if (FAILED(hr))
     {
@@ -79,7 +79,7 @@ void RenderTargetD3D11::Initialize(ID3D11Device* device,
         return;
     }
 
-    // 4) Skapa SRV om vi vill läsa från texturen i en shader
+	// 4) Create SRV if we want to read from the texture in a shader
     if (hasSRV)
     {
         D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
