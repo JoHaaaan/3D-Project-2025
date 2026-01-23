@@ -305,6 +305,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	const MeshD3D11* simpleCubeParallax = GetMesh("SimpleCubeParallax.obj", device);
 	const MeshD3D11* GrassCubeMesh = GetMesh("GrassCube.obj", device);
 	const MeshD3D11* CrateMesh = GetMesh("Crate1.obj", device);
+	const MeshD3D11* WarehouseboxMesh = GetMesh("Warehousebox.obj", device);
 
 	// Material setup
 	Material mat = {
@@ -351,64 +352,46 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	
 	gameObjects.emplace_back(simpleCubeMesh);
 	gameObjects[0].SetWorldMatrix(XMMatrixScaling(15.0f, 10.0f, 2.5f) * XMMatrixTranslation(0.0f, 6.0f, 10.0f));
-
 	gameObjects.emplace_back(sphereMesh);
 	gameObjects[1].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(4.0f, 2.0f, 0.0f));
-
 	gameObjects.emplace_back(simpleCubeMesh);
 	gameObjects[2].SetWorldMatrix(XMMatrixTranslation(2.0f, 2.0f, 0.0f));
-
 	gameObjects.emplace_back(GrassCubeMesh);
-	gameObjects[3].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(2.0f, 1.0f, -3.0f));
+	gameObjects[3].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(4.0f, 1.0f, 4.0f));
 	gameObjects.emplace_back(CrateMesh);
 	gameObjects[4].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(6.0f, 1.0f, -5.0f));
 	gameObjects.emplace_back(CrateMesh);
-	gameObjects[5].SetWorldMatrix(XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(10.0f, 0.5f, -3.0f));
-
+	gameObjects[5].SetWorldMatrix(XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(10.0f, 0.5f, -7.0f));
 	gameObjects.emplace_back(simpleCubeNormal);
 	gameObjects[6].SetWorldMatrix(XMMatrixTranslation(5.0f, 2.0f, 0.0f));
-
 	gameObjects.emplace_back(simpleCubeParallax);
 	gameObjects[7].SetWorldMatrix(XMMatrixTranslation(-1.0f, 2.0f, 0.0f));
-
 	gameObjects.emplace_back(GrassCubeMesh);
-	gameObjects[8].SetWorldMatrix(XMMatrixScaling(15.0f, 1.0f, 10.0f) * XMMatrixTranslation(0.0f, -1.0f, 0.0f));
-
+	gameObjects[8].SetWorldMatrix(XMMatrixScaling(15.0f, 1.0f, 15.0f) * XMMatrixTranslation(0.0f, -1.0f, 0.0f));
 	gameObjects.emplace_back(simpleCubeMesh);
 	gameObjects[9].SetWorldMatrix(XMMatrixTranslation(-5.0f, 2.0f, 0.0f));
-
 	gameObjects.emplace_back(CrateMesh);
 	gameObjects[10].SetWorldMatrix(XMMatrixScaling(2.0f, 2.0f, 2.0f)* XMMatrixTranslation(-8.0f, 2.0f, -5.0f));
-
 	gameObjects.emplace_back(CrateMesh);
-	gameObjects[11].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(10.0f, 2.0f, -5.0f));
-
+	gameObjects[11].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(10.0f, 1.0f, -5.0f));
 	gameObjects.emplace_back(CrateMesh);
-	gameObjects[12].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(12.0f, 2.0f, -5.0f));
-
+	gameObjects[12].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(12.0f, 1.0f, -5.0f));
 	gameObjects.emplace_back(CrateMesh);
-	gameObjects[13].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(14.0f, 2.0f, -5.0f));
-
+	gameObjects[13].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(14.0f, 1.0f, -5.0f));
 	gameObjects.emplace_back(CrateMesh);
-	gameObjects[14].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(16.0f, 2.0f, -5.0f));
-
+	gameObjects[14].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(11.0f, 3.0f, -5.0f));
 	gameObjects.emplace_back(CrateMesh);
-	gameObjects[15].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(18.0f, 2.0f, -5.0f));
-
+	gameObjects[15].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(13.0f, 3.0f, -5.0f));
 	gameObjects.emplace_back(CrateMesh);
-	gameObjects[16].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(20.0f, 2.0f, -5.0f));
-
+	gameObjects[16].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(12.0f, 5.0f, -5.0f));
 	gameObjects.emplace_back(CrateMesh);
-	gameObjects[17].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(22.0f, 2.0f, -5.0f));
-
+	gameObjects[17].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(14.0f, 1.0f, -7.0f));
 	gameObjects.emplace_back(CrateMesh);
-	gameObjects[18].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(24.0f, 2.0f, -5.0f));
-
-	gameObjects.emplace_back(CrateMesh);
-	gameObjects[19].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(26.0f, 2.0f, -5.0f));
-
-	gameObjects.emplace_back(CrateMesh);
-	gameObjects[20].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(28.0f, 2.0f, -5.0f));
+	gameObjects[18].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(14.0f, 1.0f, -10.0f));
+	gameObjects.emplace_back(WarehouseboxMesh);
+	gameObjects[19].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(14.0f, 1.0f, -12.0f));
+	gameObjects.emplace_back(WarehouseboxMesh);
+	gameObjects[20].SetWorldMatrix(XMMatrixScaling(1.0f, 1.0f, 1.0f) * XMMatrixTranslation(14.0f, 1.0f, -14.0f));
 
 
 	// Add small spheres at each spotlight position
