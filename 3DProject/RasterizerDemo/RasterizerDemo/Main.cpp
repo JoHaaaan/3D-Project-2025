@@ -339,7 +339,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	shadowSampler = CreateShadowSampler(device);
 
 	// Particle system
-	ParticleSystemD3D11 particleSystem(device, 200, XMFLOAT3(-3.0f, 1.0f, 3.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
+	ParticleSystemD3D11 particleSystem(device, 200, XMFLOAT3(0.0f, 20.0f, -3.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
 	bool emitterEnabled = true;
 	particleSystem.SetEmitterEnabled(true);
 
@@ -360,20 +360,17 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	gameObjects[3].SetWorldMatrix(XMMatrixTranslation(2.0f, 2.0f, 0.0f));
 
 	gameObjects.emplace_back(sphereMesh);
-	gameObjects[4].SetWorldMatrix(XMMatrixScaling(5.0f, 0.2f, 5.0f) * XMMatrixTranslation(0.0f, -1.0f, 0.0f));
-
+	gameObjects[4].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(2.0f, 3.0f, -3.0f));
 	gameObjects.emplace_back(sphereMesh);
-	gameObjects[5].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(2.0f, 3.0f, -3.0f));
+	gameObjects[5].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(4.0f, 3.0f, -3.0f));
 	gameObjects.emplace_back(sphereMesh);
-	gameObjects[6].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(4.0f, 3.0f, -3.0f));
-	gameObjects.emplace_back(sphereMesh);
-	gameObjects[7].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(6.0f, 3.0f, -3.0f));
+	gameObjects[6].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(6.0f, 3.0f, -3.0f));
 
 	gameObjects.emplace_back(simpleCubeNormal);
-	gameObjects[8].SetWorldMatrix(XMMatrixTranslation(5.0f, 2.0f, 0.0f));
+	gameObjects[7].SetWorldMatrix(XMMatrixTranslation(5.0f, 2.0f, 0.0f));
 
 	gameObjects.emplace_back(simpleCubeParallax);
-	gameObjects[9].SetWorldMatrix(XMMatrixTranslation(-1.0f, 2.0f, 0.0f));
+	gameObjects[8].SetWorldMatrix(XMMatrixTranslation(-1.0f, 2.0f, 0.0f));
 
 	// Add small spheres at each spotlight position
 	const auto& lights = lightManager.GetLights();
@@ -390,8 +387,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	}
 
 	const size_t REFLECTIVE_OBJECT_INDEX = 2;
-	const size_t NORMAL_MAP_OBJECT_INDEX = 8;
-	const size_t PARALLAX_OBJECT_INDEX = 9;
+	const size_t NORMAL_MAP_OBJECT_INDEX = 7;
+	const size_t PARALLAX_OBJECT_INDEX = 8;
 
 	// QuadTree setup
 	DirectX::BoundingBox worldBoundingBox(
