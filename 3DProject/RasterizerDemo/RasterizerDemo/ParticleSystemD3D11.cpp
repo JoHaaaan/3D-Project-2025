@@ -110,6 +110,8 @@ void ParticleSystemD3D11::Update(ID3D11DeviceContext* context, float deltaTime)
     td.velocityMax = velocityMax;
     td.pad2 = 0.0f;
     td.pad3 = 0.0f;
+	td.pad4 = 0.0f;
+	td.pad5 = 0.0f;
 
     
     timeBuffer.UpdateBuffer(context, &td);
