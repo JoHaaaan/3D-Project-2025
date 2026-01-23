@@ -9,12 +9,12 @@ cbuffer TimeBuffer : register(b0)
 
     uint emitterEnabled;
     uint particleCount;
-
-    float3 velocityMin;
     float pad2;
-
-    float3 velocityMax;
     float pad3;
+    float3 velocityMin;
+    float pad4;
+    float3 velocityMax;
+    float pad5;
 };
 
 struct Particle
@@ -45,12 +45,14 @@ float3 Random3D(uint index, float time)
 void RespawnParticle(inout Particle particle, uint index, float seed)
 {
     particle.position = emitterPosition;
-    particle.lifetime = 0.0f;
 
     float3 randomValues = Random3D(index, seed);
 
-    // Randomized initial velocity (fountain-like spread)
-    particle.velocity = lerp(velocityMin, velocityMax, randomValues.x);
+    // Randomized initial velocity (independent per axis)
+    particle.velocity = lerp(velocityMin, velocityMax, randomValues);
+
+    // Random lifetime offset to avoid synchronized respawns
+    particle.lifetime = randomValues.y * particle.maxLifetime;
 
     particle.color.a = 1.0f;
 }
@@ -69,7 +71,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     if (particle.lifetime < 0.0f)
     {
         if (emitterEnabled != 0)
-            RespawnParticle(particle, index, deltaTime);
+            RespawnParticle(particle, index, (float) index + particle.maxLifetime);
 
         Particles[index] = particle;
         return;
@@ -77,7 +79,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
 
     // Physics simulation: Euler integration with gravity
     particle.position += particle.velocity * deltaTime;
-    particle.velocity.y += -9.82f * deltaTime; // Gravity acceleration
+    particle.velocity.y += -2.0f * deltaTime; // Gravity acceleration (-2 for snowlike effect)
     particle.lifetime += deltaTime;
 
     float normalizedLifetime = saturate(particle.lifetime / max(particle.maxLifetime, 0.0001f));
@@ -86,7 +88,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     if (particle.lifetime >= particle.maxLifetime)
     {
         if (emitterEnabled != 0)
-            RespawnParticle(particle, index, particle.maxLifetime + deltaTime);
+            RespawnParticle(particle, index, (float) index + particle.maxLifetime + particle.lifetime);
         else
         {
             particle.lifetime = -1.0f;
