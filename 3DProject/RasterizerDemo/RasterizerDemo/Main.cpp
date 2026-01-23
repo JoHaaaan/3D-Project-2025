@@ -198,7 +198,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	ID3D11RasterizerState* wireframeRasterizerState = nullptr;
 	CreateRasterizerStates(device, solidRasterizerState, wireframeRasterizerState);
 
-	// [NEW] Particle blend state
+	// Particle blend state
 	ID3D11BlendState* particleBlendState = nullptr;
 	{
 		D3D11_BLEND_DESC blendDesc = {};
@@ -256,7 +256,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	ID3D11UnorderedAccessView* lightingUAV = nullptr;
 	CreateComputeOutputResources(device, WIDTH, HEIGHT, lightingTex, lightingUAV);
 
-	// [NEW] RTV for particle pass
+	// RTV for particle pass
 	ID3D11RenderTargetView* lightingRTV = nullptr;
 	if (lightingTex)
 	{
@@ -338,17 +338,17 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	samplerState.Initialize(device, D3D11_TEXTURE_ADDRESS_WRAP);
 	shadowSampler = CreateShadowSampler(device);
 
-	// [NEW] Particle system
-	ParticleSystemD3D11 particleSystem(device, 200, XMFLOAT3(-3.0f, 1.0f, 3.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
-	ParticleSystemD3D11 particleSystem1(device, 200, XMFLOAT3(3.0f, 5.0f, 3.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f));
-
+	// Particle system
+	ParticleSystemD3D11 particleSystem(device, 200, XMFLOAT3(0.0f, 20.0f, -3.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
 	bool emitterEnabled = true;
 	particleSystem.SetEmitterEnabled(true);
 
 	// Game objects
 	std::vector<GameObject> gameObjects;
-	gameObjects.emplace_back(cubeMesh);
-	gameObjects[0].SetWorldMatrix(XMMatrixTranslation(30.0f, 1.0f, 0.0f));
+	
+	
+	gameObjects.emplace_back(simpleCubeMesh);
+	gameObjects[0].SetWorldMatrix(XMMatrixScaling(15.0f, 10.0f, 2.5f) * XMMatrixTranslation(0.0f, 1.0f, 5.0f));
 
 	gameObjects.emplace_back(sphereMesh);
 	gameObjects[1].SetWorldMatrix(XMMatrixTranslation(0.0f, 0.0f, -14.0f));
@@ -360,20 +360,17 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	gameObjects[3].SetWorldMatrix(XMMatrixTranslation(2.0f, 2.0f, 0.0f));
 
 	gameObjects.emplace_back(sphereMesh);
-	gameObjects[4].SetWorldMatrix(XMMatrixScaling(5.0f, 0.2f, 5.0f) * XMMatrixTranslation(0.0f, -1.0f, 0.0f));
-
+	gameObjects[4].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(2.0f, 3.0f, -3.0f));
 	gameObjects.emplace_back(sphereMesh);
-	gameObjects[5].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(2.0f, 3.0f, -3.0f));
+	gameObjects[5].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(4.0f, 3.0f, -3.0f));
 	gameObjects.emplace_back(sphereMesh);
-	gameObjects[6].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(4.0f, 3.0f, -3.0f));
-	gameObjects.emplace_back(sphereMesh);
-	gameObjects[7].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(6.0f, 3.0f, -3.0f));
+	gameObjects[6].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(6.0f, 3.0f, -3.0f));
 
 	gameObjects.emplace_back(simpleCubeNormal);
-	gameObjects[8].SetWorldMatrix(XMMatrixTranslation(5.0f, 2.0f, 0.0f));
+	gameObjects[7].SetWorldMatrix(XMMatrixTranslation(5.0f, 2.0f, 0.0f));
 
 	gameObjects.emplace_back(simpleCubeParallax);
-	gameObjects[9].SetWorldMatrix(XMMatrixTranslation(-1.0f, 2.0f, 0.0f));
+	gameObjects[8].SetWorldMatrix(XMMatrixTranslation(-1.0f, 2.0f, 0.0f));
 
 	// Add small spheres at each spotlight position
 	const auto& lights = lightManager.GetLights();
@@ -390,8 +387,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	}
 
 	const size_t REFLECTIVE_OBJECT_INDEX = 2;
-	const size_t NORMAL_MAP_OBJECT_INDEX = 8;
-	const size_t PARALLAX_OBJECT_INDEX = 9;
+	const size_t NORMAL_MAP_OBJECT_INDEX = 7;
+	const size_t PARALLAX_OBJECT_INDEX = 8;
 
 	// QuadTree setup
 	DirectX::BoundingBox worldBoundingBox(
@@ -469,12 +466,11 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		if (key5Now && !key5Prev) { tessellationEnabled = !tessellationEnabled; }
 		if (key6Now && !key6Prev) { debugCullingEnabled = !debugCullingEnabled; }
 
-		// [NEW] Toggle particle emitter on 9
+		// Toggle particle emitter on 9
 		if (key9Now && !key9Prev)
 		{
 			emitterEnabled = !emitterEnabled;
 			particleSystem.SetEmitterEnabled(emitterEnabled);
-			particleSystem1.SetEmitterEnabled(emitterEnabled);
 		}
 
 		key1Prev = key1Now; key2Prev = key2Now; key3Prev = key3Now; key4Prev = key4Now;
@@ -507,9 +503,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		gameObjects[PARALLAX_OBJECT_INDEX].SetWorldMatrix(
 			XMMatrixRotationY(rotationAngle) * XMMatrixTranslation(-1.0f, 2.0f, 0.0f));
 
-		// [NEW] Update particles
+		// Update particles
 		particleSystem.Update(context, dt);
-		particleSystem1.Update(context, dt);
 
 		// Update QuadTree
 		sceneTree.Clear();
@@ -799,7 +794,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 			context->OMSetBlendState(particleBlendState, nullptr, 0xffffffff);
 
 			particleSystem.Render(context, camera);
-			particleSystem1.Render(context, camera);
 
 			context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
 		}
