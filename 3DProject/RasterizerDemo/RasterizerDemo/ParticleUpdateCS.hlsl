@@ -48,7 +48,7 @@ void RespawnParticle(inout Particle particle, uint index, float seed)
 
     float3 randomValues = Random3D(index, seed);
 
-    // Randomized initial velocity (independent per axis)
+    // Randomized initial velocity
     particle.velocity = lerp(velocityMin, velocityMax, randomValues);
 
     // Random lifetime offset to avoid synchronized respawns

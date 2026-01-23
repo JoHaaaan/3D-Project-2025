@@ -105,7 +105,7 @@ void ParticleSystemD3D11::Update(ID3D11DeviceContext* context, float deltaTime)
     td.emitterEnabled = emitterEnabled ? 1u : 0u;
     td.particleCount = numParticles;
 
-	// Velocity range for respawning, same as in CPU init
+	// Velocity range for respawning
     td.velocityMin = velocityMin;
     td.velocityMax = velocityMax;
     td.pad2 = 0.0f;
