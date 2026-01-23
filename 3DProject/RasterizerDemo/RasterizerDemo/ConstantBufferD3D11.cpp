@@ -53,7 +53,7 @@ void ConstantBufferD3D11::Initialize(ID3D11Device* device, size_t byteSize, void
 
     dataSize = byteSize;
 
-    // 16-byte alignment required by D3D11 constant buffers
+    // Align buffer size to 16-byte boundary as required by D3D11
     UINT alignedSize = (static_cast<UINT>(byteSize) + 15u) & ~15u;
     bufferSize = alignedSize;
 
@@ -65,6 +65,7 @@ void ConstantBufferD3D11::Initialize(ID3D11Device* device, size_t byteSize, void
 
     if (initialData)
     {
+        // Create aligned temporary buffer and zero-initialize padding
         void* temp = ::operator new(alignedSize);
         std::memset(temp, 0, alignedSize);
         std::memcpy(temp, initialData, byteSize);
@@ -121,6 +122,7 @@ void ConstantBufferD3D11::UpdateBuffer(ID3D11DeviceContext* context, const void*
     HRESULT hr = context->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
     if (SUCCEEDED(hr))
     {
+        // Zero-initialize padding before copying data
         std::memset(mapped.pData, 0, bufferSize);
         std::memcpy(mapped.pData, data, dataSize);
         context->Unmap(buffer, 0);
