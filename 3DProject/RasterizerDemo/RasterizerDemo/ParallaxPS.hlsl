@@ -132,7 +132,7 @@ PS_OUTPUT main(PS_INPUT input)
     float3 worldNormal = normalize(mul(tangentNormal, TBN));
     
     // INVERT THE NORMAL - the TBN is producing inverted results
-    worldNormal = -worldNormal;
+    worldNormal = worldNormal;
 
     float ambientStrength = saturate(dot(materialAmbient, float3(0.333f, 0.333f, 0.333f)));
     float specularStrength = saturate(dot(materialSpecular, float3(0.333f, 0.333f, 0.333f)));
