@@ -57,10 +57,10 @@ float CalculateSpotlight(float3 lightDir, float3 spotDirection, float spotAngle)
 }
 
 // PCF shadow mapping with single sample
-float CalculateShadow(float3 worldPosition, float4x4 lightViewProj, uint lightIndex)
+float CalculateShadow(float3 worldPosition, float3 normal, float3 lightDir, float4x4 lightViewProj, uint lightIndex)
 {
     // Transform world position to light's clip space
-    float4 lightSpacePosition = mul(float4(worldPosition, 1.0f), lightViewProj);
+    float4 lightSpacePosition = mul(lightViewProj, float4(worldPosition, 1.0f));
  
     lightSpacePosition.xyz /= lightSpacePosition.w;
     
@@ -77,6 +77,12 @@ float CalculateShadow(float3 worldPosition, float4x4 lightViewProj, uint lightIn
     
     if (depth < 0.0f || depth > 1.0f)
         return 1.0f;
+    
+    // Apply a small depth bias based on surface angle to light
+    float cosTheta = saturate(dot(normal, lightDir));
+    float bias = 0.0005f * tan(acos(cosTheta));
+    bias = clamp(bias, 0.0f, 0.001f);
+    depth -= bias;
     
     // Sample shadow map with comparison (returns 0 if in shadow, 1 if lit)
     float shadow = shadowMaps.SampleCmpLevelZero(shadowSampler, float3(shadowUV, lightIndex), depth);
@@ -164,7 +170,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
             continue;
         
         // Shadow mapping
-        float shadow = CalculateShadow(worldPosition, light.viewProj, i);
+        float shadow = CalculateShadow(worldPosition, normal, lightDirection, light.viewProj, i);
         
         // Blinn-Phong lighting model
         float3 halfVector = normalize(lightDirection + viewDirection);
