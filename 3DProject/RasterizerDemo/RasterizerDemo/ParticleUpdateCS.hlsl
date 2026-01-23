@@ -83,7 +83,7 @@ void main(uint3 DTid : SV_DispatchThreadID)
     particle.lifetime += deltaTime;
 
     float normalizedLifetime = saturate(particle.lifetime / max(particle.maxLifetime, 0.0001f));
-    particle.color.a = 1.0f - normalizedLifetime;
+    particle.color.a = 1.0f - normalizedLifetime * 0.7f;
 
     if (particle.lifetime >= particle.maxLifetime)
     {

@@ -340,7 +340,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	// Camera
 	ProjectionInfo proj{ FOV, ASPECT_RATIO, NEAR_PLANE, FAR_PLANE };
 	CameraD3D11 camera;
-	camera.Initialize(device, proj, XMFLOAT3(0.0f, 5.0f, -10.0f));
+	camera.Initialize(device, proj, XMFLOAT3(0.0f, 5.0f, -15.0f));
 	camera.RotateForward(XMConvertToRadians(-20.0f));
 
 	// Textures
