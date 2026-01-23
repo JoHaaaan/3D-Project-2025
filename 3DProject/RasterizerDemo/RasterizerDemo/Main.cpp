@@ -113,7 +113,6 @@ void CreateComputeOutputResources(ID3D11Device* device, UINT width, UINT height,
     desc.SampleDesc.Count = 1;
     desc.Usage = D3D11_USAGE_DEFAULT;
 
-    // *** LaGG TILL D3D11_BIND_RENDER_TARGET! ***
     desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
 
     device->CreateTexture2D(&desc, nullptr, &texture);
@@ -228,8 +227,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	ID3D11VertexShader* vShader = nullptr;
 	ID3D11PixelShader* pShader = nullptr;
 	std::string vShaderByteCode;
-	VertexBufferD3D11 unusedVertexBuffer;
-	SetupPipeline(device, unusedVertexBuffer, vShader, pShader, vShaderByteCode);
+
+	SetupPipeline(device, vShader, pShader, vShaderByteCode);
 
 	// Tessellation shaders
 	ID3D11VertexShader* tessVS = ShaderLoader::CreateVertexShader(device, "TessellationVS.cso");
@@ -434,7 +433,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		sceneTree.Insert(&obj, obj.GetWorldBoundingBox());
 	}
 
-	// Controls output (add particle toggle)
+	// Controls output
 	OutputDebugStringA("===========================================\n");
 	OutputDebugStringA("CONTROLS:\n");
 	OutputDebugStringA("===========================================\n");

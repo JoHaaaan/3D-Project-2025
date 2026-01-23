@@ -27,32 +27,9 @@ bool LoadShaders(ID3D11Device* device, ID3D11VertexShader*& vShader, ID3D11Pixel
     return true;
 }
 
-bool CreateVertexBuffer(ID3D11Device* device, VertexBufferD3D11& vertexBuffer)
-{
-    SimpleVertex quad[] =
-    {
-        // First triangle
-        { {-0.5f,  0.5f, 0.0f}, {0, 0, -1}, {0.0f, 0.0f} },
-        { { 0.5f, -0.5f, 0.0f}, {0, 0, -1}, {1.0f, 1.0f} },
-        { {-0.5f, -0.5f, 0.0f}, {0, 0, -1}, {0.0f, 1.0f} },
-
-        // Second triangle
-        { {-0.5f,  0.5f, 0.0f}, {0, 0, -1}, {0.0f, 0.0f} },
-        { { 0.5f,  0.5f, 0.0f}, {0, 0, -1}, {1.0f, 0.0f} },
-        { { 0.5f, -0.5f, 0.0f}, {0, 0, -1}, {1.0f, 1.0f} }
-    };
-
-    
-
-    const UINT vertexCount = static_cast<UINT>(sizeof(quad) / sizeof(quad[0]));
-    vertexBuffer.Initialize(device, sizeof(SimpleVertex), vertexCount, quad);
-    return true;
-}
-
-bool SetupPipeline(ID3D11Device* device, VertexBufferD3D11& vertexBuffer, ID3D11VertexShader*& vShader,
+bool SetupPipeline(ID3D11Device* device, ID3D11VertexShader*& vShader,
     ID3D11PixelShader*& pShader, std::string& outVertexShaderByteCode)
 {
     LoadShaders(device, vShader, pShader, outVertexShaderByteCode);
-    CreateVertexBuffer(device, vertexBuffer);
     return true;
 }
