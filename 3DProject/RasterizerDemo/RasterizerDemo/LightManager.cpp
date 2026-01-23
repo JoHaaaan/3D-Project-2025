@@ -50,7 +50,7 @@ void LightManager::SetupDirectionalLight(LightData& light)
 	XMMATRIX view = XMMatrixLookToLH(lightPos, lightDir, XMVectorSet(0, 1, 0, 0));
 	XMMATRIX proj = XMMatrixOrthographicLH(60.0f, 60.0f, 1.0f, 100.0f);
 
-	XMStoreFloat4x4(&light.viewProj, XMMatrixTranspose(view * proj));
+	XMStoreFloat4x4(&light.viewProj, view * proj);
 }
 
 void LightManager::SetupSpotLight(LightData& light, const XMFLOAT3& color,
@@ -79,7 +79,7 @@ void LightManager::SetupSpotLight(LightData& light, const XMFLOAT3& color,
 	XMMATRIX view = XMMatrixLookToLH(lightPos, lightDir, upVec);
 	XMMATRIX proj = XMMatrixPerspectiveFovLH(light.spotAngle, 1.0f, 0.5f, 50.0f);
 
-	XMStoreFloat4x4(&light.viewProj, XMMatrixTranspose(view * proj));
+	XMStoreFloat4x4(&light.viewProj, view * proj);
 }
 
 DirectX::XMMATRIX LightManager::GetLightViewProj(size_t index) const
