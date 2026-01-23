@@ -331,6 +331,7 @@
     <None Include="VertexShader.cso" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="..\..\..\..\..\..\Desktop\Poliigon_GrassPatchyGround_4585\Poliigon_GrassPatchyGround_4585_Preview1.png" />
     <Image Include="image.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

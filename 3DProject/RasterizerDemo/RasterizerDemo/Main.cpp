@@ -303,6 +303,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	const MeshD3D11* sphereMesh = GetMesh("sphere.obj", device);
 	const MeshD3D11* simpleCubeNormal = GetMesh("SimpleCubeNormal.obj", device);
 	const MeshD3D11* simpleCubeParallax = GetMesh("SimpleCubeParallax.obj", device);
+	const MeshD3D11* GrassCubeMesh = GetMesh("GrassCube.obj", device);
 
 	// Material setup
 	Material mat = {
@@ -348,7 +349,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	
 	
 	gameObjects.emplace_back(simpleCubeMesh);
-	gameObjects[0].SetWorldMatrix(XMMatrixScaling(15.0f, 10.0f, 2.5f) * XMMatrixTranslation(0.0f, 1.0f, 5.0f));
+	gameObjects[0].SetWorldMatrix(XMMatrixScaling(15.0f, 10.0f, 2.5f) * XMMatrixTranslation(0.0f, 6.0f, 10.0f));
 
 	gameObjects.emplace_back(sphereMesh);
 	gameObjects[1].SetWorldMatrix(XMMatrixTranslation(0.0f, 0.0f, -14.0f));
@@ -371,6 +372,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 	gameObjects.emplace_back(simpleCubeParallax);
 	gameObjects[8].SetWorldMatrix(XMMatrixTranslation(-1.0f, 2.0f, 0.0f));
+
+	gameObjects.emplace_back(GrassCubeMesh);
+	gameObjects[9].SetWorldMatrix(XMMatrixScaling(10.0f, 1.0f, 10.0f) * XMMatrixTranslation(0.0f, -1.0f, 0.0f));
 
 	// Add small spheres at each spotlight position
 	const auto& lights = lightManager.GetLights();
