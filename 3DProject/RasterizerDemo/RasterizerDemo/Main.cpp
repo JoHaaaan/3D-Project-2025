@@ -62,7 +62,8 @@ struct LightingToggles
 // Helper to create rasterizer states
 void CreateRasterizerStates(ID3D11Device* device,
     ID3D11RasterizerState*& solidState,
-    ID3D11RasterizerState*& wireframeState)
+    ID3D11RasterizerState*& wireframeState,
+    ID3D11RasterizerState*& shadowState)
 {
     D3D11_RASTERIZER_DESC rastDesc = {};
     rastDesc.FillMode = D3D11_FILL_SOLID;
@@ -74,6 +75,13 @@ void CreateRasterizerStates(ID3D11Device* device,
 
     rastDesc.FillMode = D3D11_FILL_WIREFRAME;
     device->CreateRasterizerState(&rastDesc, &wireframeState);
+
+    // Shadow pass rasterizer state with depth bias to prevent shadow acne
+    rastDesc.FillMode = D3D11_FILL_SOLID;
+    rastDesc.DepthBias = 2000;
+    rastDesc.DepthBiasClamp = 0.0f;
+    rastDesc.SlopeScaledDepthBias = 2.0f;
+    device->CreateRasterizerState(&rastDesc, &shadowState);
 }
 
 // Helper to create shadow sampler
@@ -125,6 +133,7 @@ void CleanupD3DResources(
 	ID3D11RenderTargetView*& rtv,
 	ID3D11RasterizerState*& solidRasterizerState,
 	ID3D11RasterizerState*& wireframeRasterizerState,
+	ID3D11RasterizerState*& shadowRasterizerState,
 	ID3D11BlendState*& particleBlendState,
 	ID3D11VertexShader*& vShader,
 	ID3D11PixelShader*& pShader,
@@ -156,6 +165,7 @@ void CleanupD3DResources(
 	if (tessVS) { tessVS->Release(); tessVS = nullptr; }
 	if (shadowSampler) { shadowSampler->Release(); shadowSampler = nullptr; }
 	if (particleBlendState) { particleBlendState->Release(); particleBlendState = nullptr; }
+	if (shadowRasterizerState) { shadowRasterizerState->Release(); shadowRasterizerState = nullptr; }
 	if (solidRasterizerState) { solidRasterizerState->Release(); solidRasterizerState = nullptr; }
 	if (wireframeRasterizerState) { wireframeRasterizerState->Release(); wireframeRasterizerState = nullptr; }
 	if (pShader) { pShader->Release(); pShader = nullptr; }
@@ -196,7 +206,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	// Rasterizer states
 	ID3D11RasterizerState* solidRasterizerState = nullptr;
 	ID3D11RasterizerState* wireframeRasterizerState = nullptr;
-	CreateRasterizerStates(device, solidRasterizerState, wireframeRasterizerState);
+	ID3D11RasterizerState* shadowRasterizerState = nullptr;
+	CreateRasterizerStates(device, solidRasterizerState, wireframeRasterizerState, shadowRasterizerState);
 
 	// Particle blend state
 	ID3D11BlendState* particleBlendState = nullptr;
@@ -273,7 +284,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	{
 		OutputDebugStringA("Failed to initialize Shadow Map!\n");
 		CleanupD3DResources(device, context, swapChain, rtv,
-			solidRasterizerState, wireframeRasterizerState, particleBlendState,
+			solidRasterizerState, wireframeRasterizerState, shadowRasterizerState, particleBlendState,
 			vShader, pShader, tessVS, tessHS, tessDS,
 			reflectionPS, cubeMapPS, normalMapPS, parallaxPS,
 			lightingCS, shadowSampler, whiteTexView, lightingTex, lightingUAV, lightingRTV);
@@ -286,7 +297,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	{
 		OutputDebugStringA("Failed to initialize Environment Map!\n");
 		CleanupD3DResources(device, context, swapChain, rtv,
-			solidRasterizerState, wireframeRasterizerState, particleBlendState,
+			solidRasterizerState, wireframeRasterizerState, shadowRasterizerState, particleBlendState,
 			vShader, pShader, tessVS, tessHS, tessDS,
 			reflectionPS, cubeMapPS, normalMapPS, parallaxPS,
 			lightingCS, shadowSampler, whiteTexView, lightingTex, lightingUAV, lightingRTV);
@@ -548,6 +559,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 			context->DSSetShader(nullptr, nullptr, 0);
 			context->PSSetShader(nullptr, nullptr, 0);
 			context->VSSetConstantBuffers(0, 1, &cb0);
+			context->RSSetState(shadowRasterizerState);
 
 			auto& ls = lightManager.GetLights();
 			for (size_t lightIdx = 0; lightIdx < ls.size(); ++lightIdx)
@@ -563,23 +575,14 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 				XMMATRIX lightVP = lightManager.GetLightViewProj(lightIdx);
 
-				XMMATRIX lightProj = XMMatrixPerspectiveFovLH(XMConvertToRadians(90.0f), 1.0f, 0.1f, 100.0f);
-				DirectX::BoundingFrustum lightFrustum(lightProj);
-				XMMATRIX invLightView = XMMatrixInverse(nullptr, lightVP * XMMatrixInverse(nullptr, lightProj));
-				DirectX::BoundingFrustum worldLightFrustum;
-				lightFrustum.Transform(worldLightFrustum, invLightView);
-
-				std::vector<GameObject*> shadowCasters;
-				sceneTree.Query(worldLightFrustum, shadowCasters);
-
-				for (GameObject* objPtr : shadowCasters)
+				for (auto& obj : gameObjects)
 				{
 					MatrixPair shadowData;
-					XMStoreFloat4x4(&shadowData.world, XMMatrixTranspose(objPtr->GetWorldMatrix()));
+					XMStoreFloat4x4(&shadowData.world, XMMatrixTranspose(obj.GetWorldMatrix()));
 					XMStoreFloat4x4(&shadowData.viewProj, XMMatrixTranspose(lightVP));
 					constantBuffer.UpdateBuffer(context, &shadowData);
 
-					const MeshD3D11* mesh = objPtr->GetMesh();
+					const MeshD3D11* mesh = obj.GetMesh();
 					if (mesh)
 					{
 						mesh->BindMeshBuffers(context);
@@ -833,7 +836,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 
 	// Cleanup
 	CleanupD3DResources(device, context, swapChain, rtv,
-		solidRasterizerState, wireframeRasterizerState, particleBlendState,
+		solidRasterizerState, wireframeRasterizerState, shadowRasterizerState, particleBlendState,
 		vShader, pShader, tessVS, tessHS, tessDS,
 		reflectionPS, cubeMapPS, normalMapPS, parallaxPS,
 		lightingCS, shadowSampler, whiteTexView, lightingTex, lightingUAV, lightingRTV);

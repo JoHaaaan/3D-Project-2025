@@ -75,9 +75,6 @@ PS_OUTPUT main(PS_INPUT input)
     
     // Transform perturbed normal from tangent space to world space
     float3 worldNormal = normalize(mul(tangentNormal, TBN));
-    
-    // INVERT THE NORMAL - the TBN is producing inverted results
-    worldNormal = worldNormal;
 
     // Pack material properties for G-Buffer
     float ambientStrength = saturate(dot(materialAmbient, float3(0.333f, 0.333f, 0.333f)));
