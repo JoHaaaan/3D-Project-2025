@@ -304,6 +304,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	const MeshD3D11* simpleCubeNormal = GetMesh("SimpleCubeNormal.obj", device);
 	const MeshD3D11* simpleCubeParallax = GetMesh("SimpleCubeParallax.obj", device);
 	const MeshD3D11* GrassCubeMesh = GetMesh("GrassCube.obj", device);
+	const MeshD3D11* CrateMesh = GetMesh("Crate1.obj", device);
 
 	// Material setup
 	Material mat = {
@@ -360,9 +361,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	gameObjects.emplace_back(sphereMesh);
 	gameObjects[3].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(2.0f, 3.0f, -3.0f));
 	gameObjects.emplace_back(sphereMesh);
-	gameObjects[4].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(4.0f, 3.0f, -3.0f));
+	gameObjects[4].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(6.0f, 3.0f, -3.0f));
 	gameObjects.emplace_back(sphereMesh);
-	gameObjects[5].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(6.0f, 3.0f, -3.0f));
+	gameObjects[5].SetWorldMatrix(XMMatrixScaling(1.5f, 1.5f, 1.5f) * XMMatrixTranslation(10.0f, 3.0f, -3.0f));
 
 	gameObjects.emplace_back(simpleCubeNormal);
 	gameObjects[6].SetWorldMatrix(XMMatrixTranslation(5.0f, 2.0f, 0.0f));
@@ -371,7 +372,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	gameObjects[7].SetWorldMatrix(XMMatrixTranslation(-1.0f, 2.0f, 0.0f));
 
 	gameObjects.emplace_back(GrassCubeMesh);
-	gameObjects[8].SetWorldMatrix(XMMatrixScaling(10.0f, 1.0f, 10.0f) * XMMatrixTranslation(0.0f, -1.0f, 0.0f));
+	gameObjects[8].SetWorldMatrix(XMMatrixScaling(15.0f, 1.0f, 10.0f) * XMMatrixTranslation(0.0f, -1.0f, 0.0f));
+	gameObjects.emplace_back(simpleCubeMesh);
+	gameObjects[9].SetWorldMatrix(XMMatrixTranslation(-5.0f, 2.0f, 0.0f));
+
+	gameObjects.emplace_back(CrateMesh);
+	gameObjects[10].SetWorldMatrix(XMMatrixScaling(2.0f, 2.0f, 2.0f)* XMMatrixTranslation(-8.0f, 2.0f, -5.0f));
+
 
 	// Add small spheres at each spotlight position
 	const auto& lights = lightManager.GetLights();
