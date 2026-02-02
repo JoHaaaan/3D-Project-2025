@@ -12,7 +12,7 @@ struct LightData
     float range;
     DirectX::XMFLOAT3 color;
     float spotAngle;
-    int type;           // 0 = Directional, 1 = Spotlight
+    int type;
     int enabled;
     float padding[2];
 };
