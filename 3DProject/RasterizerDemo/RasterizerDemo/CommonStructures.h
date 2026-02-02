@@ -9,7 +9,7 @@ struct LightData
     DirectX::XMFLOAT3 position;
     float intensity;
     DirectX::XMFLOAT3 direction;
-  float range;
+    float range;
     DirectX::XMFLOAT3 color;
     float spotAngle;
     int type;           // 0 = Directional, 1 = Spotlight
@@ -21,7 +21,7 @@ struct LightData
 struct MatrixPair
 {
     DirectX::XMFLOAT4X4 world;
-  DirectX::XMFLOAT4X4 viewProj;
+    DirectX::XMFLOAT4X4 viewProj;
 };
 
 // Global view-projection matrix (updated by camera each frame)
