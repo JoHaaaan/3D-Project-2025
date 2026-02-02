@@ -1,5 +1,5 @@
 #include "GameObject.h"
-#include "RenderHelper.h" 
+#include "CommonStructures.h"
 
 using namespace DirectX;
 

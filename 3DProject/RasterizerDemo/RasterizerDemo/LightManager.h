@@ -3,7 +3,7 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 #include <vector>
-#include "RenderHelper.h"
+#include "CommonStructures.h"
 #include "StructuredBufferD3D11.h"
 
 class LightManager

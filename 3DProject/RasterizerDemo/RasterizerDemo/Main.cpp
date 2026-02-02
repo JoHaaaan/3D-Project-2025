@@ -6,7 +6,7 @@
 #include "PipelineHelper.h"
 #include <d3d11.h>
 #include <DirectXMath.h>
-#include "RenderHelper.h"
+#include "CommonStructures.h"
 #include "ConstantBufferD3D11.h"
 #include "CameraD3D11.h"
 #include "SamplerD3D11.h"

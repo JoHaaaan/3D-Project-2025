@@ -1,5 +1,5 @@
 #include "EnvironmentMapRenderer.h"
-#include "RenderHelper.h"
+#include "CommonStructures.h"
 #include <Windows.h>
 
 using namespace DirectX;

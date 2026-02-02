@@ -166,7 +166,6 @@
     <ClCompile Include="OBJParser.cpp" />
     <ClCompile Include="ParticleSystemD3D11.cpp" />
     <ClCompile Include="PipelineHelper.cpp" />
-    <ClCompile Include="RenderHelper.cpp" />
     <ClCompile Include="RenderTargetD3D11.cpp" />
     <ClCompile Include="SamplerD3D11.cpp" />
     <ClCompile Include="ShaderLoader.cpp" />
@@ -293,6 +292,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CameraD3D11.h" />
+    <ClInclude Include="CommonStructures.h" />
     <ClInclude Include="ConstantBufferD3D11.h" />
     <ClInclude Include="D3D11Helper.h" />
     <ClInclude Include="DepthBufferD3D11.h" />
@@ -307,7 +307,6 @@
     <ClInclude Include="ParticleSystemD3D11.h" />
     <ClInclude Include="PipelineHelper.h" />
     <ClInclude Include="QuadTree.h" />
-    <ClInclude Include="RenderHelper.h" />
     <ClInclude Include="RenderTargetD3D11.h" />
     <ClInclude Include="SamplerD3D11.h" />
     <ClInclude Include="ShaderLoader.h" />
