@@ -1,4 +1,5 @@
 // G-BUFFER PIXEL SHADER
+// Geometry Pass
 // Outputs material and geometric data to multiple render targets (G-Buffer)
 // No lighting calculations here - data only!
 

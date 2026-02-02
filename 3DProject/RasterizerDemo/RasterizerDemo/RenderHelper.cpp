@@ -32,23 +32,4 @@ void Render(
     XMStoreFloat4x4(&data.world, worldT);
     XMStoreFloat4x4(&data.viewProj, viewProjT);
     memcpy(mapped.pData, &data, sizeof(MatrixPair));
-
-    immediateContext->Unmap(constantBuffer, 0);
-    immediateContext->VSSetConstantBuffers(0, 1, &constantBuffer);
-
-    UINT stride = sizeof(SimpleVertex);
-    UINT offset = 0;
-    immediateContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
-    immediateContext->IASetInputLayout(inputLayout);
-    immediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-    immediateContext->VSSetShader(vShader, nullptr, 0);
-    immediateContext->PSSetShader(pShader, nullptr, 0);
-    immediateContext->RSSetViewports(1, &viewport);
-    immediateContext->OMSetRenderTargets(1, &rtv, dsView);
-
-    immediateContext->PSSetShaderResources(0, 1, &textureView);
-    immediateContext->PSSetSamplers(0, 1, &samplerState);
-
-    immediateContext->Draw(6, 0);
 }
