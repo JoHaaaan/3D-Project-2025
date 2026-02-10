@@ -36,46 +36,38 @@ Texture2D diffuseTexture : register(t0);
 Texture2D normalHeightTexture : register(t1);
 SamplerState samplerState : register(s0);
 
-// POM tuning parameters
-static const float HEIGHT_SCALE = 0.05f;
+static const float HEIGHT_SCALE = 0.08f;
 static const float MIN_LAYERS = 8.0f;
-static const float MAX_LAYERS = 32.0f;
+static const float MAX_LAYERS = 128.0f;
 
-// Constructs tangent-space basis using screen-space derivatives
 float3x3 ComputeTBN(float3 worldPosition, float3 worldNormal, float2 uv)
 {
     float3 dp1 = ddx(worldPosition);
     float3 dp2 = ddy(worldPosition);
     float2 duv1 = ddx(uv);
     float2 duv2 = ddy(uv);
-    
+  
     float3 dp2perp = cross(dp2, worldNormal);
     float3 dp1perp = cross(worldNormal, dp1);
     
     float3 tangent = dp2perp * duv1.x + dp1perp * duv2.x;
     float3 bitangent = dp2perp * duv1.y + dp1perp * duv2.y;
 
-    // Flip bitangent to align with DirectX texture coordinate system
-    bitangent = bitangent;
+    bitangent = -bitangent;
 
     float invmax = rsqrt(max(dot(tangent, tangent), dot(bitangent, bitangent)));
     
     return float3x3(tangent * invmax, bitangent * invmax, worldNormal);
 }
 
-// Ray marches through height field to find surface intersection
-float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 gradientX, float2 gradientY)
+float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 gradientX, float2 gradientY, out float parallaxHeight)
 {
-    // Adaptive sampling based on viewing angle
     float numLayers = lerp(MAX_LAYERS, MIN_LAYERS, abs(dot(float3(0.0f, 0.0f, 1.0f), viewDirTangent)));
     float layerDepth = 1.0f / numLayers;
     float currentLayerDepth = 0.0f;
     
-
-    
     float2 P = viewDirTangent.xy / max(viewDirTangent.z, 0.05f) * HEIGHT_SCALE;
     
-    // Clamp the maximum offset to prevent extreme warping at grazing angles
     float offsetLength = length(P);
     if (offsetLength > HEIGHT_SCALE)
     {
@@ -87,19 +79,17 @@ float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 
     float2 currentTexCoords = texCoords;
     float currentDepthMapValue = normalHeightTexture.SampleGrad(samplerState, currentTexCoords, gradientX, gradientY).a;
 
-    // Ray march loop
     [unroll(64)]
     for (int i = 0; i < 64; i++)
     {
-        if (currentLayerDepth >= currentDepthMapValue || i >= (int) numLayers)
-            break;
+  if (currentLayerDepth >= currentDepthMapValue || i >= (int) numLayers)
+      break;
 
-        currentTexCoords -= deltaTexCoords;
+   currentTexCoords -= deltaTexCoords;
         currentDepthMapValue = normalHeightTexture.SampleGrad(samplerState, currentTexCoords, gradientX, gradientY).a;
         currentLayerDepth += layerDepth;
     }
     
-    // POM Interpolation
     float2 prevTexCoords = currentTexCoords + deltaTexCoords;
     float afterDepth = currentDepthMapValue - currentLayerDepth;
     float beforeDepth = normalHeightTexture.SampleGrad(samplerState, prevTexCoords, gradientX, gradientY).a - currentLayerDepth + layerDepth;
@@ -107,28 +97,28 @@ float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 
     float weight = afterDepth / (afterDepth - beforeDepth);
     float2 finalTexCoords = prevTexCoords * weight + currentTexCoords * (1.0f - weight);
 
+    parallaxHeight = currentLayerDepth;
+
     return finalTexCoords;
 }
 
 PS_OUTPUT main(PS_INPUT input)
 {
     PS_OUTPUT output;
-    
+  
     float3 normalizedNormal = normalize(input.worldNormal);
 
-    // Calculate gradients before flow control to prevent mip-map artifacts
     float2 gradientX = ddx(input.uv);
     float2 gradientY = ddy(input.uv);
     
-    float3x3 TBN = ComputeTBN(input.worldPosition, normalizedNormal, input.uv);
+float3x3 TBN = ComputeTBN(input.worldPosition, normalizedNormal, input.uv);
     
     float3 viewDirWorld = normalize(cameraPosition - input.worldPosition);
     float3 viewDirTangent = normalize(mul(transpose(TBN), viewDirWorld));
   
-    // Perform POM
-    float2 parallaxUV = ParallaxOcclusionMapping(input.uv, viewDirTangent, gradientX, gradientY);
-    
-    // Using SampleGrad is essential to prevent "sparkling" artifacts on the warped UVs
+    float parallaxHeight = 0.0f;
+    float2 parallaxUV = ParallaxOcclusionMapping(input.uv, viewDirTangent, gradientX, gradientY, parallaxHeight);
+  
     float3 texColor = diffuseTexture.SampleGrad(samplerState, parallaxUV, gradientX, gradientY).rgb;
     float3 diffuseColor = texColor * materialDiffuse;
     
@@ -137,14 +127,16 @@ PS_OUTPUT main(PS_INPUT input)
   
     float3 worldNormal = normalize(mul(tangentNormal, TBN));
 
-    // Simple lighting data packing
-    float ambientStrength = saturate(dot(materialAmbient, float3(0.333f, 0.333f, 0.333f)));
+    float heightValue = normalHeightTexture.SampleGrad(samplerState, parallaxUV, gradientX, gradientY).a;
+    float3 adjustedWorldPosition = input.worldPosition + normalizedNormal * (heightValue - 0.5f) * HEIGHT_SCALE * 2.0f;
+
+  float ambientStrength = saturate(dot(materialAmbient, float3(0.333f, 0.333f, 0.333f)));
     float specularStrength = saturate(dot(materialSpecular, float3(0.333f, 0.333f, 0.333f)));
     float specularPacked = saturate(specularPower / 256.0f);
 
     output.Albedo = float4(diffuseColor, ambientStrength);
-    output.Normal = float4(worldNormal * 0.5f + 0.5f, specularStrength);
-    output.Extra = float4(input.worldPosition, specularPacked);
+  output.Normal = float4(worldNormal * 0.5f + 0.5f, specularStrength);
+    output.Extra = float4(adjustedWorldPosition, specularPacked);
 
     return output;
 }
