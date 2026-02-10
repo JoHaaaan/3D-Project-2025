@@ -59,7 +59,7 @@ void LightManager::SetupSpotLight(LightData& light, const XMFLOAT3& color,
 	light.type = 1;
 	light.enabled = 1;
 	light.color = color;
-	light.intensity = 3.0f;
+	light.intensity = 1.0f;
 	light.position = position;
 	light.direction = direction;
 	light.range = 50.0f;

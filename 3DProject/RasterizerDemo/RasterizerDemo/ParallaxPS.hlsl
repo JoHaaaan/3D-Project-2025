@@ -82,10 +82,10 @@ float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 
     [unroll(64)]
     for (int i = 0; i < 64; i++)
     {
-  if (currentLayerDepth >= currentDepthMapValue || i >= (int) numLayers)
-      break;
+        if (currentLayerDepth >= currentDepthMapValue || i >= (int) numLayers)
+            break;
 
-   currentTexCoords -= deltaTexCoords;
+        currentTexCoords -= deltaTexCoords;
         currentDepthMapValue = normalHeightTexture.SampleGrad(samplerState, currentTexCoords, gradientX, gradientY).a;
         currentLayerDepth += layerDepth;
     }
@@ -111,7 +111,7 @@ PS_OUTPUT main(PS_INPUT input)
     float2 gradientX = ddx(input.uv);
     float2 gradientY = ddy(input.uv);
     
-float3x3 TBN = ComputeTBN(input.worldPosition, normalizedNormal, input.uv);
+    float3x3 TBN = ComputeTBN(input.worldPosition, normalizedNormal, input.uv);
     
     float3 viewDirWorld = normalize(cameraPosition - input.worldPosition);
     float3 viewDirTangent = normalize(mul(transpose(TBN), viewDirWorld));
@@ -130,12 +130,12 @@ float3x3 TBN = ComputeTBN(input.worldPosition, normalizedNormal, input.uv);
     float heightValue = normalHeightTexture.SampleGrad(samplerState, parallaxUV, gradientX, gradientY).a;
     float3 adjustedWorldPosition = input.worldPosition + normalizedNormal * (heightValue - 0.5f) * HEIGHT_SCALE * 2.0f;
 
-  float ambientStrength = saturate(dot(materialAmbient, float3(0.333f, 0.333f, 0.333f)));
+    float ambientStrength = saturate(dot(materialAmbient, float3(0.333f, 0.333f, 0.333f)));
     float specularStrength = saturate(dot(materialSpecular, float3(0.333f, 0.333f, 0.333f)));
     float specularPacked = saturate(specularPower / 256.0f);
 
     output.Albedo = float4(diffuseColor, ambientStrength);
-  output.Normal = float4(worldNormal * 0.5f + 0.5f, specularStrength);
+    output.Normal = float4(worldNormal * 0.5f + 0.5f, specularStrength);
     output.Extra = float4(adjustedWorldPosition, specularPacked);
 
     return output;
