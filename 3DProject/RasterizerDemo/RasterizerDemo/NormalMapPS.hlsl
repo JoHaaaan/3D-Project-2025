@@ -1,6 +1,6 @@
 // NORMAL MAP PIXEL SHADER
-// Demonstrates normal mapping with derivative-based TBN matrix construction
-// Key technique: Screen-space derivatives for tangent-space basis without vertex attributes
+// Uses pre-computed TBN matrix from vertex shader
+// Key technique: TBN basis computed in vertex shader using Gram-Schmidt orthogonalization
 
 cbuffer MaterialBuffer : register(b2)
 {
@@ -17,6 +17,8 @@ struct PS_INPUT
     float4 clipPosition : SV_POSITION;
     float3 worldPosition : WORLD_POSITION;
     float3 worldNormal : NORMAL;
+    float3 worldTangent : TANGENT;
+    float3 worldBitangent : BITANGENT;
     float2 uv : TEXCOORD0;
 };
 
@@ -31,32 +33,6 @@ Texture2D diffuseTexture : register(t0);
 Texture2D normalMapTexture : register(t1);
 SamplerState samplerState : register(s0);
 
-// Constructs tangent-space basis (TBN) using screen-space derivatives
-// This eliminates need for per-vertex tangent/bitangent attributes
-float3x3 ComputeTBN(float3 worldPosition, float3 worldNormal, float2 uv)
-{
-    // Calculate position and UV deltas across the triangle
-    float3 dp1 = ddx(worldPosition);
-    float3 dp2 = ddy(worldPosition);
-    float2 duv1 = ddx(uv);
-    float2 duv2 = ddy(uv);
-    
-    // Solve for tangent and bitangent using the inverse UV transformation
-    float3 dp2perp = cross(dp2, worldNormal);
-    float3 dp1perp = cross(worldNormal, dp1);
-
-    float3 tangent = dp2perp * duv1.x + dp1perp * duv2.x;
-    float3 bitangent = dp2perp * duv1.y + dp1perp * duv2.y;
-    
-    // Flip bitangent to correct for DirectX coordinate system
-    bitangent = -bitangent;
-    
-    // Normalize to create orthonormal basis
-    float invmax = rsqrt(max(dot(tangent, tangent), dot(bitangent, bitangent)));
-    
-    return float3x3(tangent * invmax, bitangent * invmax, worldNormal);
-}
-
 PS_OUTPUT main(PS_INPUT input)
 {
     PS_OUTPUT output;
@@ -68,10 +44,13 @@ PS_OUTPUT main(PS_INPUT input)
     float3 normalMapSample = normalMapTexture.Sample(samplerState, input.uv).rgb;
     float3 tangentNormal = normalMapSample * 2.0f - 1.0f;
     
-    float3 normalizedNormal = normalize(input.worldNormal);
+    // Normalize TBN basis vectors (interpolation may have denormalized them)
+    float3 T = normalize(input.worldTangent);
+    float3 B = normalize(input.worldBitangent);
+    float3 N = normalize(input.worldNormal);
  
-    // Build TBN matrix on-the-fly using derivatives
-    float3x3 TBN = ComputeTBN(input.worldPosition, normalizedNormal, input.uv);
+    // Build TBN matrix from pre-computed vertex shader values
+    float3x3 TBN = float3x3(T, B, N);
     
     // Transform perturbed normal from tangent space to world space
     float3 worldNormal = normalize(mul(tangentNormal, TBN));

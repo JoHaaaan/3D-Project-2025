@@ -141,7 +141,9 @@ void CleanupD3DResources(
 	ID3D11DomainShader*& tessDS,
 	ID3D11PixelShader*& reflectionPS,
 	ID3D11PixelShader*& cubeMapPS,
+	ID3D11VertexShader*& normalMapVS,
 	ID3D11PixelShader*& normalMapPS,
+	ID3D11VertexShader*& parallaxVS,
 	ID3D11PixelShader*& parallaxPS,
 	ID3D11ComputeShader*& lightingCS,
 	ID3D11SamplerState*& shadowSampler,
@@ -156,7 +158,9 @@ void CleanupD3DResources(
 	if (lightingTex) { lightingTex->Release(); lightingTex = nullptr; }
 	if (lightingCS) { lightingCS->Release(); lightingCS = nullptr; }
 	if (parallaxPS) { parallaxPS->Release(); parallaxPS = nullptr; }
+	if (parallaxVS) { parallaxVS->Release(); parallaxVS = nullptr; }
 	if (normalMapPS) { normalMapPS->Release(); normalMapPS = nullptr; }
+	if (normalMapVS) { normalMapVS->Release(); normalMapVS = nullptr; }
 	if (cubeMapPS) { cubeMapPS->Release(); cubeMapPS = nullptr; }
 	if (reflectionPS) { reflectionPS->Release(); reflectionPS = nullptr; }
 	if (tessDS) { tessDS->Release(); tessDS = nullptr; }
@@ -239,10 +243,12 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	ID3D11PixelShader* reflectionPS = ShaderLoader::CreatePixelShader(device, "ReflectionPS.cso");
 	ID3D11PixelShader* cubeMapPS = ShaderLoader::CreatePixelShader(device, "CubeMapPS.cso");
 
-	// Normal map shader
+	// Normal map shaders
+	ID3D11VertexShader* normalMapVS = ShaderLoader::CreateVertexShader(device, "NormalMapVS.cso");
 	ID3D11PixelShader* normalMapPS = ShaderLoader::CreatePixelShader(device, "NormalMapPS.cso");
 
-	// Parallax occlusion mapping shader
+	// Parallax occlusion mapping shaders
+	ID3D11VertexShader* parallaxVS = ShaderLoader::CreateVertexShader(device, "ParallaxVS.cso");
 	ID3D11PixelShader* parallaxPS = ShaderLoader::CreatePixelShader(device, "ParallaxPS.cso");
 
 	// Compute shader
@@ -254,6 +260,33 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	inputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
 	inputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
 	inputLayout.FinalizeInputLayout(device, vShaderByteCode.data(), vShaderByteCode.size());
+	
+	// Tessellation input layout (created from tessellation VS bytecode)
+	InputLayoutD3D11 tessInputLayout;
+	tessInputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
+	tessInputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
+	tessInputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
+	std::vector<char> tessVSBytecode = ShaderLoader::LoadCompiledShader("TessellationVS.cso");
+	tessInputLayout.FinalizeInputLayout(device, tessVSBytecode.data(), tessVSBytecode.size());
+	
+	// Normal map input layout
+	InputLayoutD3D11 normalMapInputLayout;
+	normalMapInputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
+	normalMapInputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
+	normalMapInputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
+	std::vector<char> normalMapVSBytecode = ShaderLoader::LoadCompiledShader("NormalMapVS.cso");
+	normalMapInputLayout.FinalizeInputLayout(device, normalMapVSBytecode.data(), normalMapVSBytecode.size());
+	
+	// Parallax input layout (same format, but created from parallaxVS bytecode)
+	InputLayoutD3D11 parallaxInputLayout;
+	parallaxInputLayout.AddInputElement("POSITION", DXGI_FORMAT_R32G32B32_FLOAT);
+	parallaxInputLayout.AddInputElement("NORMAL", DXGI_FORMAT_R32G32B32_FLOAT);
+	parallaxInputLayout.AddInputElement("TEXCOORD", DXGI_FORMAT_R32G32_FLOAT);
+	
+	// Load parallax VS bytecode to create matching input layout
+	std::vector<char> parallaxVSBytecode = ShaderLoader::LoadCompiledShader("ParallaxVS.cso");
+	parallaxInputLayout.FinalizeInputLayout(device, parallaxVSBytecode.data(), parallaxVSBytecode.size());
+
 
 	// Buffers
 	DepthBufferD3D11 depthBuffer(device, WIDTH, HEIGHT, false);
@@ -285,7 +318,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		CleanupD3DResources(device, context, swapChain, rtv,
 			solidRasterizerState, wireframeRasterizerState, shadowRasterizerState, particleBlendState,
 			vShader, pShader, tessVS, tessHS, tessDS,
-			reflectionPS, cubeMapPS, normalMapPS, parallaxPS,
+			reflectionPS, cubeMapPS, normalMapVS, normalMapPS, parallaxVS, parallaxPS,
 			lightingCS, shadowSampler, whiteTexView, lightingTex, lightingUAV, lightingRTV);
 		return -1;
 	}
@@ -298,7 +331,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		CleanupD3DResources(device, context, swapChain, rtv,
 			solidRasterizerState, wireframeRasterizerState, shadowRasterizerState, particleBlendState,
 			vShader, pShader, tessVS, tessHS, tessDS,
-			reflectionPS, cubeMapPS, normalMapPS, parallaxPS,
+			reflectionPS, cubeMapPS, normalMapVS, normalMapPS, parallaxVS, parallaxPS,
 			lightingCS, shadowSampler, whiteTexView, lightingTex, lightingUAV, lightingRTV);
 		return -1;
 	}
@@ -616,7 +649,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 			context->ClearDepthStencilView(myDSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 			context->RSSetViewports(1, &viewport);
 			context->RSSetState(wireframeEnabled ? wireframeRasterizerState : solidRasterizerState);
-			context->IASetInputLayout(inputLayout.GetInputLayout());
 			context->VSSetConstantBuffers(0, 1, &cb0);
 
 			ID3D11SamplerState* samplerPtr = samplerState.GetSamplerState();
@@ -625,6 +657,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 			if (tessellationEnabled && tessVS && tessHS && tessDS)
 			{
 				context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+				context->IASetInputLayout(tessInputLayout.GetInputLayout());
 				context->VSSetShader(tessVS, nullptr, 0);
 				context->HSSetShader(tessHS, nullptr, 0);
 				context->DSSetShader(tessDS, nullptr, 0);
@@ -635,6 +668,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 			else
 			{
 				context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+				context->IASetInputLayout(inputLayout.GetInputLayout());
 				context->VSSetShader(vShader, nullptr, 0);
 				context->HSSetShader(nullptr, nullptr, 0);
 				context->DSSetShader(nullptr, nullptr, 0);
@@ -686,9 +720,17 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 					context->PSSetShaderResources(1, 1, &nullSRV);
 					context->PSSetShader(pShader, nullptr, 0);
 				}
-				else if (objIdx == NORMAL_MAP_OBJECT_INDEX && normalMapPS)
+				else if (objIdx == NORMAL_MAP_OBJECT_INDEX && normalMapPS && normalMapVS)
 				{
+					// Set normal map-specific input layout, vertex and pixel shaders
+					context->IASetInputLayout(normalMapInputLayout.GetInputLayout());
+					context->VSSetShader(normalMapVS, nullptr, 0);
 					context->PSSetShader(normalMapPS, nullptr, 0);
+					
+					// Bind constant buffers
+					context->VSSetConstantBuffers(0, 1, &cb0);
+					ID3D11Buffer* matBuf = materialBuffer.GetBuffer();
+					context->PSSetConstantBuffers(2, 1, &matBuf);
 
 					const MeshD3D11* mesh = objPtr->GetMesh();
 					if (!mesh) continue;
@@ -725,13 +767,39 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 						mesh->PerformSubMeshDrawCall(context, i);
 					}
 
+					// Restore default input layout and shaders
+					if (tessellationEnabled && tessVS && tessHS && tessDS)
+					{
+						context->IASetInputLayout(tessInputLayout.GetInputLayout());
+						context->VSSetShader(tessVS, nullptr, 0);
+						context->HSSetShader(tessHS, nullptr, 0);
+						context->DSSetShader(tessDS, nullptr, 0);
+					}
+					else
+					{
+						context->IASetInputLayout(inputLayout.GetInputLayout());
+						context->VSSetShader(vShader, nullptr, 0);
+						context->HSSetShader(nullptr, nullptr, 0);
+						context->DSSetShader(nullptr, nullptr, 0);
+					}
 					ID3D11ShaderResourceView* nullSRV = nullptr;
 					context->PSSetShaderResources(1, 1, &nullSRV);
 					context->PSSetShader(pShader, nullptr, 0);
 				}
-				else if (objIdx == PARALLAX_OBJECT_INDEX && parallaxPS)
+				else if (objIdx == PARALLAX_OBJECT_INDEX && parallaxPS && parallaxVS)
 				{
+					// Set parallax-specific input layout, vertex and pixel shaders
+					context->IASetInputLayout(parallaxInputLayout.GetInputLayout());
+					context->VSSetShader(parallaxVS, nullptr, 0);
 					context->PSSetShader(parallaxPS, nullptr, 0);
+					
+					// Bind constant buffers needed by parallax shaders
+					context->VSSetConstantBuffers(0, 1, &cb0);          // Matrix buffer
+					context->PSSetConstantBuffers(3, 1, &cameraCB);   // Camera buffer
+					
+					// Bind material buffer
+					ID3D11Buffer* matBuf = materialBuffer.GetBuffer();
+					context->PSSetConstantBuffers(2, 1, &matBuf);
 
 					const MeshD3D11* mesh = objPtr->GetMesh();
 					if (!mesh) continue;
@@ -768,6 +836,21 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 						mesh->PerformSubMeshDrawCall(context, i);
 					}
 
+					// Restore correct shaders based on tessellation state
+					if (tessellationEnabled && tessVS && tessHS && tessDS)
+					{
+						context->IASetInputLayout(tessInputLayout.GetInputLayout());
+						context->VSSetShader(tessVS, nullptr, 0);
+						context->HSSetShader(tessHS, nullptr, 0);
+						context->DSSetShader(tessDS, nullptr, 0);
+					}
+					else
+					{
+						context->IASetInputLayout(inputLayout.GetInputLayout());
+						context->VSSetShader(vShader, nullptr, 0);
+						context->HSSetShader(nullptr, nullptr, 0);
+						context->DSSetShader(nullptr, nullptr, 0);
+					}
 					ID3D11ShaderResourceView* nullSRVs[2] = { nullptr, nullptr };
 					context->PSSetShaderResources(0, 2, nullSRVs);
 					context->PSSetShader(pShader, nullptr, 0);
@@ -837,7 +920,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	CleanupD3DResources(device, context, swapChain, rtv,
 		solidRasterizerState, wireframeRasterizerState, shadowRasterizerState, particleBlendState,
 		vShader, pShader, tessVS, tessHS, tessDS,
-		reflectionPS, cubeMapPS, normalMapPS, parallaxPS,
+		reflectionPS, cubeMapPS, normalMapVS, normalMapPS, parallaxVS, parallaxPS,
 		lightingCS, shadowSampler, whiteTexView, lightingTex, lightingUAV, lightingRTV);
 
 	return 0;

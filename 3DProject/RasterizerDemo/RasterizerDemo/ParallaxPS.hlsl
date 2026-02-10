@@ -1,5 +1,6 @@
 // PARALLAX OCCLUSION MAPPING PIXEL SHADER
-// Corrected: Implements Z-division with offset clamping to prevent warping
+// Uses pre-computed TBN matrix from vertex shader
+// Key technique: TBN basis computed in vertex shader using Gram-Schmidt orthogonalization
 
 cbuffer MaterialBuffer : register(b2)
 {
@@ -22,6 +23,8 @@ struct PS_INPUT
     float4 clipPosition : SV_POSITION;
     float3 worldPosition : WORLD_POSITION;
     float3 worldNormal : NORMAL;
+    float3 worldTangent : TANGENT;
+    float3 worldBitangent : BITANGENT;
     float2 uv : TEXCOORD0;
 };
 
@@ -39,26 +42,6 @@ SamplerState samplerState : register(s0);
 static const float HEIGHT_SCALE = 0.08f;
 static const float MIN_LAYERS = 8.0f;
 static const float MAX_LAYERS = 128.0f;
-
-float3x3 ComputeTBN(float3 worldPosition, float3 worldNormal, float2 uv)
-{
-    float3 dp1 = ddx(worldPosition);
-    float3 dp2 = ddy(worldPosition);
-    float2 duv1 = ddx(uv);
-    float2 duv2 = ddy(uv);
-  
-    float3 dp2perp = cross(dp2, worldNormal);
-    float3 dp1perp = cross(worldNormal, dp1);
-    
-    float3 tangent = dp2perp * duv1.x + dp1perp * duv2.x;
-    float3 bitangent = dp2perp * duv1.y + dp1perp * duv2.y;
-
-    bitangent = -bitangent;
-
-    float invmax = rsqrt(max(dot(tangent, tangent), dot(bitangent, bitangent)));
-    
-    return float3x3(tangent * invmax, bitangent * invmax, worldNormal);
-}
 
 float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 gradientX, float2 gradientY, out float parallaxHeight)
 {
@@ -106,12 +89,16 @@ PS_OUTPUT main(PS_INPUT input)
 {
     PS_OUTPUT output;
   
-    float3 normalizedNormal = normalize(input.worldNormal);
-
     float2 gradientX = ddx(input.uv);
     float2 gradientY = ddy(input.uv);
     
-    float3x3 TBN = ComputeTBN(input.worldPosition, normalizedNormal, input.uv);
+    // Normalize TBN basis vectors (interpolation may have denormalized them)
+    float3 T = normalize(input.worldTangent);
+    float3 B = normalize(input.worldBitangent);
+    float3 N = normalize(input.worldNormal);
+    
+    // Build TBN matrix from pre-computed vertex shader values
+    float3x3 TBN = float3x3(T, B, N);
     
     float3 viewDirWorld = normalize(cameraPosition - input.worldPosition);
     float3 viewDirTangent = normalize(mul(transpose(TBN), viewDirWorld));
@@ -128,7 +115,7 @@ PS_OUTPUT main(PS_INPUT input)
     float3 worldNormal = normalize(mul(tangentNormal, TBN));
 
     float heightValue = normalHeightTexture.SampleGrad(samplerState, parallaxUV, gradientX, gradientY).a;
-    float3 adjustedWorldPosition = input.worldPosition + normalizedNormal * (heightValue - 0.5f) * HEIGHT_SCALE * 2.0f;
+    float3 adjustedWorldPosition = input.worldPosition + N * (heightValue - 0.5f) * HEIGHT_SCALE * 2.0f;
 
     float ambientStrength = saturate(dot(materialAmbient, float3(0.333f, 0.333f, 0.333f)));
     float specularStrength = saturate(dot(materialSpecular, float3(0.333f, 0.333f, 0.333f)));
