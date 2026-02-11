@@ -1,5 +1,4 @@
 // PARALLAX OCCLUSION MAPPING PIXEL SHADER
-// Fixed: Improved TBN stability and view vector calculation to prevent warping
 
 cbuffer MaterialBuffer : register(b2)
 {
@@ -39,6 +38,7 @@ SamplerState samplerState : register(s0);
 static const float HEIGHT_SCALE = 0.08f;
 static const float MIN_LAYERS = 8.0f;
 static const float MAX_LAYERS = 64.0f;
+static const float DEPTH_BIAS = 0.002f; // Small bias to reduce self-shadowing
 
 float3x3 ComputeTBN(float3 worldPosition, float3 worldNormal, float2 uv)
 {
@@ -101,21 +101,21 @@ float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 
     float2 deltaTexCoords = P / numLayers;
   
     float2 currentTexCoords = texCoords;
-    float currentDepthMapValue = normalHeightTexture.SampleGrad(samplerState, currentTexCoords, gradientX, gradientY).a;
+    float currentDepthMapValue = 1.0f - normalHeightTexture.SampleGrad(samplerState, currentTexCoords, gradientX, gradientY).a;
 
     // Ray marching loop
     [loop]
     for (int i = 0; i < 64 && currentLayerDepth < currentDepthMapValue; i++)
     {
         currentTexCoords -= deltaTexCoords;
-        currentDepthMapValue = normalHeightTexture.SampleGrad(samplerState, currentTexCoords, gradientX, gradientY).a;
+        currentDepthMapValue = 1.0f - normalHeightTexture.SampleGrad(samplerState, currentTexCoords, gradientX, gradientY).a;
         currentLayerDepth += layerDepth;
     }
     
     // Binary refinement for more accurate intersection
     float2 prevTexCoords = currentTexCoords + deltaTexCoords;
     float afterDepth = currentDepthMapValue - currentLayerDepth;
-    float beforeDepth = normalHeightTexture.SampleGrad(samplerState, prevTexCoords, gradientX, gradientY).a - currentLayerDepth + layerDepth;
+    float beforeDepth = (1.0f - normalHeightTexture.SampleGrad(samplerState, prevTexCoords, gradientX, gradientY).a) - currentLayerDepth + layerDepth;
     
     // Linear interpolation for final position
     float weight = afterDepth / (afterDepth - beforeDepth + 0.0001f);
@@ -123,8 +123,8 @@ float2 ParallaxOcclusionMapping(float2 texCoords, float3 viewDirTangent, float2 
     float2 finalTexCoords = lerp(currentTexCoords, prevTexCoords, weight);
 
     // Output the interpolated height for world position adjustment
-    float finalHeight = lerp(currentDepthMapValue, normalHeightTexture.SampleGrad(samplerState, prevTexCoords, gradientX, gradientY).a, weight);
-    parallaxHeight = finalHeight;
+    float finalHeight = lerp(currentDepthMapValue, 1.0f - normalHeightTexture.SampleGrad(samplerState, prevTexCoords, gradientX, gradientY).a, weight);
+  parallaxHeight = finalHeight;
 
     return finalTexCoords;
 }
@@ -157,7 +157,7 @@ PS_OUTPUT main(PS_INPUT input)
     // Sample textures with original gradients
     float3 texColor = diffuseTexture.SampleGrad(samplerState, parallaxUV, gradientX, gradientY).rgb;
     float3 diffuseColor = texColor * materialDiffuse;
-    
+
     float3 normalMapSample = normalHeightTexture.SampleGrad(samplerState, parallaxUV, gradientX, gradientY).rgb;
     float3 tangentNormal = normalMapSample * 2.0f - 1.0f;
   
@@ -166,8 +166,12 @@ PS_OUTPUT main(PS_INPUT input)
     worldNormal = tangentNormal.x * TBN[0] + tangentNormal.y * TBN[1] + tangentNormal.z * TBN[2];
     worldNormal = normalize(worldNormal);
 
-    // Adjust world position based on parallax depth
-    float depthOffset = (1.0f - parallaxHeight) * HEIGHT_SCALE;
+    // Adjust world position based on parallax depth with bias to reduce self-shadowing
+    // Use squared falloff to reduce extreme depth displacement
+    float depthFactor = parallaxHeight * parallaxHeight;
+    float depthOffset = depthFactor * HEIGHT_SCALE + DEPTH_BIAS;
+    
+    // Apply depth offset along the surface normal
     float3 adjustedWorldPosition = input.worldPosition - normalizedNormal * depthOffset;
 
     float ambientStrength = saturate(dot(materialAmbient, float3(0.333f, 0.333f, 0.333f)));
