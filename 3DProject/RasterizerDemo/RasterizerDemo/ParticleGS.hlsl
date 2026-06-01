@@ -28,13 +28,13 @@ struct GS_OUTPUT
 [maxvertexcount(6)]
 void main(point GS_INPUT input[1], inout TriangleStream<GS_OUTPUT> output)
 {
-    // Cull dead particles (lifetime managed by compute shader)
+    // Cull dead particles
     if (input[0].lifetime < 0.0f)
         return;
 
     float3 particlePosition = input[0].position;
 
-    // Billboard size and orientation (always faces camera)
+    // Billboard effect
     float quadSize = 0.3f;
     float3 right = cameraRight * quadSize;
     float3 up = cameraUp * quadSize;

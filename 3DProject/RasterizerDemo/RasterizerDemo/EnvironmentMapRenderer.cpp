@@ -15,7 +15,7 @@ bool EnvironmentMapRenderer::Initialize(ID3D11Device* device, UINT resolution)
         return false;
     }
 
-    // 90-degree FOV for each cube face (covers exactly one face)
+    // 90-degree FOV for each cube face
     m_projInfo.fovAngleY = XM_PIDIV2;
     m_projInfo.aspectRatio = 1.0f;
     m_projInfo.nearZ = 0.1f;
@@ -28,7 +28,7 @@ bool EnvironmentMapRenderer::Initialize(ID3D11Device* device, UINT resolution)
 
 void EnvironmentMapRenderer::InitializeCameras(ID3D11Device* device)
 {
-    // Set up 6 cameras for cube map
+    // Set up 6 cameras
     for (int i = 0; i < 6; ++i)
     {
         m_cameras[i].Initialize(device, m_projInfo, XMFLOAT3(0.0f, 0.0f, 0.0f));
@@ -36,7 +36,7 @@ void EnvironmentMapRenderer::InitializeCameras(ID3D11Device* device)
         // Apply yaw rotation to orient camera
         m_cameras[i].RotateRight(m_rightRotations[i]);
       
-        // Special handling for up/down faces
+        // Handling for up/down faces
         if (i == 2)
         {
             m_cameras[i].RotateForward(-XM_PIDIV2);
@@ -123,7 +123,6 @@ void EnvironmentMapRenderer::RenderEnvironmentMap(
         }
     }
 
-    // Unbind cube map before using as texture
     ID3D11RenderTargetView* nullRTV = nullptr;
     context->OMSetRenderTargets(1, &nullRTV, nullptr);
 }

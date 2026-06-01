@@ -12,36 +12,29 @@ ParticleSystemD3D11::ParticleSystemD3D11(ID3D11Device* device,
     XMFLOAT3 emitterPos,
     XMFLOAT4 color)
 {
-    // Store configuration
     numParticles = numberOfParticles;
     emitterPosition = emitterPos;
     particleColor = color;
     
-    // Create initial CPU particle data
     Particle* particles = new Particle[numberOfParticles];
     InitializeParticles(particles, numberOfParticles);
 
-    // Structured buffer: readable (SRV) in vertex shader, writable (UAV) in compute shader
     particleBuffer.Initialize(device, sizeof(Particle), numberOfParticles,
         particles, false, true);
 
-    // Load specialized particle rendering pipeline
     vertexShader = ShaderLoader::CreateVertexShader(device, "ParticleVS.cso", nullptr);
     geometryShader = ShaderLoader::CreateGeometryShader(device, "ParticleGS.cso");
     pixelShader = ShaderLoader::CreatePixelShader(device, "ParticlePS.cso");
     computeShader = ShaderLoader::CreateComputeShader(device, "ParticleUpdateCS.cso");
 
-    // Create constant buffers matching HLSL cbuffers (TimeBuffer + ParticleCameraBuffer)
     timeBuffer.Initialize(device, sizeof(TimeData));
     particleCameraBuffer.Initialize(device, sizeof(ParticleCameraData));
 
-    // CPU temp data is no longer needed
     delete[] particles;
 }
 
 ParticleSystemD3D11::~ParticleSystemD3D11()
 {
-    // Release shader COM pointers
     if (vertexShader)
     {
         vertexShader->Release();
@@ -66,7 +59,6 @@ ParticleSystemD3D11::~ParticleSystemD3D11()
 
 void ParticleSystemD3D11::InitializeParticles(Particle* particles, unsigned int count)
 {
-    // Random number generation for particle variation
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
@@ -74,23 +66,18 @@ void ParticleSystemD3D11::InitializeParticles(Particle* particles, unsigned int 
     // Fill initial particle pool
     for (unsigned int i = 0; i < count; i++)
     {
-		// Spawn at emitter position
         particles[i].position = emitterPosition;
 
-        // Random velocity range
         float velX = velocityMin.x + dist01(gen) * (velocityMax.x - velocityMin.x);
         float velY = velocityMin.y + dist01(gen) * (velocityMax.y - velocityMin.y);
         float velZ = velocityMin.z + dist01(gen) * (velocityMax.z - velocityMin.z);
         particles[i].velocity = XMFLOAT3(velX, velY, velZ);
         
-        // Lifetime range
         float maxLife = 3.0f + dist01(gen) * 5.0f;
         particles[i].maxLifetime = maxLife;
 
-        // Start at a random time so they don't all reset at once
         particles[i].lifetime = dist01(gen) * maxLife;
 
-        // Initial color (alpha may be overwritten by CS fade)
         particles[i].color = particleColor;
     }
 }
@@ -121,7 +108,7 @@ void ParticleSystemD3D11::Update(ID3D11DeviceContext* context, float deltaTime)
     ID3D11Buffer* timeBuf = timeBuffer.GetBuffer();
     context->CSSetConstantBuffers(0, 1, &timeBuf);
 
-    // Bind as UAV (unordered access) for read-write operations in compute shader
+    // Bind as UAV for read-write operations in compute shader
     ID3D11UnorderedAccessView* uav = particleBuffer.GetUAV();
     context->CSSetUnorderedAccessViews(0, 1, &uav, nullptr);
 
@@ -145,7 +132,6 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, const CameraD3D11
     context->HSSetShader(nullptr, nullptr, 0);
     context->DSSetShader(nullptr, nullptr, 0);
 
-    // Prepare camera data for billboard orientation
     ParticleCameraData cd{};
     cd.pad0 = 0.0f;
     cd.pad1 = 0.0f;
@@ -155,13 +141,12 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, const CameraD3D11
     VPm = XMMatrixTranspose(VPm);
     XMStoreFloat4x4(&cd.viewProjection, VPm);
 
-    // Camera axes for billboard alignment
     cd.cameraRight = camera.GetRight();
     cd.cameraUp = camera.GetUp();
 
     particleCameraBuffer.UpdateBuffer(context, &cd);
 
-    // Bind particle buffer as SRV (read-only) for vertex shader
+    // Bind particle buffer as SRV for vertex shader
     ID3D11ShaderResourceView* srv = particleBuffer.GetSRV();
     if (!srv)
         return;

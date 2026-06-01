@@ -8,7 +8,7 @@
 class InputLayoutD3D11
 {
 private:
-	std::vector<std::string> semanticNames; // Needed to store the semantic names of the element descs
+	std::vector<std::string> semanticNames;
 	std::vector<D3D11_INPUT_ELEMENT_DESC> elements;
 	ID3D11InputLayout* inputLayout = nullptr;
 

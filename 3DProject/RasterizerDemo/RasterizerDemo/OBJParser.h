@@ -8,11 +8,9 @@
 #include <DirectXMath.h>
 #include <d3d11.h>
 
-// Forward declarations
 class MeshD3D11;
 struct ID3D11ShaderResourceView;
 
-// Vertex structure matching the OBJ file format (position, normal, UV)
 struct Vertex
 {
 	DirectX::XMFLOAT3 Position;
@@ -20,7 +18,6 @@ struct Vertex
 	DirectX::XMFLOAT2 UV;
 };
 
-// Material properties parsed from MTL files
 struct MaterialInfo
 {
 	std::string name;
@@ -35,7 +32,6 @@ struct MaterialInfo
 	std::string mapBump;
 };
 
-// Submesh data within a mesh (material group)
 struct SubMeshInfo
 {
 	std::size_t startIndexValue = 0;
@@ -50,7 +46,6 @@ struct SubMeshInfo
 	std::size_t currentSubMeshMaterial = 0;
 };
 
-// Intermediate data structure used during OBJ parsing
 struct ParseData
 {
 	std::vector<DirectX::XMFLOAT3> positions;
@@ -69,31 +64,24 @@ struct ParseData
 	std::size_t currentSubMeshMaterial = 0;
 };
 
-// Global mesh cache and default directory for OBJ files
 extern std::string defaultDirectory;
 extern std::unordered_map<std::string, MeshD3D11*> loadedMeshes;
 
 struct TextureResource;
 extern std::unordered_map<std::string, TextureResource> loadedTextures;
 
-// Token parsing utilities
 float GetLineFloat(const std::string& line, std::size_t& currentLinePos);
 int GetLineInt(const std::string& line, std::size_t& currentLinePos);
 std::string GetLineString(const std::string& line, std::size_t& currentLinePos);
 
-// Retrieves or loads a mesh from cache
 const MeshD3D11* GetMesh(const std::string& path, ID3D11Device* device);
 
-// File I/O
 void ReadFile(const std::string& path, std::string& toFill);
 
-// OBJ parsing entry point
 void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11Device* device);
 
-// Line-by-line parsing dispatcher
 void ParseLine(const std::string& line, ParseData& data);
 
-// OBJ element parsers
 void ParsePosition(const std::string& dataSection, ParseData& data);
 void ParseTexCoord(const std::string& dataSection, ParseData& data);
 void ParseNormal(const std::string& dataSection, ParseData& data);
@@ -101,8 +89,6 @@ void ParseFace(const std::string& dataSection, ParseData& data);
 void ParseMtlLib(const std::string& dataSection, ParseData& data);
 void ParseUseMtl(const std::string& dataSection, ParseData& data);
 
-// Finalizes the current submesh and adds it to the list
 void PushBackCurrentSubmesh(ParseData& data);
 
-// Cleanup for cached meshes
 void UnloadMeshes();

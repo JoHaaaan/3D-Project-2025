@@ -2,7 +2,6 @@
 
 #include <DirectXMath.h>
 
-// Light data structure matching GPU layout in compute shader
 struct LightData
 {
     DirectX::XMFLOAT4X4 viewProj;
@@ -17,12 +16,10 @@ struct LightData
     float padding[2];
 };
 
-// Matrix pair for transforming vertices (world and view-projection)
 struct MatrixPair
 {
     DirectX::XMFLOAT4X4 world;
     DirectX::XMFLOAT4X4 viewProj;
 };
 
-// Global view-projection matrix (updated by camera each frame)
 extern DirectX::XMMATRIX VIEW_PROJ;

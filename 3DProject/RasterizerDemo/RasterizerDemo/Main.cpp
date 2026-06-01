@@ -498,7 +498,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		if (key5Now && !key5Prev) { tessellationEnabled = !tessellationEnabled; }
 		if (key6Now && !key6Prev) { debugCullingEnabled = !debugCullingEnabled; }
 
-		// Toggle particle emitter on 9
 		if (key9Now && !key9Prev)
 		{
 			emitterEnabled = !emitterEnabled;

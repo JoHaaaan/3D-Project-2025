@@ -53,7 +53,7 @@ void ConstantBufferD3D11::Initialize(ID3D11Device* device, size_t byteSize, void
 
     dataSize = byteSize;
 
-    // Align buffer size to 16-byte boundary as required by D3D11
+    // Align buffer size to 16-byte boundary
     UINT alignedSize = (static_cast<UINT>(byteSize) + 15u) & ~15u;
     bufferSize = alignedSize;
 

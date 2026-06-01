@@ -2,7 +2,6 @@
 #include "MeshD3D11.h"
 #include "stb_image.h"
 
-// Default directory for loading objects
 std::string defaultDirectory = "objects/";
 // Cache for loaded meshes to avoid reloading
 std::unordered_map<std::string, MeshD3D11*> loadedMeshes;
@@ -22,7 +21,6 @@ namespace
 	}
 }
 
-// Release all loaded meshes
 void UnloadMeshes()
 {
 	for (auto& pair : loadedMeshes)
@@ -36,7 +34,6 @@ void UnloadMeshes()
 	loadedMeshes.clear();
 }
 
-// Extract a floating-point number from a line of text
 float GetLineFloat(const std::string& line, size_t& currentLinePos)
 {
 	while (currentLinePos < line.size() && line[currentLinePos] == ' ')
@@ -57,7 +54,6 @@ float GetLineFloat(const std::string& line, size_t& currentLinePos)
 	return extractedAndConvertedFloat;
 }
 
-// Extract an integer from a line of text
 int GetLineInt(const std::string& line, size_t& currentLinePos)
 {
 	size_t numberStart = currentLinePos;
@@ -73,7 +69,6 @@ int GetLineInt(const std::string& line, size_t& currentLinePos)
 	return extractedAndConvertedInteger;
 }
 
-// Extract a string from a line of text
 std::string GetLineString(const std::string& line, size_t& currentLinePos)
 {
 	while (currentLinePos < line.size() && line[currentLinePos] == ' ')
@@ -92,9 +87,7 @@ std::string GetLineString(const std::string& line, size_t& currentLinePos)
 	return extractedString;
 }
 
-// Get a mesh by file path, loading it if necessary
 const MeshD3D11* GetMesh(const std::string& path, ID3D11Device* device) {
-	// Check if the mesh is already loaded
 	if (loadedMeshes.find(path) == loadedMeshes.end())
 	{
 		std::string fileData;
@@ -105,7 +98,6 @@ const MeshD3D11* GetMesh(const std::string& path, ID3D11Device* device) {
 	return loadedMeshes[path];
 }
 
-// Read the entire contents of a file into a string
 void ReadFile(const std::string& path, std::string& toFill)
 {
 	std::ifstream reader;
@@ -123,13 +115,11 @@ void ReadFile(const std::string& path, std::string& toFill)
 		std::istreambuf_iterator<char>());
 }
 
-// Parse the OBJ file contents
 void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11Device* device)
 {
 	std::istringstream lineStream(contents);
 	ParseData data;
 
-	// Default material in case the OBJ doesn't reference one
 	data.parsedMaterials.push_back(MaterialInfo{});
 
 	std::string line;
@@ -139,19 +129,15 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
 	}
 	PushBackCurrentSubmesh(data);
 
-	// 1. Create a MeshData struct to transfer data to the MeshD3D11
 	MeshData meshInfo = {};
 
-	// 2. Fill Vertex Info
 	meshInfo.vertexInfo.sizeOfVertex = sizeof(Vertex);
 	meshInfo.vertexInfo.nrOfVerticesInBuffer = data.vertices.size();
 	meshInfo.vertexInfo.vertexData = data.vertices.data();
 
-	// 3. Fill Index Info
 	meshInfo.indexInfo.nrOfIndicesInBuffer = data.indexData.size();
 	meshInfo.indexInfo.indexData = data.indexData.data();
 
-	// Helper to create a default white 1x1 texture
 	auto CreateDefaultWhiteTexture = [&]() -> ID3D11ShaderResourceView*
 		{
 			unsigned char whitePixel[4] = { 255, 255, 255, 255 };
@@ -191,7 +177,6 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
 			return srv;
 		};
 
-	// Helper to load a texture file into an SRV (returns nullptr on failure)
 	auto LoadTextureSRV = [&](const std::string& texPath) -> ID3D11ShaderResourceView*
 		{
 			if (texPath.empty())
@@ -203,7 +188,6 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
 			unsigned char* imageData = stbi_load(fullPath.c_str(), &w, &h, &channels, 4);
 			if (!imageData)
 			{
-				// failed to load image
 				return nullptr;
 			}
 
@@ -246,7 +230,6 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
 			return srv;
 		};
 
-	// 4. Fill SubMesh Info
 	for (const auto& sub : data.finishedSubMeshes)
 	{
 		MeshData::SubMeshInfo sm = {};
@@ -264,7 +247,6 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
 		sm.material.specular = material.specular;
 		sm.material.specularPower = material.specularPower;
 
-		// Load ambient texture (map_Ka) - use default white if not specified
 		if (!material.mapKa.empty())
 		{
 			sm.ambientTextureSRV = LoadTextureSRV(material.mapKa);
@@ -274,7 +256,6 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
 			sm.ambientTextureSRV = CreateDefaultWhiteTexture();
 		}
 
-		// Load diffuse texture (map_Kd) - use default white if not specified
 		if (!material.mapKd.empty())
 		{
 			sm.diffuseTextureSRV = LoadTextureSRV(material.mapKd);
@@ -284,7 +265,6 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
 			sm.diffuseTextureSRV = CreateDefaultWhiteTexture();
 		}
 
-		// Load specular texture (map_Ks) - use default white if not specified
 		if (!material.mapKs.empty())
 		{
 			sm.specularTextureSRV = LoadTextureSRV(material.mapKs);
@@ -294,7 +274,6 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
 			sm.specularTextureSRV = CreateDefaultWhiteTexture();
 		}
 
-		// Load normal/height map (map_Bump) - no default needed, nullptr is acceptable
 		if (!material.mapBump.empty())
 		{
 			sm.normalHeightTextureSRV = LoadTextureSRV(material.mapBump);
@@ -303,14 +282,12 @@ void ParseOBJ(const std::string& identifier, const std::string& contents, ID3D11
 		meshInfo.subMeshInfo.push_back(sm);
 	}
 
-	// 5. Initialize the mesh
 	MeshD3D11* toAdd = new MeshD3D11();
 	toAdd->Initialize(device, meshInfo);
 
 	loadedMeshes[identifier] = toAdd;
 }
 
-// Parse a single line of OBJ file data
 void ParseLine(const std::string& line, ParseData& data)
 {
 	if (line.empty() || line[0] == '#') return;
@@ -326,7 +303,6 @@ void ParseLine(const std::string& line, ParseData& data)
 	else if (type == "usemtl") ParseUseMtl(line.substr(pos), data);
 }
 
-// Parse vertex position data
 void ParsePosition(const std::string& dataSection, ParseData& data)
 {
 	size_t currentPos = 0;
@@ -341,7 +317,6 @@ void ParsePosition(const std::string& dataSection, ParseData& data)
 	data.positions.push_back(toAdd);
 }
 
-// Parse texture coordinate data
 void ParseTexCoord(const std::string& dataSection, ParseData& data)
 {
 	size_t pos = 0;
@@ -351,7 +326,6 @@ void ParseTexCoord(const std::string& dataSection, ParseData& data)
 	data.texCoords.push_back({ u, 1.0f - v });
 }
 
-// Parse vertex normal data
 void ParseNormal(const std::string& dataSection, ParseData& data)
 {
 	size_t pos = 0;
@@ -363,7 +337,6 @@ void ParseNormal(const std::string& dataSection, ParseData& data)
 	data.normals.push_back({ x, y, z });
 }
 
-// Store the index data for a single vertex in a face
 struct VertexData
 {
 	int vInd;
@@ -399,7 +372,6 @@ VertexData ParseFaceVertex(const std::string& dataSection, size_t& pos)
 	return vertex;
 }
 
-// Parse face data and extract vertex indices
 void ParseFace(const std::string& dataSection, ParseData& data)
 {
 	size_t pos = 0;
@@ -588,7 +560,6 @@ void ParseUseMtl(const std::string& dataSection, ParseData& data)
 	data.currentSubMeshMaterial = materialIndex;
 }
 
-// Add the current submesh to the finished list
 void PushBackCurrentSubmesh(ParseData& data)
 {
 	if (data.indexData.size() <= data.currentSubmeshStartIndex)
@@ -599,7 +570,6 @@ void PushBackCurrentSubmesh(ParseData& data)
 	toAdd.nrOfIndicesInSubMesh = data.indexData.size() - toAdd.startIndexValue;
 	toAdd.currentSubMeshMaterial = data.currentSubMeshMaterial;
 
-	// Set texture SRVs to nullptr
 	toAdd.ambientTextureSRV = nullptr;
 	toAdd.diffuseTextureSRV = nullptr;
 	toAdd.specularTextureSRV = nullptr;

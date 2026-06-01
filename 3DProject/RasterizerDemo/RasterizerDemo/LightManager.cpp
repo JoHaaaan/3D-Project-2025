@@ -12,10 +12,8 @@ void LightManager::InitializeDefaultLights(ID3D11Device* device)
 {
 	m_lights.resize(4);
 
-	// Main directional light (sun)
 	SetupDirectionalLight(m_lights[0]);
 
-	// Three spotlights positioned around the scene
 	SetupSpotLight(m_lights[1],
 		XMFLOAT3(1.0f, 1.0f, 1.0f),
 		XMFLOAT3(0.0f, 10.0f, 0.0f),
@@ -31,7 +29,6 @@ void LightManager::InitializeDefaultLights(ID3D11Device* device)
 		XMFLOAT3(10.0f, 5.0f, -5.0f),
 		XMFLOAT3(-1.0f, -0.5f, 1.0f));
 
-	// Create structured buffer for all lights (accessible in compute shader)
 	m_lightBuffer.Initialize(device, sizeof(LightData), static_cast<UINT>(m_lights.size()), m_lights.data());
 }
 
@@ -75,7 +72,7 @@ void LightManager::SetupSpotLight(LightData& light, const XMFLOAT3& color,
 		upVec = XMVectorSet(1, 0, 0, 0);
 	}
 
-	// Build light-space matrix for shadow mapping (perspective for spotlight)
+	// Build light-space matrix for shadow mapping
 	XMMATRIX view = XMMatrixLookToLH(lightPos, lightDir, upVec);
 	XMMATRIX proj = XMMatrixPerspectiveFovLH(light.spotAngle, 1.0f, 0.5f, 50.0f);
 

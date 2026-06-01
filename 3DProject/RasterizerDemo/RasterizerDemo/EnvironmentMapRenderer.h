@@ -15,10 +15,8 @@ public:
 	EnvironmentMapRenderer() = default;
 	~EnvironmentMapRenderer() = default;
 
-	// Initialize the environment map renderer
 	bool Initialize(ID3D11Device* device, UINT resolution = 512);
 
-	// Render the environment map for a reflective object
 	void RenderEnvironmentMap(
 		ID3D11DeviceContext* context,
 		ID3D11Device* device,
@@ -34,7 +32,6 @@ public:
 		ID3D11ShaderResourceView* fallbackTexture
 	);
 
-	// Get the cube map SRV for sampling in the reflection shader
 	ID3D11ShaderResourceView* GetEnvironmentSRV() const { return m_cubeMap.GetSRV(); }
 
 private:

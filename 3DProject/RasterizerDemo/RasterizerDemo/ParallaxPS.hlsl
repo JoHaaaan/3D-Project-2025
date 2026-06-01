@@ -134,7 +134,6 @@ PS_OUTPUT main(PS_INPUT input)
     float3 texColor = diffuseTexture.SampleGrad(samplerState, parallaxUV, gradientX, gradientY).rgb;
     float3 diffuseColor = texColor * materialDiffuse;
 
-    // Direct assignment - No normal map calculation
     float3 worldNormal = normalizedNormal;
   
     float depthFactor = parallaxHeight * parallaxHeight;
