@@ -13,11 +13,7 @@ bool CreateRenderTargetView(ID3D11Device* device,
     IDXGISwapChain* swapChain,
     ID3D11RenderTargetView*& rtv);
 
-bool CreateDepthStencil(ID3D11Device* device,
-    UINT width,
-    UINT height,
-    ID3D11Texture2D*& dsTexture,
-    ID3D11DepthStencilView*& dsView);
+
 
 void SetViewport(D3D11_VIEWPORT& viewport,
     UINT width,

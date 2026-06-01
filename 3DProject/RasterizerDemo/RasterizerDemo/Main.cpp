@@ -3,7 +3,6 @@
 #include <vector>
 #include "WindowHelper.h"
 #include "D3D11Helper.h"
-#include "PipelineHelper.h"
 #include <d3d11.h>
 #include <DirectXMath.h>
 #include "CommonStructures.h"
@@ -17,7 +16,6 @@
 #include "MeshD3D11.h"
 #include "GBufferD3D11.h"
 #include "GameObject.h"
-#include "ShadowMapD3D11.h"
 #include "ShaderLoader.h"
 #include "TextureLoader.h"
 #include "LightManager.h"
@@ -223,30 +221,55 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		device->CreateBlendState(&blendDesc, &particleBlendState);
 	}
 
-	// Shaders
+	// Shaders and resources declared early for error cleanup lvalue requirements
 	ID3D11VertexShader* vShader = nullptr;
 	ID3D11PixelShader* pShader = nullptr;
-	std::string vShaderByteCode;
+	ID3D11VertexShader* tessVS = nullptr;
+	ID3D11HullShader* tessHS = nullptr;
+	ID3D11DomainShader* tessDS = nullptr;
+	ID3D11PixelShader* reflectionPS = nullptr;
+	ID3D11PixelShader* cubeMapPS = nullptr;
+	ID3D11PixelShader* normalMapPS = nullptr;
+	ID3D11PixelShader* parallaxPS = nullptr;
+	ID3D11ComputeShader* lightingCS = nullptr;
+	ID3D11ShaderResourceView* whiteTexView = nullptr;
+	ID3D11SamplerState* shadowSampler = nullptr;
+	ID3D11Texture2D* lightingTex = nullptr;
+	ID3D11UnorderedAccessView* lightingUAV = nullptr;
+	ID3D11RenderTargetView* lightingRTV = nullptr;
 
-	SetupPipeline(device, vShader, pShader, vShaderByteCode);
+	std::string vShaderByteCode;
+	vShader = ShaderLoader::CreateVertexShader(device, "VertexShader.cso", &vShaderByteCode);
+	pShader = ShaderLoader::CreatePixelShader(device, "PixelShader.cso");
+
+	if (!vShader || !pShader)
+	{
+		OutputDebugStringA("Failed to initialize core shaders!\n");
+		CleanupD3DResources(device, context, swapChain, rtv,
+			solidRasterizerState, wireframeRasterizerState, shadowRasterizerState, particleBlendState,
+			vShader, pShader, tessVS, tessHS, tessDS,
+			reflectionPS, cubeMapPS, normalMapPS, parallaxPS,
+			lightingCS, shadowSampler, whiteTexView, lightingTex, lightingUAV, lightingRTV);
+		return -1;
+	}
 
 	// Tessellation shaders
-	ID3D11VertexShader* tessVS = ShaderLoader::CreateVertexShader(device, "TessellationVS.cso");
-	ID3D11HullShader* tessHS = ShaderLoader::CreateHullShader(device, "TessellationHS.cso");
-	ID3D11DomainShader* tessDS = ShaderLoader::CreateDomainShader(device, "TessellationDS.cso");
+	tessVS = ShaderLoader::CreateVertexShader(device, "TessellationVS.cso");
+	tessHS = ShaderLoader::CreateHullShader(device, "TessellationHS.cso");
+	tessDS = ShaderLoader::CreateDomainShader(device, "TessellationDS.cso");
 
 	// Environment mapping shaders
-	ID3D11PixelShader* reflectionPS = ShaderLoader::CreatePixelShader(device, "ReflectionPS.cso");
-	ID3D11PixelShader* cubeMapPS = ShaderLoader::CreatePixelShader(device, "CubeMapPS.cso");
+	reflectionPS = ShaderLoader::CreatePixelShader(device, "ReflectionPS.cso");
+	cubeMapPS = ShaderLoader::CreatePixelShader(device, "CubeMapPS.cso");
 
 	// Normal map shader
-	ID3D11PixelShader* normalMapPS = ShaderLoader::CreatePixelShader(device, "NormalMapPS.cso");
+	normalMapPS = ShaderLoader::CreatePixelShader(device, "NormalMapPS.cso");
 
 	// Parallax occlusion mapping shader
-	ID3D11PixelShader* parallaxPS = ShaderLoader::CreatePixelShader(device, "ParallaxPS.cso");
+	parallaxPS = ShaderLoader::CreatePixelShader(device, "ParallaxPS.cso");
 
 	// Compute shader
-	ID3D11ComputeShader* lightingCS = ShaderLoader::CreateComputeShader(device, "LightingCS.cso");
+	lightingCS = ShaderLoader::CreateComputeShader(device, "LightingCS.cso");
 
 	// Input layout
 	InputLayoutD3D11 inputLayout;
@@ -262,24 +285,18 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 	ConstantBufferD3D11 constantBuffer(device, sizeof(MatrixPair));
 
 	// Compute output
-	ID3D11Texture2D* lightingTex = nullptr;
-	ID3D11UnorderedAccessView* lightingUAV = nullptr;
 	CreateComputeOutputResources(device, WIDTH, HEIGHT, lightingTex, lightingUAV);
 
 	// RTV for particle pass
-	ID3D11RenderTargetView* lightingRTV = nullptr;
 	if (lightingTex)
 	{
 		device->CreateRenderTargetView(lightingTex, nullptr, &lightingRTV);
 	}
 
-	// Initialize these early so they're available for cleanup
-	ID3D11ShaderResourceView* whiteTexView = nullptr;
-	ID3D11SamplerState* shadowSampler = nullptr;
-
 	// Shadow mapping
-	ShadowMapD3D11 shadowMap;
-	if (!shadowMap.Initialize(device, 2048, 2048, 4))
+	DepthBufferD3D11 shadowMap;
+	shadowMap.Initialize(device, 2048, 2048, true, 4);
+	if (!shadowMap.GetSRV())
 	{
 		OutputDebugStringA("Failed to initialize Shadow Map!\n");
 		CleanupD3DResources(device, context, swapChain, rtv,
@@ -516,11 +533,14 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 		if (GetAsyncKeyState('Q') & 0x8000) camera.MoveUp(-camSpeed * dt);
 		if (GetAsyncKeyState('E') & 0x8000) camera.MoveUp(camSpeed * dt);
 
-		POINT mouseP;
-		GetCursorPos(&mouseP);
-		camera.RotateRight(XMConvertToRadians((mouseP.x - center.x) * mouseSens));
-		camera.RotateForward(XMConvertToRadians((mouseP.y - center.y) * mouseSens));
-		SetCursorPos(center.x, center.y);
+		if (GetFocus() == window)
+		{
+			POINT mouseP;
+			GetCursorPos(&mouseP);
+			camera.RotateRight(XMConvertToRadians((mouseP.x - center.x) * mouseSens));
+			camera.RotateForward(XMConvertToRadians((mouseP.y - center.y) * mouseSens));
+			SetCursorPos(center.x, center.y);
+		}
 		camera.UpdateInternalConstantBuffer(context);
 
 		XMFLOAT4X4 vp = camera.GetViewProjectionMatrix();
@@ -565,7 +585,13 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 				ID3D11DepthStencilView* shadowDSV = shadowMap.GetDSV(static_cast<UINT>(lightIdx));
 				context->ClearDepthStencilView(shadowDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);
 
-				D3D11_VIEWPORT shadowViewport = shadowMap.GetViewport();
+				D3D11_VIEWPORT shadowViewport = {};
+				shadowViewport.Width = 2048.0f;
+				shadowViewport.Height = 2048.0f;
+				shadowViewport.MinDepth = 0.0f;
+				shadowViewport.MaxDepth = 1.0f;
+				shadowViewport.TopLeftX = 0;
+				shadowViewport.TopLeftY = 0;
 				context->RSSetViewports(1, &shadowViewport);
 
 				ID3D11RenderTargetView* nullRTV = nullptr;
@@ -687,6 +713,15 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 				}
 				else if (objIdx == NORMAL_MAP_OBJECT_INDEX && normalMapPS)
 				{
+					// Temporarily disable tessellation stages for this standard object
+					if (tessellationEnabled && tessVS && tessHS && tessDS)
+					{
+						context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+						context->VSSetShader(vShader, nullptr, 0);
+						context->HSSetShader(nullptr, nullptr, 0);
+						context->DSSetShader(nullptr, nullptr, 0);
+					}
+
 					context->PSSetShader(normalMapPS, nullptr, 0);
 
 					const MeshD3D11* mesh = objPtr->GetMesh();
@@ -727,9 +762,27 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 					ID3D11ShaderResourceView* nullSRV = nullptr;
 					context->PSSetShaderResources(1, 1, &nullSRV);
 					context->PSSetShader(pShader, nullptr, 0);
+
+					// Restore tessellation stages if enabled
+					if (tessellationEnabled && tessVS && tessHS && tessDS)
+					{
+						context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+						context->VSSetShader(tessVS, nullptr, 0);
+						context->HSSetShader(tessHS, nullptr, 0);
+						context->DSSetShader(tessDS, nullptr, 0);
+					}
 				}
 				else if (objIdx == PARALLAX_OBJECT_INDEX && parallaxPS)
 				{
+					// Temporarily disable tessellation stages for this standard object
+					if (tessellationEnabled && tessVS && tessHS && tessDS)
+					{
+						context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+						context->VSSetShader(vShader, nullptr, 0);
+						context->HSSetShader(nullptr, nullptr, 0);
+						context->DSSetShader(nullptr, nullptr, 0);
+					}
+
 					context->PSSetShader(parallaxPS, nullptr, 0);
 
 					const MeshD3D11* mesh = objPtr->GetMesh();
@@ -770,6 +823,15 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 					ID3D11ShaderResourceView* nullSRVs[2] = { nullptr, nullptr };
 					context->PSSetShaderResources(0, 2, nullSRVs);
 					context->PSSetShader(pShader, nullptr, 0);
+
+					// Restore tessellation stages if enabled
+					if (tessellationEnabled && tessVS && tessHS && tessDS)
+					{
+						context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
+						context->VSSetShader(tessVS, nullptr, 0);
+						context->HSSetShader(tessHS, nullptr, 0);
+						context->DSSetShader(tessDS, nullptr, 0);
+					}
 				}
 				else
 				{

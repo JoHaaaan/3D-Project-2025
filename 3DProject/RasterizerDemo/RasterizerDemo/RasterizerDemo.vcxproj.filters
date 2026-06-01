@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
@@ -30,9 +30,6 @@
     <ClCompile Include="CameraD3D11.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PipelineHelper.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="SamplerD3D11.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -57,9 +54,6 @@
     <ClCompile Include="ShaderResourceTextureD3D11.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SpotLightCollectionD3D11.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="StructuredBufferD3D11.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -73,9 +67,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GameObject.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ShadowMapD3D11.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="TextureCubeD3D11.cpp">
@@ -124,9 +115,6 @@
     <ClInclude Include="D3D11Helper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PipelineHelper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ConstantBufferD3D11.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -151,9 +139,6 @@
     <ClInclude Include="StructuredBufferD3D11.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SpotLightCollectionD3D11.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ShaderResourceTextureD3D11.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -176,9 +161,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GameObject.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ShadowMapD3D11.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TextureCubeD3D11.h">

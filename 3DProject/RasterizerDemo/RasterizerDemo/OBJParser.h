@@ -67,8 +67,7 @@ struct ParseData
 extern std::string defaultDirectory;
 extern std::unordered_map<std::string, MeshD3D11*> loadedMeshes;
 
-struct TextureResource;
-extern std::unordered_map<std::string, TextureResource> loadedTextures;
+
 
 float GetLineFloat(const std::string& line, std::size_t& currentLinePos);
 int GetLineInt(const std::string& line, std::size_t& currentLinePos);

@@ -80,7 +80,7 @@ float CalculateShadow(float3 worldPosition, float3 normal, float3 lightDir, floa
     
     // Apply a small depth bias based on surface angle to light
     float cosTheta = saturate(dot(normal, lightDir));
-    float bias = 0.0005f * tan(acos(cosTheta));
+    float bias = 0.0005f * (sqrt(1.0f - cosTheta * cosTheta) / (cosTheta + 0.0001f));
     bias = clamp(bias, 0.0f, 0.001f);
     depth -= bias;
     
