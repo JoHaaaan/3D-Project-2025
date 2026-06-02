@@ -23,13 +23,11 @@ private:
 	// Matches ParticleGS ParticleCameraBuffer, used for billboarding
     struct ParticleCameraData
     {
-        XMFLOAT4X4 viewProjection;        
-        XMFLOAT3 cameraRight; 
+        XMFLOAT4X4 viewProjection;
+        XMFLOAT3 cameraPosition;
         float pad0;
-        XMFLOAT3 cameraUp;    
-        float pad1;
     };
-	// 96 bytes, padding for 16-byte alignments
+    // 80 bytes. Padding keeps the constant buffer data aligned to 16-byte boundaries.
 
 	// Matches ParticleUpdateCS Timebuffer, used for physics update
     struct TimeData

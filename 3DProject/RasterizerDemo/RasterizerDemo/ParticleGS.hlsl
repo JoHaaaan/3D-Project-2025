@@ -1,14 +1,11 @@
 // PARTICLE GEOMETRY SHADER
-// Expands each point primitive into a camera-facing billboard quad
-// Demonstrates geometry shader amplification (1 point -> 6 vertices = 2 triangles)
+// Expands each point primitive into a camera-facing billboard quad.
 
 cbuffer ParticleCameraBuffer : register(b0)
 {
     float4x4 viewProjection;
-    float3 cameraRight;
+    float3 cameraPosition;
     float padding0;
-    float3 cameraUp;
-    float padding1;
 };
 
 struct GS_INPUT
@@ -28,52 +25,52 @@ struct GS_OUTPUT
 [maxvertexcount(6)]
 void main(point GS_INPUT input[1], inout TriangleStream<GS_OUTPUT> output)
 {
-    // Cull dead particles
     if (input[0].lifetime < 0.0f)
         return;
 
     float3 particlePosition = input[0].position;
 
-    // Billboard effect
-    float quadSize = 0.3f;
-    float3 right = cameraRight * quadSize;
-    float3 up = cameraUp * quadSize;
+    float3 front = normalize(cameraPosition - particlePosition);
+    float3 worldUp = float3(0.0f, 1.0f, 0.0f);
 
-    // Build quad vertices around particle center
-    float3 vertex1 = particlePosition - right + up;
-    float3 vertex2 = particlePosition + right + up;
-    float3 vertex3 = particlePosition - right - up;
-    float3 vertex4 = particlePosition + right - up;
+    float3 right = normalize(cross(front, worldUp));
+    float3 up = normalize(cross(right, front));
+
+    float quadSize = 0.3f;
+    right *= quadSize;
+    up *= quadSize;
+
+    float3 topLeft = particlePosition - right + up;
+    float3 topRight = particlePosition + right + up;
+    float3 bottomLeft = particlePosition - right - up;
+    float3 bottomRight = particlePosition + right - up;
 
     GS_OUTPUT o;
     o.color = input[0].color;
 
-    // Emit first triangle (top-left, top-right, bottom-left)
-    o.clipPosition = mul(float4(vertex1, 1.0f), viewProjection);
+    o.clipPosition = mul(float4(topLeft, 1.0f), viewProjection);
     o.uv = float2(0.0f, 0.0f);
     output.Append(o);
 
-    o.clipPosition = mul(float4(vertex2, 1.0f), viewProjection);
+    o.clipPosition = mul(float4(topRight, 1.0f), viewProjection);
     o.uv = float2(1.0f, 0.0f);
     output.Append(o);
 
-    o.clipPosition = mul(float4(vertex3, 1.0f), viewProjection);
+    o.clipPosition = mul(float4(bottomLeft, 1.0f), viewProjection);
     o.uv = float2(0.0f, 1.0f);
     output.Append(o);
 
     output.RestartStrip();
 
-    // Emit second triangle (top-right, bottom-right, bottom-left)
-    o.clipPosition = mul(float4(vertex2, 1.0f), viewProjection);
+    o.clipPosition = mul(float4(topRight, 1.0f), viewProjection);
     o.uv = float2(1.0f, 0.0f);
     output.Append(o);
 
-    o.clipPosition = mul(float4(vertex4, 1.0f), viewProjection);
+    o.clipPosition = mul(float4(bottomRight, 1.0f), viewProjection);
     o.uv = float2(1.0f, 1.0f);
     output.Append(o);
 
-    o.clipPosition = mul(float4(vertex3, 1.0f), viewProjection);
+    o.clipPosition = mul(float4(bottomLeft, 1.0f), viewProjection);
     o.uv = float2(0.0f, 1.0f);
     output.Append(o);
 }
-

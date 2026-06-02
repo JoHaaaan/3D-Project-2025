@@ -134,15 +134,13 @@ void ParticleSystemD3D11::Render(ID3D11DeviceContext* context, const CameraD3D11
 
     ParticleCameraData cd{};
     cd.pad0 = 0.0f;
-    cd.pad1 = 0.0f;
 
     XMFLOAT4X4 vp = camera.GetViewProjectionMatrix();
     XMMATRIX VPm = XMLoadFloat4x4(&vp);
     VPm = XMMatrixTranspose(VPm);
     XMStoreFloat4x4(&cd.viewProjection, VPm);
 
-    cd.cameraRight = camera.GetRight();
-    cd.cameraUp = camera.GetUp();
+    cd.cameraPosition = camera.GetPosition();
 
     particleCameraBuffer.UpdateBuffer(context, &cd);
 
