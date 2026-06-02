@@ -1,7 +1,4 @@
-// ========================================
 // PARTICLE PIXEL SHADER
-// ========================================
-// Part 3 of 3: Particle Rendering Pipeline (VS -> GS -> PS)
 // Creates soft circular particles with radial alpha falloff
 
 struct PS_INPUT
@@ -9,7 +6,7 @@ struct PS_INPUT
     float4 clipPosition : SV_POSITION;
     float4 color : COLOR;
     float2 uv : TEXCOORD0;
-};
+};  
 
 float4 main(PS_INPUT input) : SV_Target
 {

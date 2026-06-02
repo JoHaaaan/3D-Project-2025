@@ -1,6 +1,5 @@
 // PARTICLE VERTEX SHADER
-// Part 1 of 3: Particle Rendering Pipeline (VS -> GS -> PS)
-// Reads particle data from structured buffer (no traditional vertex buffer needed)
+// Reads particle data from structured buffer
 
 struct Particle
 {
