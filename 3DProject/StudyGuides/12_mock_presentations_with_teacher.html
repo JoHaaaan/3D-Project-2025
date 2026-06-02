@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>12. Mock Presentations - DV1542 Study Kit</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/tokyo-night-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+    
+    <!-- MathJax Configuration -->
+    <script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #151b26;
+            --bg-sidebar: #0f131f;
+            --border-color: #242c3d;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --accent: #a855f7;
+            --accent-glow: rgba(168, 85, 247, 0.15);
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Sidebar Navigation Layout */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-nav {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-muted);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, var(--primary-glow), rgba(168, 85, 247, 0.05));
+            border-left: 3px solid var(--primary);
+            color: #fff;
+            padding-left: 11px;
+        }
+
+        /* Main Content Layout */
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 60%, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+
+        p {
+            margin-bottom: 18px;
+            color: var(--text-muted);
+            font-size: 0.975rem;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        li input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: var(--primary);
+            transform: scale(1.1);
+            vertical-align: middle;
+        }
+
+        /* Code Blocks */
+        pre {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary);
+            word-break: break-word;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: inherit;
+            word-break: normal;
+        }
+
+        /* Links */
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        a:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* Horizontal Rule */
+        hr {
+            border: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 40px 0;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: var(--bg-sidebar);
+            color: #fff;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Alerts */
+        .alert {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            border-left: 4px solid var(--primary);
+        }
+
+        .alert-note {
+            border-left-color: var(--primary);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(99, 102, 241, 0.03));
+        }
+
+        .alert-tip {
+            border-left-color: var(--success);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(16, 185, 129, 0.03));
+        }
+
+        .alert-important {
+            border-left-color: var(--warning);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(245, 158, 11, 0.03));
+        }
+
+        .alert-warning {
+            border-left-color: var(--accent);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(168, 85, 247, 0.03));
+        }
+
+        .alert-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-content p {
+            margin-bottom: 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--border-color);
+            padding-left: 16px;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+  <div class="sidebar-header">DV1542 Study Kit</div>
+  <nav class="sidebar-nav">
+    <a class="nav-item " href="01_study_guide_overall_architecture.html">01. Overall Architecture</a>
+    <a class="nav-item " href="02_study_guide_obj_parser_buffers.html">02. Mesh Loading & Buffers</a>
+    <a class="nav-item " href="03_study_guide_quadtree_culling.html">03. Quadtree Culling</a>
+    <a class="nav-item " href="04_study_guide_deferred_rendering.html">04. Deferred Rendering</a>
+    <a class="nav-item " href="05_study_guide_shadow_mapping.html">05. Shadow Mapping</a>
+    <a class="nav-item " href="06_study_guide_phong_tessellation.html">06. Phong Tessellation</a>
+    <a class="nav-item " href="07_study_guide_normal_parallax.html">07. Normal & Parallax Maps</a>
+    <a class="nav-item " href="08_study_guide_environment_mapping.html">08. Environment Maps</a>
+    <a class="nav-item " href="09_study_guide_particle_system.html">09. GPU Particles</a>
+    <a class="nav-item " href="10_study_guide_binding_dispatch.html">10. Bindings & Dispatch</a>
+    <a class="nav-item " href="11_study_guide_master_faq.html">11. Master FAQ</a>
+    <a class="nav-item active" href="12_mock_presentations_with_teacher.html">12. Mock Presentations</a>
+  </nav>
+</div>
+
+    
+    <main class="main-content">
+        <h1>Study Guide 12: Mock 1-on-1 Presentations with a Teacher (Ultimate In-Depth Edition)</h1>
+<p>This guide contains three detailed mock presentation exam sessions designed to prepare you for a rigorous, system-level 1-on-1 review. Each session contains exactly <strong>4 core topics</strong>. Every topic features a complete, four-step dialogue trace: 1. <strong>Main Question</strong>: The teacher asks you to explain the core implementation and trace specific C++ or HLSL lines. 2. <strong>Main Answer</strong>: You walk through the code, explaining logic, passes, API calls, and pipeline stages. 3. <strong>Teacher Follow-Up 1</strong>: Probes pipeline hazards, D3D11 validation layers, state binding conflicts, or viewport changes. 4. <strong>Follow-Up Answer 1</strong>: You resolve the D3D11 runtime state lifecycle details. 5. <strong>Teacher Follow-Up 2</strong>: Probes hardware scheduling, memory alignment, Euler integration failures, or geometric math. 6. <strong>Follow-Up Answer 2</strong>: You explain GPU execution and mathematical limits (e.g., fractional tessellation, projection coordinate distortions). 7. <strong>Teacher Follow-Up 3</strong>: Probes advanced low-level topics (VRAM bandwidth bounds, cache layouts, CPU-GPU sync stalls, View Matrix derivations, or bounding box calculations). 8. <strong>Follow-Up Answer 3</strong>: You deliver a senior-level engineering analysis with full mathematical equations and GPU cache profiles.</p>
+<hr>
+<h2>🎭 Session 1: Loop Lifecycle + Shadow Slices + Structured Buffers + Buffer Bindings</h2>
+<h3>Topic 1: Tracing the Frame Lifecycle</h3>
+<p><strong>T</strong>: "Let's start by looking at your main loop. Walk me through the exact rendering sequence of a single frame in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp">Main.cpp</a>. Trace the sequence of passes, naming the C++ lines where they start, and explain how the final image ends up on the screen."</p>
+<p><strong>S</strong>: "Every frame in our rendering loop in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp">Main.cpp</a> runs through a sequence of distinct CPU and GPU passes to coordinate deferred shading, shadows, reflections, and transparent particles: 1. <strong>Matrix &amp; Physics Update</strong>: We update keyboard/mouse input, modify the camera matrices, and update particle positions on the CPU. 2. <strong>Shadow Pass (L571)</strong>: We disable pixel and tessellation shaders (<code>context-&gt;PSSetShader(nullptr, nullptr, 0)</code>), bind the shadow map viewport ($2048 \times 2048$), and render the scene depth from the perspective of each light into the <code>DepthBufferD3D11 shadowMap</code> slices. 3. <strong>Environment Map Pass (L620)</strong>: We position six virtual cameras at the center of the reflective sphere and render the surrounding scene into the six faces of the dynamic cubemap using forward shaders (<code>CubeMapPS.hlsl</code>). 4. <strong>Geometry Pass (L636)</strong>: We bind our G-Buffer RTVs (<code>albedoRT</code>, <code>normalRT</code>, <code>positionRT</code>) and the main depth buffer DSV, and render visible meshes to pack raw material properties into the G-Buffer. 5. <strong>Lighting Pass (CS) (L843)</strong>: We unbind the G-Buffer RTVs and bind them as input SRVs. We bind the shadow map array (slot <code>t3</code>), light buffer (slot <code>t4</code>), and our output UAV (<code>lightingUAV</code>, slot <code>u0</code>), and dispatch <code>LightingCS.hlsl</code>. 6. <strong>Particle Pass (L873)</strong>: We bind <code>lightingRTV</code> and <code>myDSV</code> to the Output Merger, set the alpha blend state, and forward-render transparent particles. 7. <strong>Present (L886)</strong>: We extract the swapchain backbuffer texture, call <code>context-&gt;CopyResource(backBuffer, lightingTex)</code> to copy the final composite image, and present the frame."</p>
+<p><strong>T (Follow-Up 1)</strong>: "You mentioned using <code>CopyResource</code> to transfer <code>lightingTex</code> to the backbuffer in step 7. Why don't you render the deferred compute shader directly to the swapchain's backbuffer texture to save a copy?"</p>
+<p><strong>S (Follow-Up Answer 1)</strong>: "The swapchain's backbuffer texture is managed by DXGI and the OS display kernel. Depending on the user's hardware and swap chain configuration, it might not support Unordered Access Views (<code>D3D11_BIND_UNORDERED_ACCESS</code>). By rendering the compute shader to our intermediate <code>lightingTex</code> texture (which is allocated with UAV bind flags) and copying it using the GPU-optimized <code>context-&gt;CopyResource</code>, we guarantee hardware compatibility. This also allows us to bind <code>lightingTex</code> as a render target in the particle pass to draw transparency effects directly on top of the deferred lighting results before presenting."</p>
+<p><strong>T (Follow-Up 2)</strong>: "Where exactly in your frame loop is depth testing configured for the deferred geometry pass vs. the transparent particle pass? What happens if you forget to reset the viewport or depth-stencil state after the shadow pass?"</p>
+<p><strong>S (Follow-Up Answer 2)</strong>: "In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L638">Main.cpp:L638-642</a>, before drawing geometry, we bind <code>myDSV</code> (our main depth-stencil view) to <code>SetAsRenderTargets</code> and reset the viewport to screen dimensions ($1024 \times 576$).  During the particle pass in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L876">Main.cpp:L876</a>, we bind the same <code>myDSV</code> depth view alongside <code>lightingRTV</code> but configure alpha blending. This allows particles to perform standard depth testing (so they are correctly culled by solid walls stored in <code>myDSV</code>) without writing new depth values (since particles are transparent).  If we forgot to reset the viewport after the shadow pass, the GPU would continue rendering the geometry pass using the shadow viewport coordinates ($2048 \times 2048$), compressing the entire scene into the bottom-left corner of the G-Buffer."</p>
+<p><strong>T (Follow-Up 3)</strong>: "Explain the synchronization/latency implications of swap chain presentation modes (e.g. <code>DXGI_SWAP_EFFECT_FLIP_DISCARD</code> vs sequential, vs VSync <code>Present(1, 0)</code>). How does the CPU write command buffers while the GPU is executing previous frames, and how do we prevent CPU-GPU synchronization stalls?"</p>
+<p><strong>S (Follow-Up Answer 3)</strong>: "Using flip-model swap chains (<code>DXGI_SWAP_EFFECT_FLIP_DISCARD</code>) bypasses the Desktop Window Manager (DWM) redirection surface copy, allowing the GPU to flip its memory pointer directly to the display controller, reducing latency.  When we call <code>SwapChain-&gt;Present(1, 0)</code>, the '1' enables VSync, aligning frame delivery with the monitor's refresh rate.  The CPU and GPU execute asynchronously; the CPU writes commands to a Ring Buffer (Command Queue) while the GPU reads and executes them. If the CPU is faster, it can build commands up to 3 frames ahead.  To prevent the CPU from running too far ahead (which increases input lag) or stalling the GPU (which causes frame drops), we use DXGI frame latency controls via <code>IDXGIDevice1::SetMaximumFrameLatency(1)</code> or query objects. This blocks the CPU thread inside <code>Present</code> if the GPU is more than one frame behind, keeping input latency low and frame rates stable."</p>
+<hr>
+<h3>Topic 2: Shadow Mapping Pipeline Integration</h3>
+<p><strong>T</strong>: "In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L597">Main.cpp:L597-598</a>, you bind a <code>null</code> Render Target View but bind a Depth Stencil View during the shadow pass: <pre><code class="language-cpp">ID3D11RenderTargetView* nullRTV = nullptr;
+context-&gt;OMSetRenderTargets(1, &amp;nullRTV, shadowDSV);</code></pre> Why does this not trigger a Direct3D 11 validation warning? How is depth written without a pixel shader, and how does the compute shader sample it?"</p>
+<p><strong>S</strong>: "In D3D11, rendering depth without a bound RTV is a valid and optimized state called <strong>depth-only rendering</strong>. We disable the pixel shader stage: <code>context-&gt;PSSetShader(nullptr, nullptr, 0);</code> Since the pixel shader is null, the graphics pipeline stops after rasterization. The rasterizer generates fragments and interpolates their depth values ($Z$) from the vertices output by the vertex shader. The GPU's hardware <strong>Early-Z / Late-Z testing</strong> writes these depth values directly into the bound <code>shadowDSV</code>, bypassing the pixel shading stage completely. In the lighting pass <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/LightingCS.hlsl#L88">LightingCS.hlsl:L88</a>, we sample this depth array using: <code>float shadow = shadowMaps.SampleCmpLevelZero(shadowSampler, float3(shadowUV, lightIndex), depth);</code> The comparison sampler compares the current fragment's light-space depth against the shadow map depth and returns a filtered value between $0.0$ (in shadow) and $1.0$ (fully lit)."</p>
+<p><strong>T (Follow-Up 1)</strong>: "If the pixel shader is disabled during the shadow pass, does that mean the GPU skips the rasterizer stage entirely? How does the hardware know which triangles face away from the light?"</p>
+<p><strong>S (Follow-Up Answer 1)</strong>: "No, the GPU does not skip the rasterizer. The rasterizer is still responsible for primitive assembly, clipping, and face culling. In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L580">Main.cpp:L580</a>, we bind <code>shadowRasterizerState</code>: <code>context-&gt;RSSetState(shadowRasterizerState);</code> This state is configured with back-face culling (<code>D3D11_CULL_BACK</code>). The rasterizer performs edge equation testing to determine triangle winding order (clockwise vs. counter-clockwise) relative to the light perspective. Any triangles facing away from the light source are culled before depth testing, saving GPU cycles."</p>
+<p><strong>T (Follow-Up 2)</strong>: "Your lights are spotlights and point lights. How does the projection projection frustum differ for a spotlight vs a directional light, and how does that affect the view-projection matrix calculation in C++?"</p>
+<p><strong>S (Follow-Up Answer 2)</strong>: "Spotlights emit light outward from a point in a cone shape, requiring a <strong>Perspective Projection</strong> to simulate divergence: <code>XMMatrixPerspectiveFovLH(fov, aspect, nearZ, farZ);</code> Directional lights emit parallel rays from an infinite distance (like the sun), which requires an <strong>Orthographic Projection</strong>: <code>XMMatrixOrthographicLH(width, height, nearZ, farZ);</code> For spotlights, we use perspective math inside <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/LightManager.cpp#L73">LightManager.cpp:L73</a> to scale depth values non-linearly ($1/Z$). For directional lights, depth scales linearly ($Z$), which means the hardware depth bias settings in the rasterizer must be configured differently for each projection type to prevent shadow acne."</p>
+<p><strong>T (Follow-Up 3)</strong>: "How do you address shadow acne and light bleeding? Explain the mathematics of slope-scaled depth bias (e.g. <code>DepthBias</code>, <code>SlopeScaledDepthBias</code>, <code>DepthBiasClamp</code> in <code>D3D11_RASTERIZER_DESC</code>) and why we choose those values based on the shadow map resolution."</p>
+<p><strong>S (Follow-Up Answer 3)</strong>: "Shadow acne occurs because of precision limits in the shadow map texture. Multiple screen pixels map to a single shadow map texel. When checking depth, the floating-point values alternate due to precision, creating dark banding lines.  To resolve this, we apply a bias to the depth values during shadow rendering. The D3D11 formula is: $$\text{Bias} = (\text{DepthBias} \times r) + (\text{SlopeScaledDepthBias} \times \text{MaxSlope})$$ where $r$ is the minimum resolvable depth difference depending on the depth buffer format.  <ul>   <li><strong><code>DepthBias</code></strong> shifts all triangles slightly away from the light.</li>   <li><strong><code>SlopeScaledDepthBias</code></strong> scales the bias based on the angle of the triangle relative to the light. Steeper slopes require a larger bias.</li>   <li><strong><code>DepthBiasClamp</code></strong> prevents this bias from scaling too high on extremely steep angles, which would cause 'Peter Panning' (where shadows appear detached from the object base).</li> </ul>In our project, we tune <code>DepthBias = 100</code> and <code>SlopeScaledDepthBias = 1.5</code> to match our $2048 \times 2048$ resolution and prevent both acne and Peter Panning."</p>
+<hr>
+<h3>Topic 3: Structured Buffer Allocation &amp; GPU Pipeline Barriers</h3>
+<p><strong>T</strong>: "Your particle system in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleSystemD3D11.cpp">ParticleSystemD3D11.cpp</a> uses a structured buffer. How is this buffer allocated in C++, and why must you explicitly call <code>context-&gt;CSSetUnorderedAccessViews(0, 1, &amp;nullUAV, nullptr)</code> in the update pass?"</p>
+<p><strong>S</strong>: "The structured buffer is allocated in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/StructuredBufferD3D11.cpp#L25">StructuredBufferD3D11.cpp:L25-63</a> by describing the buffer with <code>D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE</code> and the flag <code>D3D11_RESOURCE_MISC_BUFFER_STRUCTURED</code>. The unbinding step with <code>nullUAV</code> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleSystemD3D11.cpp#L120">ParticleSystemD3D11.cpp:L120</a> is required due to D3D11's <strong>pipeline binding barriers</strong>.  A resource cannot be bound as an input (SRV) in the vertex shader while it is still bound as an active output (UAV) in the compute shader. If we do not clear the UAV slot by binding <code>nullUAV</code>, the D3D11 runtime detects a read-write conflict when we bind it as an SRV during the particle render pass, and it will force the SRV slot to <code>null</code>, causing the particles to render invisible."</p>
+<p><strong>T (Follow-Up 1)</strong>: "If you violate this pipeline barrier, what happens at the hardware level on the GPU? Does the application crash?"</p>
+<p><strong>S (Follow-Up Answer 1)</strong>: "It will not crash the physical GPU or the OS. However, the Direct3D runtime will output a warning/error in the debug layer stating that a resource bound as a UAV is being bound as an SRV. To prevent memory hazards, the driver will automatically bind the conflicting input slot (the Vertex Shader SRV) to <code>nullptr</code>. The vertex shader will pull empty data, and the particles will not be drawn, resulting in a black screen for the particle pass."</p>
+<p><strong>T (Follow-Up 2)</strong>: "In C++, your StructuredBuffer is initialized with <code>D3D11_USAGE_DEFAULT</code>. Why did you choose this memory usage flag over <code>D3D11_USAGE_DYNAMIC</code> or <code>D3D11_USAGE_STAGING</code> for a particle simulation buffer?"</p>
+<p><strong>S (Follow-Up Answer 2)</strong>: " <ul>   <li><strong><code>D3D11_USAGE_DEFAULT</code></strong> allows the GPU to perform read and write operations directly on the buffer. Since our Compute Shader updates particle physics and our Vertex Shader reads them for rendering, the entire lifecycle occurs on the GPU. Default usage is the only memory type that allows UAV writes.</li>   <li><strong><code>D3D11_USAGE_DYNAMIC</code></strong> is write-only from the CPU (using <code>Map</code>/<code>Unmap</code>), which would force the CPU to compute physics and write the updates over the PCIe bus, creating a performance bottleneck.</li>   <li><strong><code>D3D11_USAGE_STAGING</code></strong> supports CPU read/writes but cannot be bound to the graphics pipeline for drawing. Default usage is the only choice that keeps the simulation entirely on the GPU."</li> </ul> <strong>T (Follow-Up 3)</strong>: "In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/StructuredBufferD3D11.cpp">StructuredBufferD3D11.cpp</a>, what is the difference between a Structured Buffer and a Constant Buffer (<code>cbuffer</code>) in terms of GPU register limits, access latency, and memory caching (e.g., Constant Buffer Cache vs L1/L2 cache for SRVs)? Why not store light properties in a Structured Buffer?"</p>
+<p><strong>S (Follow-Up Answer 3)</strong>: " <ul>   <li><strong>Constant Buffers</strong> are capped at 64KB per buffer and bound directly to fast constant registers (like <code>cb0</code> to <code>cb15</code>). They have a dedicated high-speed <strong>Constant Cache (CBC)</strong> on the GPU. Constant buffers are optimized for low-latency uniform access, meaning every shader thread in a warp reads the exact same address at the same time.</li>   <li><strong>Structured Buffers</strong> are virtually unlimited in size, stored in general VRAM, and read via the texture cache hierarchy (L1 and L2 caches). Since they are indexed dynamically using thread IDs, thread access patterns can vary. If threads in a warp access non-contiguous elements in a structured buffer, it causes <strong>memory divergence</strong>, thrashing the L1 cache and requiring high-latency reads from VRAM.</li> </ul>We store light properties in a Constant Buffer because our light count is small, and all shader threads read the same light array uniformly, making the constant cache much faster."</p>
+<hr>
+<h3>Topic 4: Static Mesh Buffers &amp; Assembler Formats</h3>
+<p><strong>T</strong>: "Show me how you draw a standard mesh. How do you bind vertex and index buffers in C++?"</p>
+<p><strong>S</strong>: "In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/MeshD3D11.cpp#L82">MeshD3D11.cpp:L82</a>, we bind the vertex and index buffers to the Input Assembler stage using the device context: <pre><code class="language-cpp">UINT stride = vertexBuffer.GetVertexSize(); // size of Vertex struct (32 bytes)
+UINT offset = 0;
+ID3D11Buffer* vb = vertexBuffer.GetBuffer();
+context-&gt;IASetVertexBuffers(0, 1, &amp;vb, &amp;stride, &amp;offset);
+context-&gt;IASetIndexBuffer(indexBuffer.GetBuffer(), DXGI_FORMAT_R32_UINT, 0);</code></pre> Once bound, we draw submeshes using <code>DrawIndexed</code>, passing the index count and starting index: <code>context-&gt;DrawIndexed(numIndices, startIndex, 0);</code>"</p>
+<p><strong>T (Follow-Up 1)</strong>: "Why do we use <code>DXGI_FORMAT_R32_UINT</code> for the index buffer format? What would change in C++ and HLSL if we used 16-bit indices (<code>DXGI_FORMAT_R16_UINT</code>)?"</p>
+<p><strong>S (Follow-Up Answer 1)</strong>: " <ul>   <li>In C++, if we changed the format to <code>DXGI_FORMAT_R16_UINT</code>, we would have to modify the OBJ Parser to output <code>uint16_t</code> arrays instead of <code>uint32_t</code> (which is represented by <code>unsigned int</code>). This reduces the index buffer size in GPU memory by 50% (2 bytes per index instead of 4 bytes).</li>   <li>In HLSL, no shader code would need to change. The GPU's hardware Input Assembler handles index parsing automatically based on the format parameter we pass in C++. </li>   <li>However, 16-bit indices limit our meshes to a maximum of 65,535 vertices. Since some of our larger OBJ meshes exceed this vertex count, we use 32-bit indices (<code>R32_UINT</code>) to support up to 4.29 billion vertices."</li> </ul> <strong>T (Follow-Up 2)</strong>: "What is the difference between <code>IASetVertexBuffers</code> and <code>IASetIndexBuffer</code> parameters? Why does the vertex buffer call take arrays of buffers, strides, and offsets, while the index buffer call takes only a single buffer?"</p>
+<p><strong>S (Follow-Up Answer 2)</strong>: "Direct3D 11 supports <strong>multi-stream vertex rendering</strong>, which allows binding multiple vertex buffers to different slots at the same time (e.g., storing positions in slot 0, normals in slot 1, and UVs in slot 2). Because of this, <code>IASetVertexBuffers</code> takes arrays of buffers, strides, and offsets.  Conversely, the GPU Input Assembler can only parse a single index layout at a time to assemble primitives (triangles), so <code>IASetIndexBuffer</code> only accepts a single buffer pointer, a single format, and a single offset."</p>
+<p><strong>T (Follow-Up 3)</strong>: "Explain the performance impact of Vertex Cache Optimization (like Post-Transform Cache). How does the index order in the index buffer affect GPU vertex shading reuse, and how does the Input Assembler handle vertex cache hits?"</p>
+<p><strong>S (Follow-Up Answer 3)</strong>: "Before rasterization, the GPU runs the vertex shader on vertex data. To avoid shading the same vertex multiple times if it is shared by multiple triangles, the GPU stores the shaded output in a small <strong>Post-Transform Vertex Cache</strong> (usually holding 16 to 32 vertices).  The Input Assembler reads incoming indices. If an index refers to a vertex already in the cache, the GPU skips the vertex shader and reuses the cached result (a cache hit).  If our indices are ordered randomly, the cache misses constantly, forcing the GPU to run the vertex shader up to $3\times$ more than necessary. We use index optimization algorithms (such as the Forsyth algorithm) to order our index buffer for high cache locality, reducing vertex shader executions closer to the theoretical minimum of 0.5 shader runs per triangle."</p>
+<hr>
+<h2>🎭 Session 2: Core Matrix Math + Deferred G-Buffer Formats + Dynamic Cubemap Multi-Passes</h2>
+<h3>Topic 1: Delta Time &amp; Frame-rate Independence</h3>
+<p><strong>T</strong>: "Explain the importance of delta time ($dt$) and show me how it is calculated and applied in your loop."</p>
+<p><strong>S</strong>: "Delta time represents the exact duration of the previous frame, calculated using <code>std::chrono::high_resolution_clock</code> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L491">Main.cpp:L491</a>. Without delta time, physics and movements would run at different speeds depending on the computer's frame rate. We multiply all movement speeds by <code>dt</code> to make them frame-rate independent: <code>camera.MoveForward(camSpeed * dt);</code>"</p>
+<p><strong>T (Follow-Up 1)</strong>: "What happens to your physics and particle simulation if your game freezes for 2 seconds (e.g. due to window movement or a CPU spike)? How does a huge <code>dt</code> affect your Euler integration in <code>ParticleUpdateCS.hlsl</code>?"</p>
+<p><strong>S (Follow-Up Answer 1)</strong>: "If the game freezes for 2 seconds, the calculated delta time (<code>dt</code>) spikes to <code>2.0</code>.  Inside <code>ParticleUpdateCS.hlsl</code>, we update particle positions using: <code>particle.position += particle.velocity * deltaTime;</code> If <code>deltaTime</code> is <code>2.0</code>, the particle position jumps forward by a huge distance in a single frame. This can cause particles to overshoot their target coordinates, pass through solid boundaries (collision tunneling), or scatter randomly."</p>
+<p><strong>T (Follow-Up 2)</strong>: "How do you mitigate this issue in production-ready games? How can you modify the C++ frame timer code to prevent physics explosions during stutters?"</p>
+<p><strong>S (Follow-Up Answer 2)</strong>: "We implement <strong>Delta Time Clamping</strong> or a <strong>Fixed Timestep</strong> accumulator. In C++, we clamp <code>dt</code> to a maximum threshold (e.g., <code>0.1</code> seconds): <code>float dt = std::min(measuredDeltaTime, 0.1f);</code> This limits the physics update step size during stutters. If the frame rate drops below 10 FPS, the simulation slows down instead of breaking, preventing collision tunneling and particle system explosions."</p>
+<p><strong>T (Follow-Up 3)</strong>: "How do high-precision timers (like <code>QueryPerformanceCounter</code> or <code>chrono::high_resolution_clock</code>) avoid drift or precision loss over long play sessions? What is the impact of floating-point precision limitations (e.g., 32-bit float vs 64-bit double) when accumulating time or positions in a large world?"</p>
+<p><strong>S (Follow-Up Answer 3)</strong>: "High-precision timers query hardware registers (like the CPU's TSC or HPET) that run at high frequencies. We convert these ticks to seconds using double-precision calculations to prevent precision loss.  If we use a 32-bit float to accumulate delta time over a long session, we run into a precision issue called <strong>float underflow</strong>. A 32-bit float has only 24 bits of mantissa precision ($\approx 7$ decimal digits).  If the total accumulated run time reaches $100,000$ seconds, adding a small delta time (e.g., $0.016$ seconds for 60 FPS) will fail because the difference in scale is too large: $$100,000.0 + 0.016 = 100,000.0$$ The tick is lost, causing the timer to freeze. We avoid this by accumulating total elapsed time in a <code>double</code> (64-bit float, with $\approx 15-17$ digits of precision) and shifting coordinates to the camera's local origin in large worlds."</p>
+<hr>
+<h3>Topic 2: Matrix Transpositions and Coordinate Spaces</h3>
+<p><strong>T</strong>: "In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/CameraD3D11.cpp#L149">CameraD3D11.cpp:L149</a>, why do you transpose the View-Projection matrix before writing it to the constant buffer? What is the difference between row-major and column-major matrix multiplication in HLSL?"</p>
+<p><strong>S</strong>: "C++ classes using DirectXMath (like <code>XMMATRIX</code>) store matrices in <strong>row-major</strong> order (consecutive rows in contiguous memory). In HLSL, the GPU default layout expects <strong>column-major</strong> order (consecutive columns in contiguous memory). <ul>   <li>In row-major, vector-matrix multiplication is: $\vec{v}' = \vec{v} \cdot M$.</li>   <li>In column-major, vector-matrix multiplication is: $\vec{v}' = M \cdot \vec{v}$.</li> </ul>If we upload a row-major matrix to a constant buffer without transposing, the GPU reads the columns as rows, scrambling the matrix values. We transpose the matrix using <code>XMMatrixTranspose()</code> before uploading it to align the C++ memory layout with the column-major layout expected by HLSL."</p>
+<p><strong>T (Follow-Up 1)</strong>: "Is there a way to avoid calling <code>XMMatrixTranspose</code> in C++ for every constant buffer update? How can you configure HLSL or compile settings to bypass this?"</p>
+<p><strong>S (Follow-Up Answer 1)</strong>: "Yes, there are two ways: 1. <strong>Shader decorations</strong>: We can prefix the matrix variable declaration in HLSL with the <code>row_major</code> keyword (e.g., <code>row_major float4x4 worldMatrix;</code>). This tells the HLSL compiler to generate instructions that assume row-major ordering. 2. <strong>Compiler Flags</strong>: We can pass the <code>/Zpr</code> compiler flag to the HLSL compiler (<code>fxc.exe</code>) when compiling our shaders, which changes the default matrix packing convention to row-major for all matrices. Since our codebase compiles with the default column-major settings, we must transpose on the CPU side."</p>
+<p><strong>T (Follow-Up 2)</strong>: "In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/CameraD3D11.cpp#L145">CameraD3D11.cpp:L145-146</a>, you use <code>XMMatrixLookAtLH</code> (Left-Handed) and <code>XMMatrixPerspectiveFovLH</code>. What does Left-Handed coordinate space mean, and how does it affect the Z-axis orientation in your clip space?"</p>
+<p><strong>S (Follow-Up Answer 2)</strong>: "In a left-handed coordinate system, the positive Z-axis points <strong>forward</strong> into the screen (away from the viewer). If you align your left hand's thumb along $+X$ (right) and index finger along $+Y$ (up), your middle finger points along $+Z$ (forward).  This differs from right-handed coordinate systems (like OpenGL) where positive Z points out of the screen (toward the viewer). In our left-handed clip space, depth values are stored in the range $[0.0, 1.0]$, where <code>0.0</code> represents the near plane and <code>1.0</code> represents the far plane."</p>
+<p><strong>T (Follow-Up 3)</strong>: "Walk me through the mathematical derivation of the View Matrix. Given a camera's position $\vec{P}$, target vector $\vec{T}$, and world up vector $\vec{U}$, how do you construct the orthonormal basis ($\vec{R}$, $\vec{U}'$, $\vec{F}$) and how does that form the translation-rotation inversion view matrix?"</p>
+<p><strong>S (Follow-Up Answer 3)</strong>: "The View Matrix transforms coordinates from world space to view space, acting as the inverse of the camera's world transform. 1. First, we compute the forward vector $\vec{F}$ pointing from camera to target: $$\vec{F} = \text{normalize}(\vec{T} - \vec{P})$$ 2. Next, we compute the right vector $\vec{R}$ perpendicular to the forward and world up vectors: $$\vec{R} = \text{normalize}(\vec{U} \times \vec{F})$$ 3. Then, we calculate the orthogonal camera up vector $\vec{U}'$ to complete our basis: $$\vec{U}' = \vec{F} \times \vec{R}$$ The Camera World matrix $W_C$ is constructed from these basis vectors and position: $$W_C = \begin{bmatrix} R_x &amp; R_y &amp; R_z &amp; 0 \\ U'_x &amp; U'_y &amp; U'_z &amp; 0 \\ F_x &amp; F_y &amp; F_z &amp; 0 \\ P_x &amp; P_y &amp; P_z &amp; 1 \end{bmatrix}$$ The View Matrix $V$ is the inverse of $W_C$. Since the rotation submatrix is orthogonal, its inverse is its transpose ($R^{-1} = R^T$). The translation inverse is $-P$. Multiplying these gives the View Matrix: $$V = \begin{bmatrix} R_x &amp; U'_x &amp; F_x &amp; 0 \\ R_y &amp; U'_y &amp; F_y &amp; 0 \\ R_z &amp; U'_z &amp; F_z &amp; 0 \\ -(\vec{P} \cdot \vec{R}) &amp; -(\vec{P} \cdot \vec{U}') &amp; -(\vec{P} \cdot \vec{F}) &amp; 1 \end{bmatrix}$$ This is the matrix generated by <code>XMMatrixLookAtLH</code>."</p>
+<hr>
+<h3>Topic 3: Deferred G-Buffer Formatting &amp; Hazards</h3>
+<p><strong>T</strong>: "Explain your Deferred Rendering pipeline. What is a G-Buffer, and what formats and data do you store in it?"</p>
+<p><strong>S</strong>: "In our deferred pipeline, the geometry pass renders material properties into three screen-sized textures (our G-Buffer) instead of calculating lighting immediately: <ul>   <li><code>albedoRT</code>: Stores Diffuse Color (RGB) + Ambient Strength (A).</li>   <li><code>normalRT</code>: Stores packed World Normal (RGB) + Specular Strength (A).</li>   <li><code>positionRT</code>: Stores World Position (RGB) + Specular Exponent (A).</li> </ul>We use the <strong><code>DXGI_FORMAT_R16G16B16A16_FLOAT</code></strong> format for all three render targets to support high precision, negative normal vectors, and positions outside the $[0,1]$ range without banding."</p>
+<p><strong>T (Follow-Up 1)</strong>: "When you unbind the G-Buffer RTVs using <code>OMSetRenderTargets(3, nullRTVs, nullptr)</code>, you also pass <code>nullptr</code> for the Depth Stencil View. Why do you unbind the DSV here? Does the compute shader read the depth buffer?"</p>
+<p><strong>S (Follow-Up Answer 1)</strong>: "Our current lighting compute shader (<code>LightingCS.hlsl</code>) does not read the G-Buffer depth buffer as a shader input (it only reads the position G-Buffer <code>t2</code>). However, unbinding the DSV is good practice. If we were to implement depth-based post-processing (such as Screen Space Ambient Occlusion or Depth of Field) in the compute shader, we would need to bind the depth buffer as an SRV. If the DSV remained bound to the Output Merger, D3D11 would block us from binding it as a Shader Resource View."</p>
+<p><strong>T (Follow-Up 2)</strong>: "If you want to render semi-transparent meshes (like glass windows or your particles) in a deferred rendering engine, how do you handle them? Why can't they be rendered directly to the G-Buffer?"</p>
+<p><strong>S (Follow-Up Answer 2)</strong>: "Deferred G-Buffers can only store a single layer of depth and material properties per pixel. If we rendered a semi-transparent mesh to the G-Buffer, it would overwrite the solid surface data behind it.  To draw transparent objects: 1. We run the deferred geometry and lighting passes first, rendering all solid surfaces. 2. We bind the final deferred color texture as our Render Target. 3. We bind our G-Buffer depth buffer (<code>myDSV</code>) as read-only. 4. We render transparent meshes on top using standard forward rendering with alpha blending enabled."</p>
+<p><strong>T (Follow-Up 3)</strong>: "If we switch G-Buffer render targets from <code>DXGI_FORMAT_R16G16B16A16_FLOAT</code> to a more packed format like <code>R8G8B8A8_UNORM</code> for albedo and oct-encoded normals in <code>R10G10B10A2_UNORM</code>, how much memory bandwidth do we save per pixel? What are the trade-offs regarding precision loss or decoding overhead in the pixel shader?"</p>
+<p><strong>S (Follow-Up Answer 3)</strong>: " <ul>   <li><strong><code>R16G16B16A16_FLOAT</code></strong> uses $4 \times 16 \text{ bits} = 64 \text{ bits}$ (8 bytes) per render target. With 3 targets, we write $8 \times 3 = 24 \text{ bytes}$ per pixel.</li>   <li><strong>Packed Layout</strong>: Storing albedo in <code>R8G8B8A8_UNORM</code> (4 bytes), normals in octahedral format in <code>R10G10B10A2_UNORM</code> (4 bytes), and reconstructing position from the depth buffer instead of writing positions directly (depth is 4 bytes) saves significant space. This layout uses only 12 bytes per pixel, reducing bandwidth by 50%.</li> </ul>For a $1920 \times 1080$ display at 60 FPS, this saves over 248MB/sec of write bandwidth.  The trade-offs are: 1. <strong>Precision loss</strong>: Octahedral normal encoding can introduce visual errors (specular artifacts) on low-curvature surfaces. 2. <strong>ALU overhead</strong>: The pixel shader must run extra math to reconstruct positions from depth and decode packed normal vectors. However, modern GPUs are usually bound by memory bandwidth rather than math calculations, so this trade-off improves performance."</p>
+<hr>
+<h3>Topic 4: Environment Mapping &amp; Cubemaps</h3>
+<p><strong>T</strong>: "Let's discuss environment mapping. How do you implement real-time reflections on the sphere using cubemaps?"</p>
+<p><strong>S</strong>: "In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/EnvironmentMapRenderer.cpp#L54">EnvironmentMapRenderer.cpp:L54</a>, we create a dynamic cubemap texture by rendering the scene six times from the perspective of the reflective object. We set up six virtual cameras pointing in the cardinal directions (+X, -X, +Y, -Y, +Z, -Z), each with a $90^\circ$ FOV and a $1:1$ aspect ratio. We render the scene into each of the six faces, skipping the reflective object itself to avoid self-reflection feedback loops."</p>
+<p><strong>T (Follow-Up 1)</strong>: "Since you render to six different faces, do you clear the depth buffer <code>m_dsv</code> once before the loop, or at the start of rendering each face?"</p>
+<p><strong>S (Follow-Up Answer 1)</strong>: "We must clear <code>m_dsv</code> at the start of rendering <strong>each</strong> face slice.  In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TextureCubeD3D11.cpp#L136">TextureCubeD3D11.cpp:L136</a>: <code>context-&gt;ClearDepthStencilView(m_dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);</code> Because all six faces share the same depth buffer, the depth values written when rendering the first face are still in the buffer when we switch to the second face. If we didn't clear the depth buffer before drawing the second face, the old depth values would cause depth testing to fail, culling geometry on the new face."</p>
+<p><strong>T (Follow-Up 2)</strong>: "In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ReflectionPS.hlsl">ReflectionPS.hlsl</a>, we sample the texture cube using a 3D reflection direction vector $\vec{R}$. How does the GPU texture mapping unit know which of the 6 faces to sample using a 3D vector?"</p>
+<p><strong>S (Follow-Up Answer 2)</strong>: "The GPU identifies the face to sample by finding the component of the 3D direction vector $\vec{R} = (x,y,z)$ with the largest absolute value: <ul>   <li>If $|x|$ is largest and positive, it samples the $+X$ face.</li>   <li>If $|y|$ is largest and negative, it samples the $-Y$ face.</li> </ul>Once the face is selected, the GPU projects the remaining two coordinates onto that face to calculate standard 2D UV coordinates: $$U = \frac{c_1}{2 \times |c_{\text{max}}|} + 0.5, \quad V = \frac{c_2}{2 \times |c_{\text{max}}|} + 0.5$$ This calculation is handled entirely in hardware by the texture sampler unit."</p>
+<p><strong>T (Follow-Up 3)</strong>: "How do we prevent rendering seams at the borders of the cubemap faces when sampling with trilinear filtering? Explain how <code>D3D11_SAMPLER_DESC</code> address modes (e.g., <code>D3D11_TEXTURE_ADDRESS_CLAMP</code>) or hardware-level seamless cubemap filtering handle texel interpolation across face boundaries."</p>
+<p><strong>S (Follow-Up Answer 3)</strong>: "Standard texture sampling clamps coordinates to the edge of the texture (<code>D3D11_TEXTURE_ADDRESS_CLAMP</code>), which operates within a single face of the cubemap. When filtering texels at the boundary of a face, the sampler would interpolate with the clamped border pixels of that face, resulting in visible seams at the cubemap edges.  Direct3D 11 handles this using <strong>Seamless Cubemap Filtering</strong>, which is enabled by default on modern hardware. When sampling near a face edge, the GPU hardware reads the neighboring texels from the adjacent faces, interpolating across the cube seam to ensure smooth transitions across all faces."</p>
+<hr>
+<h2>🎭 Session 3: Quadtree Memory Rebuilds + Tessellation LOD Equations + DS Tangent Planes</h2>
+<h3>Topic 1: Win32 Message Loop &amp; Camera Vectors</h3>
+<p><strong>T</strong>: "Explain the structure of your Win32 message loop. How does <code>PeekMessage</code> work compared to <code>GetMessage</code>?"</p>
+<p><strong>S</strong>: "In <code>Main.cpp</code>, our message loop checks for operating system events like key presses or window resizing: <pre><code class="language-cpp">while (!(GetKeyState(VK_ESCAPE) &amp; 0x8000) &amp;&amp; msg.message != WM_QUIT)
+{
+    if (PeekMessage(&amp;msg, 0, 0, 0, PM_REMOVE))
+    {
+        TranslateMessage(&amp;msg);
+        DispatchMessage(&amp;msg);
+    }
+    // Update and render frame...
+}</code></pre> <ul>   <li><strong><code>GetMessage</code></strong> is blocking; if there are no window messages, it puts the thread to sleep, pausing the game.</li>   <li><strong><code>PeekMessage</code></strong> is non-blocking. It checks if a message exists. If it does, it processes it. If it doesn't, it returns immediately, allowing the game loop to continue updating physics, updating particles, and rendering the frame."</li> </ul> <strong>T (Follow-Up 1)</strong>: "Your camera class clamps pitch rotation in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/CameraD3D11.cpp#L79">CameraD3D11.cpp:L79</a>. Why is it clamped between $-\frac{\pi}{2}$ and $+\frac{\pi}{2}$ radians?"</p>
+<p><strong>S (Follow-Up Answer 1)</strong>: "Pitch represents looking straight up or straight down. If pitch went beyond $\pm\frac{\pi}{2}$ ($90^\circ$), the camera would flip upside down.  This causes the camera's local <code>up</code> vector to invert, which flips the View Matrix calculation. Clamping the pitch prevents this inversion and keeps the camera controls intuitive."</p>
+<p><strong>T (Follow-Up 2)</strong>: "In your Win32 window callback <code>WindowProc</code> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/WindowHelper.cpp">WindowHelper.cpp</a>, you handle the <code>WM_DESTROY</code> message. Why must you call <code>PostQuitMessage(0)</code> inside it? What happens if you destroy the window but omit this call?"</p>
+<p><strong>S (Follow-Up Answer 2)</strong>: "When the user clicks the close button, the OS destroys the window, sending a <code>WM_DESTROY</code> message.  Calling <code>PostQuitMessage(0)</code> posts a <code>WM_QUIT</code> message to the message queue.  If we omit this call, the window is closed, but the message loop never receives <code>WM_QUIT</code>. The game loop will continue running in the background indefinitely, consuming CPU resources even though the window is gone. This is a common source of ghost processes."</p>
+<p><strong>T (Follow-Up 3)</strong>: "How does the camera class extract its forward, right, and up vectors from the View Matrix rotation component, and how do we use them to construct movements in world space? Give me the exact matrix components."</p>
+<p><strong>S (Follow-Up Answer 3)</strong>: "The View Matrix transforms world coordinates to view coordinates. The top-left $3 \times 3$ portion of the View Matrix represents the camera's orientation.  Since the View Matrix is the transpose of the camera's rotation basis, the world-space camera vectors are stored in the <strong>rows</strong> of the matrix: $$V = \begin{bmatrix} R_x &amp; R_y &amp; R_z &amp; 0 \\ U_x &amp; U_y &amp; U_z &amp; 0 \\ F_x &amp; F_y &amp; F_z &amp; 0 \\ T_x &amp; T_y &amp; T_z &amp; 1 \end{bmatrix}$$ <ul>   <li><strong>Row 0</strong> ($V_{00}, V_{01}, V_{02}$) is the camera's <strong>Right</strong> vector $\vec{R}$.</li>   <li><strong>Row 1</strong> ($V_{10}, V_{11}, V_{12}$) is the camera's <strong>Up</strong> vector $\vec{U}$.</li>   <li><strong>Row 2</strong> ($V_{20}, V_{21}, V_{22}$) is the camera's <strong>Forward</strong> vector $\vec{F}$.</li> </ul>To move the camera forward in world space based on keyboard input, we scale this vector by speed and delta time: $$\vec{P}_{\text{new}} = \vec{P}_{\text{old}} + (\vec{F} \times \text{Speed} \times dt)$$ This keeps movement aligned with where the camera is looking."</p>
+<hr>
+<h3>Topic 2: Quadtree Traversal &amp; Memory Lifecycle</h3>
+<p><strong>T</strong>: "In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/QuadTree.h#L215">QuadTree.h:L215</a>, you clear the tree and rebuild it from scratch every frame. Why do you do this instead of updating object positions incrementally? Explain the performance implications."</p>
+<p><strong>S</strong>: "Rebuilding the tree every frame is a conscious performance trade-off.  If we updated object positions incrementally, we would have to check if an object has crossed a quadrant boundary, remove it from the old node, and insert it into a new node. This requires complex tree traversal and memory re-allocations on the CPU. Because our scene contains a small number of dynamic game objects, clearing the tree (<code>Clear()</code>) and re-inserting them (<code>Insert()</code>) takes under a microsecond. This is much faster than running incremental updates, ensures the tree is always structurally correct, and avoids memory leaks."</p>
+<p><strong>T (Follow-Up 1)</strong>: "If clearing the tree causes vectors in the child nodes to resize and reallocate memory frequently, does that lead to CPU memory fragmentation?"</p>
+<p><strong>S (Follow-Up Answer 1)</strong>: "Yes, frequent vector de-allocations can cause memory fragmentation. To mitigate this, <code>Clear(Node* node)</code> in our codebase only calls <code>elements.clear()</code>. This empties the vector but keeps its allocated capacity intact. When objects are re-inserted in the next frame, the vector reuses the same memory block without triggering new heap allocations. New allocations only occur if a node receives more elements than its previous peak capacity."</p>
+<p><strong>T (Follow-Up 2)</strong>: "What is the computational complexity of querying your Quadtree compared to checking all objects against the frustum individually? When does the Quadtree become slower than brute force?"</p>
+<p><strong>S (Follow-Up Answer 2)</strong>: " <ul>   <li>The complexity of brute-force frustum culling is $\mathcal{O}(N)$, where we check all $N$ objects every frame.</li>   <li>The average complexity of a Quadtree query is $\mathcal{O}(\log N)$, as we cull entire branches at once.</li> </ul>However, if the camera frustum is very wide and covers the entire scene, or if the scene is extremely dense and all objects are concentrated in a single node, the Quadtree must check all nodes and elements anyway. In this case, the quadtree is slower than brute force due to the overhead of tree traversal and recursive function calls."</p>
+<p><strong>T (Follow-Up 3)</strong>: "How do you perform frustum-to-Quadtree node intersection testing? Explain the mathematics of checking a 2D Axis-Aligned Bounding Box (AABB) of a quadtree node against the 3D frustum projected onto the horizontal plane ($XZ$-plane)."</p>
+<p><strong>S (Follow-Up Answer 3)</strong>: "The 3D camera frustum is defined by 6 planes. Each plane is represented by a normal vector $\vec{N} = (A,B,C)$ and a distance constant $D$: $$A \cdot x + B \cdot y + C \cdot z + D = 0$$ Since our Quadtree partitions the horizontal $XZ$-plane, we project the box of each node onto the horizontal plane, converting it to a 2D AABB defined by minimum coordinates $(x_{\text{min}}, z_{\text{min}})$ and maximum coordinates $(x_{\text{max}}, z_{\text{max}})$.  To check if the AABB is outside a frustum plane, we locate the <strong>p-vertex</strong> (the corner of the AABB furthest along the direction of the plane normal $\vec{N}$): $$\vec{P}_{\text{corner}.x} = (N_x \ge 0) ? x_{\text{max}} : x_{\text{min}}$$ $$\vec{P}_{\text{corner}.z} = (N_z \ge 0) ? z_{\text{max}} : z_{\text{min}}$$ We evaluate the plane equation for this corner. If: $$N_x \cdot \vec{P}_{\text{corner}.x} + N_z \cdot \vec{P}_{\text{corner}.z} + D &lt; 0$$ the entire node is outside the frustum plane. We can immediately cull the node and all its children."</p>
+<hr>
+<h3>Topic 3: Tessellation HS LOD Calculations</h3>
+<p><strong>T</strong>: "In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationHS.hlsl#L39">TessellationHS.hlsl:L39</a>, how are the edge and inside factors calculated? Show me the exact math used to scale the factors. What happens if adjacent patches calculate different edge factors?"</p>
+<p><strong>S</strong>: "In the patch constant phase, we compute the midpoint of each edge of the patch. We calculate the distance from the camera to the midpoint, clamp it to our range ($[1.0, 10.0]$ meters), and linearly interpolate to find the factor: <pre><code class="language-hlsl">float t = (distance - MIN_TESS_DISTANCE) / (MAX_TESS_DISTANCE - MIN_TESS_DISTANCE);
+float tessellationFactor = lerp(MAX_TESS_FACTOR, MIN_TESS_FACTOR, t);</code></pre> If two adjacent patches calculated different edge factors at their shared boundary, the Tessellator would generate mismatching vertices along that boundary, resulting in visible holes in the mesh (<strong>edge cracking</strong>). By calculating factors at the <strong>edge midpoints</strong> instead of the patch centers, both patches share the same midpoint coordinate and normal. They will calculate the exact same edge factor, preventing edge cracking."</p>
+<p><strong>T (Follow-Up 1)</strong>: "What partitioning mode did you select in your Hull Shader to prevent geometry popping as these factors change?"</p>
+<p><strong>S (Follow-Up Answer 1)</strong>: "We configured our Hull Shader with <code>[partitioning("fractional_odd")]</code> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationHS.hlsl#L76">TessellationHS.hlsl:L76</a>.  Under fractional partitioning, the Tessellator generates vertices along the edges at fractional positions. As the tessellation factor changes (due to camera movement), new vertices are not introduced suddenly. Instead, they morph smoothly from the existing vertices, preventing sudden pops in geometry detail."</p>
+<p><strong>T (Follow-Up 2)</strong>: "How does the Hull Shader pass control points to the Domain Shader? In <code>TessellationHS.hlsl</code>, you have <code>outputcontrolpoints(3)</code>. Can a Hull Shader output more control points than it inputs? When is this useful?"</p>
+<p><strong>S (Follow-Up Answer 2)</strong>: "Yes, a Hull Shader can output a different number of control points (up to 32) than it receives as input.  The Hull Shader control point phase (<code>main</code>) runs once for each output control point, using <code>SV_OutputControlPointID</code> to calculate its properties. This is useful when converting representations—for example, converting a simple 3-point triangle patch into a 9-point Bezier patch. The Domain Shader can then evaluate these extra control points to calculate smooth curves."</p>
+<p><strong>T (Follow-Up 3)</strong>: "Direct3D 11 tessellation has hardware limitations. What is the maximum Tessellation Factor supported by the hardware, and how does the GPU map fractional factors to triangle subdivision layouts?"</p>
+<p><strong>S (Follow-Up Answer 3)</strong>: "The maximum tessellation factor supported by D3D11 hardware is <strong>$64.0$</strong>. If we calculate a factor larger than 64.0, the hardware clamps it to 64.0.  When using <code>fractional_odd</code> partitioning, the computed factor $k$ is rounded up to the nearest odd integer $n \in \{3, 5, \dots, 63, 65\}$.  The tessellator subdivides the triangle edge into $n-2$ segments of equal scale, and two smaller segments at the outer ends. As $k$ increases, these two outer segments grow from size 0 until they match the scale of the inner segments. At that point, the layout matches the next odd integer, ensuring smooth transitions without popped vertices."</p>
+<hr>
+<h3>Topic 4: Domain Shader Phong Smoothing Math</h3>
+<p><strong>T</strong>: "Trace the mathematical steps in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationDS.hlsl#L46">TessellationDS.hlsl:L46-77</a> that project a vertex onto a tangent plane. How does this make a blocky sphere round?"</p>
+<p><strong>S</strong>: "First, we compute the flat, linearly interpolated position using barycentrics: <code>float3 linearPosition = patch[0].worldPosition * barycentricCoords.x + ...</code> Next, we project this flat coordinate onto the tangent planes defined by the control points $P_i$ and normal vectors $N_i$: <pre><code class="language-hlsl">float3 ProjectToPlane(float3 position, float3 planePoint, float3 planeNormal)
+{
+    float3 toPosition = position - planePoint;
+    float distanceToPlane = dot(toPosition, planeNormal);
+    return position - distanceToPlane * planeNormal;
+}</code></pre> We project <code>linearPosition</code> onto the tangent planes of all three vertices: <ul>   <li><code>proj0 = ProjectToPlane(linearPosition, P0, N0)</code></li>   <li><code>proj1 = ProjectToPlane(linearPosition, P1, N1)</code></li>   <li><code>proj2 = ProjectToPlane(linearPosition, P2, N2)</code></li> </ul>We average these projected points using barycentric coordinates to find <code>phongPosition</code>. Because the normal vectors point outward from the sphere's center, projecting onto their tangent planes offsets the new vertices outward, creating a spherical curve. We then blend this curved position back by 75% to round out the sharp corners: <code>output.worldPosition = lerp(linearPosition, phongPosition, PHONG_ALPHA);</code>"</p>
+<p><strong>T (Follow-Up 1)</strong>: "How do you calculate the normal vector for these newly generated vertices in the Domain Shader? Do you apply the Phong projection equations to the normals as well?"</p>
+<p><strong>S (Follow-Up Answer 1)</strong>: "No, the Phong smoothing projection equations are only applied to the vertex positions. For the normals, we use standard linear interpolation of the control point normals using the barycentric coordinates, and normalize the result: <pre><code class="language-hlsl">output.worldNormal = normalize(
+    patch[0].worldNormal * barycentricCoords.x + 
+    patch[1].worldNormal * barycentricCoords.y + 
+    patch[2].worldNormal * barycentricCoords.z
+);</code></pre> Applying Phong projection math to normals is not necessary for lighting; linear interpolation of vertex normals across the patch surface is sufficient and computationally cheaper."</p>
+<p><strong>T (Follow-Up 2)</strong>: "Why do you apply the Phong projection equations in <strong>World Space</strong> in the Domain Shader instead of <strong>Clip Space</strong> (after multiplying by the View-Projection matrix)?"</p>
+<p><strong>S (Follow-Up Answer 2)</strong>: "We must perform the projections in world space because the projection equations rely on dot products: <code>dot(toPosition, planeNormal)</code> Dot products measure angles and distances between vectors.  If we performed this in clip space, the perspective projection (which scales coordinates non-linearly using $1/Z$) would distort the angles and normals, making the dot products mathematically incorrect and warping the sphere shape. Running the projections in world space ensures the physical curvature is calculated correctly before the perspective transform is applied."</p>
+<p><strong>T (Follow-Up 3)</strong>: "Explain the mathematical relationship between PN-Triangles (Point-Normal Triangles) and Phong Tessellation. How does Phong Tessellation differ from displacement mapping, and why is it preferred when we don't have a heightmap?"</p>
+<p><strong>S (Follow-Up Answer 3)</strong>: " <ul>   <li><strong>PN-Triangles</strong> construct a curved surface across a triangle by building a cubic Bezier patch. This approach uses 10 control points for positions and 6 control points for normals, requiring significant computation to evaluate the Bezier equations in the Domain Shader.</li>   <li><strong>Phong Tessellation</strong> is an approximation that runs much faster. Instead of evaluating Bezier patches, it performs three linear projections onto the vertex tangent planes and interpolates the results.</li>   <li><strong>Displacement Mapping</strong> uses a heightmap texture to offset vertex positions along normal vectors, which requires a pre-authored texture.</li> </ul>Phong Tessellation is a purely geometric, mathematical approach that rounds out polygonal shapes (like low-poly spheres or cylinders) automatically without requiring any extra texture data or high-overhead Bezier math."</p>
+    </main>
+</body>
+</html>

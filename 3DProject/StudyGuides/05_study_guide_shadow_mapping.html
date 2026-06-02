@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>05. Shadow Mapping - DV1542 Study Kit</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/tokyo-night-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+    
+    <!-- MathJax Configuration -->
+    <script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #151b26;
+            --bg-sidebar: #0f131f;
+            --border-color: #242c3d;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --accent: #a855f7;
+            --accent-glow: rgba(168, 85, 247, 0.15);
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Sidebar Navigation Layout */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-nav {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-muted);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, var(--primary-glow), rgba(168, 85, 247, 0.05));
+            border-left: 3px solid var(--primary);
+            color: #fff;
+            padding-left: 11px;
+        }
+
+        /* Main Content Layout */
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 60%, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+
+        p {
+            margin-bottom: 18px;
+            color: var(--text-muted);
+            font-size: 0.975rem;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        li input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: var(--primary);
+            transform: scale(1.1);
+            vertical-align: middle;
+        }
+
+        /* Code Blocks */
+        pre {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary);
+            word-break: break-word;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: inherit;
+            word-break: normal;
+        }
+
+        /* Links */
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        a:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* Horizontal Rule */
+        hr {
+            border: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 40px 0;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: var(--bg-sidebar);
+            color: #fff;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Alerts */
+        .alert {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            border-left: 4px solid var(--primary);
+        }
+
+        .alert-note {
+            border-left-color: var(--primary);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(99, 102, 241, 0.03));
+        }
+
+        .alert-tip {
+            border-left-color: var(--success);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(16, 185, 129, 0.03));
+        }
+
+        .alert-important {
+            border-left-color: var(--warning);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(245, 158, 11, 0.03));
+        }
+
+        .alert-warning {
+            border-left-color: var(--accent);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(168, 85, 247, 0.03));
+        }
+
+        .alert-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-content p {
+            margin-bottom: 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--border-color);
+            padding-left: 16px;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+  <div class="sidebar-header">DV1542 Study Kit</div>
+  <nav class="sidebar-nav">
+    <a class="nav-item " href="01_study_guide_overall_architecture.html">01. Overall Architecture</a>
+    <a class="nav-item " href="02_study_guide_obj_parser_buffers.html">02. Mesh Loading & Buffers</a>
+    <a class="nav-item " href="03_study_guide_quadtree_culling.html">03. Quadtree Culling</a>
+    <a class="nav-item " href="04_study_guide_deferred_rendering.html">04. Deferred Rendering</a>
+    <a class="nav-item active" href="05_study_guide_shadow_mapping.html">05. Shadow Mapping</a>
+    <a class="nav-item " href="06_study_guide_phong_tessellation.html">06. Phong Tessellation</a>
+    <a class="nav-item " href="07_study_guide_normal_parallax.html">07. Normal & Parallax Maps</a>
+    <a class="nav-item " href="08_study_guide_environment_mapping.html">08. Environment Maps</a>
+    <a class="nav-item " href="09_study_guide_particle_system.html">09. GPU Particles</a>
+    <a class="nav-item " href="10_study_guide_binding_dispatch.html">10. Bindings & Dispatch</a>
+    <a class="nav-item " href="11_study_guide_master_faq.html">11. Master FAQ</a>
+    <a class="nav-item " href="12_mock_presentations_with_teacher.html">12. Mock Presentations</a>
+  </nav>
+</div>
+
+    
+    <main class="main-content">
+        <h1>Study Guide 3: Shadow Mapping &amp; Shadow Map Arrays</h1>
+<p>This guide explains how shadows are generated in this project: rendering depth from the light's perspective, configuring the shadow map texture array, rendering to individual array slices, implementing Percentage Closer Filtering (PCF), and applying depth bias to solve shadow acne.</p>
+<hr>
+<h2>1. Core Concept of Shadow Mapping</h2>
+<p>Shadow mapping is a two-pass rendering technique: 1. <strong>Shadow Pass</strong>: Render the scene from the light source's perspective. Instead of outputting color, we only output depth to a depth-stencil texture. This records the distance from the light to the closest surfaces. 2. <strong>Lighting Pass</strong>: When shading a pixel on a surface, we transform its world position into the light's perspective (clip space). We perform a depth comparison: <ul>   <li>Let $d_{\text{current}}$ be the distance from the pixel to the light.</li>   <li>Let $d_{\text{map}}$ be the distance stored in the shadow map at the matching coordinate.</li>   <li>If $d_{\text{current}} &gt; d_{\text{map}}$, another surface is closer to the light than the current pixel, meaning the current pixel is <strong>in shadow</strong>. Otherwise, it is <strong>lit</strong>.</li> </ul> <hr></p>
+<h2>2. Light View-Projection Matrix</h2>
+<p>In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/LightManager.cpp#L73">LightManager.cpp:L73</a>, the light-space view-projection matrix is constructed: <ul>   <li><strong>Point/Spotlights (Perspective)</strong>: Since light propagates outward from a point, we use a perspective projection:</li> </ul>  <code>XMMatrixPerspectiveFovLH(XMConvertToRadians(90.f), 1.0f, 0.1f, 40.f)</code>   The view matrix is built using:   <code>XMMatrixLookAtLH(pos, pos + dir, up)</code> <ul>   <li><strong>Directional Lights (Orthographic)</strong>: (If active) would use an orthographic projection since directional light rays are parallel.</li> </ul> <hr></p>
+<h2>3. The Shadow Map Array Setup</h2>
+<p>Instead of creating a separate depth texture for each light (which would require switching textures and bindings constantly), this project creates a <strong>Texture Array</strong> of size 4. In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L297">Main.cpp:L297</a>: <pre><code class="language-cpp">DepthBufferD3D11 shadowMap;
+shadowMap.Initialize(device, 2048, 2048, true, 4);</code></pre> This allocates a single 2D texture array on the GPU with 4 slices, each slice being $2048 \times 2048$ pixels.</p>
+<h3>The Typeless Format Trick</h3>
+To enable both writing depth and reading it as a shader resource, we use a typeless texture format:
+<ul>
+  <li><strong>Texture Format</strong>: <code>DXGI_FORMAT_R24G8_TYPELESS</code> (allocates 32 bits per texel: 24 bits for red/depth, 8 bits for green/stencil, but no data type is assigned yet).</li>
+  <li><strong>Depth Stencil View (DSV) Format</strong>: <code>DXGI_FORMAT_D24_UNORM_S8_UINT</code> (reinterprets the bits as a 24-bit unsigned normalized depth value and 8-bit stencil during write).</li>
+  <li><strong>Shader Resource View (SRV) Format</strong>: <code>DXGI_FORMAT_R24_UNORM_X8_TYPELESS</code> (reinterprets the depth channel as a 24-bit float red channel for shader reading, ignoring the stencil channel).</li>
+</ul>
+<hr>
+<h2>4. The Shadow Pass Implementation</h2>
+<p>The shadow pass runs in a loop for each light in <code>Main.cpp:L571-618</code>.</p>
+<h3>Step-by-Step Execution Sequence</h3>
+1. <strong>Shaders and Topology</strong>:
+   Disable pixel, hull, and domain shaders (as we only write depth, which is handled automatically after the vertex shader):
+<pre><code class="language-cpp">   context-&gt;IASetInputLayout(inputLayout.GetInputLayout());
+   context-&gt;VSSetShader(vShader, nullptr, 0);
+   context-&gt;HSSetShader(nullptr, nullptr, 0);
+   context-&gt;DSSetShader(nullptr, nullptr, 0);
+   context-&gt;PSSetShader(nullptr, nullptr, 0);</code></pre>
+2. <strong>Clear Depth Slice</strong>:
+   Get the DSV for the current light slice (<code>shadowMap.GetDSV(lightIdx)</code>) and clear it:
+   <code>context-&gt;ClearDepthStencilView(shadowDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);</code>
+3. <strong>Viewport Swapping</strong>:
+   Since the shadow map resolution ($2048 \times 2048$) is higher than the window resolution ($1024 \times 576$), we must swap viewports:
+<pre><code class="language-cpp">   D3D11_VIEWPORT shadowViewport = { 0.0f, 0.0f, 2048.0f, 2048.0f, 0.0f, 1.0f };
+   context-&gt;RSSetViewports(1, &amp;shadowViewport);</code></pre>
+4. <strong>Bind the Depth Target (with null RTV)</strong>:
+   We render without writing color:
+<pre><code class="language-cpp">   ID3D11RenderTargetView* nullRTV = nullptr;
+   context-&gt;OMSetRenderTargets(1, &amp;nullRTV, shadowDSV);</code></pre>
+5. <strong>Draw Scene Geometry</strong>:
+   We update our constant buffer with the light’s view-projection matrix and draw every mesh:
+<pre><code class="language-cpp">   MatrixPair shadowData;
+   XMStoreFloat4x4(&amp;shadowData.world, XMMatrixTranspose(obj.GetWorldMatrix()));
+   XMStoreFloat4x4(&amp;shadowData.viewProj, XMMatrixTranspose(lightVP));
+   constantBuffer.UpdateBuffer(context, &amp;shadowData);
+   // Perform draw call...</code></pre>
+<hr>
+<h2>5. Solving Shadow Acne and Peter Panning</h2>
+<h3>Shadow Acne</h3>
+<ul>
+  <li><strong>What it is</strong>: Moire-like black stripes across lit surfaces. It occurs because the shadow map resolution is finite. Multiple screen pixels map to the same shadow map texel. Due to precision limits and surface sloping, some screen pixels end up slightly deeper than the stored texel depth, triggering self-shadowing.</li>
+  <li><strong>Solution 1: Hardware Rasterizer Depth Bias</strong>:</li>
+</ul>  In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L79">Main.cpp:L79</a>, we configure a shadow rasterizer state:
+<pre><code class="language-cpp">  rastDesc.DepthBias = 2000;
+  rastDesc.SlopeScaledDepthBias = 2.0f;
+  context-&gt;RSSetState(shadowRasterizerState);</code></pre>
+  This shifts the rendered depth values slightly away from the light during the shadow pass.
+<ul>
+  <li><strong>Solution 2: Slope-Dependent Shader Bias</strong>:</li>
+</ul>  In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/LightingCS.hlsl#L82">LightingCS.hlsl:L82</a>, we subtract a small dynamic bias based on the angle between the surface normal ($\vec{N}$) and the light direction ($\vec{L}$):
+<pre><code class="language-hlsl">  float cosTheta = saturate(dot(normal, lightDir));
+  float bias = 0.0005f * (sqrt(1.0f - cosTheta * cosTheta) / (cosTheta + 0.0001f));
+  bias = clamp(bias, 0.0f, 0.001f);
+  depth -= bias;</code></pre>
+  Slanted surfaces need a larger bias because shadow map texels cover larger physical areas on them.
+<h3>Peter Panning</h3>
+<ul>
+  <li><strong>What it is</strong>: If the depth bias is too large, shadows detach from the objects and appear to float (named after Peter Pan's shadow). We must balance the hardware bias (2000) and shader bias clamp ($0.001$) to eliminate acne without causing shadows to detach.</li>
+</ul>
+<hr>
+<h2>6. Percentage Closer Filtering (PCF) and Comparison Sampler</h2>
+<p>Direct3D 11 provides hardware-accelerated <strong>Percentage Closer Filtering (PCF)</strong> to smooth out jagged shadow borders.</p>
+<h3>The Shadow Sampler Configuration</h3>
+In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L86">Main.cpp:L86</a>:
+<pre><code class="language-cpp">D3D11_SAMPLER_DESC desc = {};
+desc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+desc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+desc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+desc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+desc.BorderColor[0] = desc.BorderColor[1] = desc.BorderColor[2] = desc.BorderColor[3] = 1.0f;
+desc.ComparisonFunc = D3D11_COMPARISON_LESS_EQUAL;</code></pre>
+<ul>
+  <li><strong><code>D3D11_FILTER_COMPARISON_...</code></strong>: Instructs the texture unit that when we sample, it shouldn't return the raw depth value. Instead, it compares our lookup depth against the texel values, filters the boolean results (using bilinear interpolation), and returns a single float representing how much of the surrounding area is lit (between $0.0$ and $1.0$).</li>
+  <li><strong><code>D3D11_TEXTURE_ADDRESS_BORDER</code></strong>: If a pixel falls outside the boundaries of the light's viewport frustum, the sampler returns the <code>BorderColor</code> (which is <code>1.0f</code>, meaning fully lit). This avoids visual artifacts at the boundaries.</li>
+  <li><strong><code>ComparisonFunc = D3D11_COMPARISON_LESS_EQUAL</code></strong>: Returns <code>1.0</code> if <code>depth &lt;= shadowMapDepth</code> (lit), and <code>0.0</code> if <code>depth &gt; shadowMapDepth</code> (shadowed).</li>
+</ul>
+<h3>Compute Shader Sampling</h3>
+In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/LightingCS.hlsl#L88">LightingCS.hlsl:L88</a>:
+<pre><code class="language-hlsl">float shadow = shadowMaps.SampleCmpLevelZero(shadowSampler, float3(shadowUV, lightIndex), depth);</code></pre>
+We specify a 3-component coordinate: the UV coordinates (<code>shadowUV</code>), and the slice index of the light (<code>lightIndex</code>) in the texture array.
+<hr>
+<h2>Teacher Presentation Tips 🎓</h2>
+<ul>
+  <li><strong>Explain how to bind a single slice of a Texture Array as a Depth Target</strong>:</li>
+  <li><em>Answer</em>: In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/DepthBufferD3D11.cpp#L115">DepthBufferD3D11.cpp:L115</a>, when arraySize &gt; 1, we populate a <code>D3D11_DEPTH_STENCIL_VIEW_DESC</code> structure with <code>ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY</code>. We then specify <code>dsvDesc.Texture2DArray.FirstArraySlice = i;</code> and <code>dsvDesc.Texture2DArray.ArraySize = 1;</code>. This creates $N$ individual <code>ID3D11DepthStencilView</code> pointers, each mapping to exactly one slice of the array. During the shadow pass, we bind only that slice's view using <code>OMSetRenderTargets</code>.</li>
+  <li><strong>Why do we use SampleCmpLevelZero instead of standard Sample?</strong>:</li>
+  <li><em>Answer</em>: Regular texture sampling is disabled for depth comparison samplers in HLSL because it would interpolate the raw depth values, which is mathematically incorrect for shadow checks. <code>SampleCmpLevelZero</code> forces the hardware to compare the depth values of the 4 nearest texels individually, and then interpolate the 0 or 1 result flags, giving us smooth anti-aliased shadow boundaries.</li>
+</ul>
+    </main>
+</body>
+</html>

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>01. Overall Architecture - DV1542 Study Kit</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/tokyo-night-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+    
+    <!-- MathJax Configuration -->
+    <script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #151b26;
+            --bg-sidebar: #0f131f;
+            --border-color: #242c3d;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --accent: #a855f7;
+            --accent-glow: rgba(168, 85, 247, 0.15);
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Sidebar Navigation Layout */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-nav {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-muted);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, var(--primary-glow), rgba(168, 85, 247, 0.05));
+            border-left: 3px solid var(--primary);
+            color: #fff;
+            padding-left: 11px;
+        }
+
+        /* Main Content Layout */
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 60%, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+
+        p {
+            margin-bottom: 18px;
+            color: var(--text-muted);
+            font-size: 0.975rem;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        li input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: var(--primary);
+            transform: scale(1.1);
+            vertical-align: middle;
+        }
+
+        /* Code Blocks */
+        pre {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary);
+            word-break: break-word;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: inherit;
+            word-break: normal;
+        }
+
+        /* Links */
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        a:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* Horizontal Rule */
+        hr {
+            border: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 40px 0;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: var(--bg-sidebar);
+            color: #fff;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Alerts */
+        .alert {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            border-left: 4px solid var(--primary);
+        }
+
+        .alert-note {
+            border-left-color: var(--primary);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(99, 102, 241, 0.03));
+        }
+
+        .alert-tip {
+            border-left-color: var(--success);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(16, 185, 129, 0.03));
+        }
+
+        .alert-important {
+            border-left-color: var(--warning);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(245, 158, 11, 0.03));
+        }
+
+        .alert-warning {
+            border-left-color: var(--accent);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(168, 85, 247, 0.03));
+        }
+
+        .alert-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-content p {
+            margin-bottom: 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--border-color);
+            padding-left: 16px;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+  <div class="sidebar-header">DV1542 Study Kit</div>
+  <nav class="sidebar-nav">
+    <a class="nav-item active" href="01_study_guide_overall_architecture.html">01. Overall Architecture</a>
+    <a class="nav-item " href="02_study_guide_obj_parser_buffers.html">02. Mesh Loading & Buffers</a>
+    <a class="nav-item " href="03_study_guide_quadtree_culling.html">03. Quadtree Culling</a>
+    <a class="nav-item " href="04_study_guide_deferred_rendering.html">04. Deferred Rendering</a>
+    <a class="nav-item " href="05_study_guide_shadow_mapping.html">05. Shadow Mapping</a>
+    <a class="nav-item " href="06_study_guide_phong_tessellation.html">06. Phong Tessellation</a>
+    <a class="nav-item " href="07_study_guide_normal_parallax.html">07. Normal & Parallax Maps</a>
+    <a class="nav-item " href="08_study_guide_environment_mapping.html">08. Environment Maps</a>
+    <a class="nav-item " href="09_study_guide_particle_system.html">09. GPU Particles</a>
+    <a class="nav-item " href="10_study_guide_binding_dispatch.html">10. Bindings & Dispatch</a>
+    <a class="nav-item " href="11_study_guide_master_faq.html">11. Master FAQ</a>
+    <a class="nav-item " href="12_mock_presentations_with_teacher.html">12. Mock Presentations</a>
+  </nav>
+</div>
+
+    
+    <main class="main-content">
+        <h1>Study Guide 1: Overall Win32 and Direct3D 11 Architecture</h1>
+<p>This guide explains how the application initializes, manages its frame lifecycle, computes frame-rate independent updates, and controls the camera.</p>
+<hr>
+<h2>1. Application Lifecycle and Win32 Window Setup</h2>
+<p>The entry point of your application is <code>wWinMain</code> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L180">Main.cpp</a>.</p>
+<h3>The Win32 Initialization Sequence</h3>
+1. <strong>Memory Leak Detection</strong>: At the very start of <code>wWinMain</code>, <code>_CrtSetDbgFlag</code> is configured. This instructs the MSVC runtime to check for memory leaks at program exit and print allocations that weren't released.
+2. <strong>Window Creation</strong>: Calling <code>SetupWindow()</code> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/WindowHelper.cpp#L20">WindowHelper.cpp</a> registers a Win32 window class with a custom callback <code>WindowProc</code> (handling messages like <code>WM_DESTROY</code> to post exit signals) and spawns an overlapping window of $1024 \times 576$ resolution.
+3. <strong>Mouse Centering</strong>: The cursor is moved to the center of the screen, and hidden via <code>ShowCursor(FALSE)</code> to enable smooth first-person camera mouse tracking.
+4. <strong>D3D11 Initialization</strong>: <code>SetupD3D11</code> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/D3D11Helper.cpp#L127">D3D11Helper.cpp</a> creates the D3D11 core interfaces:
+<ul>
+  <li><strong><code>ID3D11Device</code></strong>: Represents the virtual graphics adapter. Used to allocate GPU resources (buffers, textures, shaders).</li>
+  <li><strong><code>ID3D11DeviceContext</code></strong>: Represents the pipeline controller. Used to bind resources and dispatch draw commands to the GPU.</li>
+  <li><strong><code>IDXGISwapChain</code></strong>: Handles double buffering. It holds the back buffer texture that we render to and swaps it to the monitor when presenting.</li>
+  <li><strong><code>ID3D11RenderTargetView</code> (rtv)</strong>: Represents the back-buffer render target, allowing the Output Merger stage to write finalized color pixels to the swap chain.</li>
+</ul>
+<hr>
+<h2>2. The Main Game Loop</h2>
+<p>Once initialized, the program enters a message loop in <code>Main.cpp</code> that continues until <code>VK_ESCAPE</code> is pressed or a <code>WM_QUIT</code> window message is received: <pre><code class="language-cpp">while (!(GetKeyState(VK_ESCAPE) &amp; 0x8000) &amp;&amp; msg.message != WM_QUIT)
+{
+    if (PeekMessage(&amp;msg, 0, 0, 0, PM_REMOVE))
+    {
+        TranslateMessage(&amp;msg);
+        DispatchMessage(&amp;msg);
+    }
+    // Update and render frame...
+}</code></pre> <ul>   <li><strong><code>PeekMessage</code></strong> handles incoming operating system events (like keyboard input or resizing) without blocking the thread. If no window messages are queued, it proceeds to update the physics, update particles, and draw the frame.</li> </ul> <hr></p>
+<h2>3. Frame Delta Time Calculation</h2>
+<p>To ensure camera movement, rotating demo cubes, and particles update at the same speed regardless of the player's frame rate (FPS), the application calculates a <strong>Delta Time ($dt$)</strong> using high-resolution hardware timers: <pre><code class="language-cpp">auto currentTime = std::chrono::high_resolution_clock::now();
+float dt = std::chrono::duration&lt;float&gt;(currentTime - previousTime).count();
+previousTime = currentTime;</code></pre> <ul>   <li><strong>Why it's crucial</strong>: High-end computers might run the game at 500 FPS ($dt \approx 0.002$s), whereas low-end machines might run it at 30 FPS ($dt \approx 0.033$s).</li>   <li><strong>Application</strong>: In <code>Main.cpp</code>, dynamic transformations use $dt$:</li>   <li>Movement speed: <code>camera.MoveForward(camSpeed * dt)</code></li>   <li>Rotations: <code>rotationAngle += XMConvertToRadians(30.f) * dt</code></li>   <li>Particle updates: <code>particleSystem.Update(context, dt)</code></li> </ul> <hr></p>
+<h2>4. The Camera Coordinate System</h2>
+<p>The camera class <code>CameraD3D11</code> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/CameraD3D11.h">CameraD3D11.h</a> manages the viewer's orientation in 3D world space.</p>
+<h3>1. Camera Vectors</h3>
+The camera maintains a local orthonormal basis (three mutually perpendicular vectors):
+<ul>
+  <li><strong><code>position</code></strong>: Coordinates in 3D world space.</li>
+  <li><strong><code>forward</code></strong>: The direction the camera is looking.</li>
+  <li><strong><code>right</code></strong>: The vector pointing to the camera's right side.</li>
+  <li><strong><code>up</code></strong>: The vector pointing straight up relative to the camera.</li>
+</ul>
+<h3>2. Camera Rotations (Pitch and Yaw)</h3>
+Rotations are computed in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/CameraD3D11.cpp#L75">CameraD3D11.cpp:L75</a> by rotating vectors around specific axes using quaternions:
+<ul>
+  <li><strong>Yaw (Look Left/Right)</strong>: Rotates the <code>forward</code>, <code>right</code>, and <code>up</code> vectors around the global up axis <code>(0, 1, 0)</code>.</li>
+  <li><strong>Pitch (Look Up/Down)</strong>: Rotates vectors around the camera's local <code>right</code> vector. It is clamped between $-\frac{\pi}{2}$ and $+\frac{\pi}{2}$ (radians) to prevent the camera from flipping upside down.</li>
+</ul>
+<h3>3. View-Projection Matrices</h3>
+Every frame, the GPU needs to transform 3D world positions into 2D clip-space coordinates. This requires two matrices:
+1. <strong>View Matrix</strong>: Built in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/CameraD3D11.cpp#L145">CameraD3D11.cpp:L145</a> using <code>XMMatrixLookAtLH(pos, pos + forward, up)</code>. It transforms coordinates from global <strong>World Space</strong> to <strong>Camera Space</strong> (where the camera is at origin <code>(0,0,0)</code> looking down the Z axis).
+2. <strong>Projection Matrix</strong>: Built in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/CameraD3D11.cpp#L146">CameraD3D11.cpp:L146</a> using <code>XMMatrixPerspectiveFovLH(fov, aspect, nearZ, farZ)</code>. It scales geometry to simulate perspective (objects farther away look smaller) and maps coordinate bounds to <strong>Clip Space</strong> ($[-1, 1]$ in X/Y, $[0, 1]$ in Z).
+3. <strong>Combination</strong>: Multiplying these matrices <code>View * Projection</code> creates the camera view-projection matrix used to transform vertices in vertex shaders.
+<hr>
+<h2>Teacher Presentation Tips 🎓</h2>
+<ul>
+  <li><strong>Be prepared to explain why <code>GetFocus() == window</code> is checked</strong>: Point out that it prevents mouse-locking and camera spinning when the user Alt-Tabs out of the application.</li>
+  <li><strong>Explain high-resolution clocks</strong>: High-resolution clock uses the CPU's hardware performance counter (underlying Win32 API <code>QueryPerformanceCounter</code>), which is far more accurate than simple Millisecond timers like <code>timeGetTime</code> or <code>GetTickCount</code>.</li>
+</ul>
+    </main>
+</body>
+</html>

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>08. Environment Maps - DV1542 Study Kit</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/tokyo-night-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+    
+    <!-- MathJax Configuration -->
+    <script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #151b26;
+            --bg-sidebar: #0f131f;
+            --border-color: #242c3d;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --accent: #a855f7;
+            --accent-glow: rgba(168, 85, 247, 0.15);
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Sidebar Navigation Layout */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-nav {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-muted);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, var(--primary-glow), rgba(168, 85, 247, 0.05));
+            border-left: 3px solid var(--primary);
+            color: #fff;
+            padding-left: 11px;
+        }
+
+        /* Main Content Layout */
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 60%, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+
+        p {
+            margin-bottom: 18px;
+            color: var(--text-muted);
+            font-size: 0.975rem;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        li input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: var(--primary);
+            transform: scale(1.1);
+            vertical-align: middle;
+        }
+
+        /* Code Blocks */
+        pre {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary);
+            word-break: break-word;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: inherit;
+            word-break: normal;
+        }
+
+        /* Links */
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        a:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* Horizontal Rule */
+        hr {
+            border: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 40px 0;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: var(--bg-sidebar);
+            color: #fff;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Alerts */
+        .alert {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            border-left: 4px solid var(--primary);
+        }
+
+        .alert-note {
+            border-left-color: var(--primary);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(99, 102, 241, 0.03));
+        }
+
+        .alert-tip {
+            border-left-color: var(--success);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(16, 185, 129, 0.03));
+        }
+
+        .alert-important {
+            border-left-color: var(--warning);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(245, 158, 11, 0.03));
+        }
+
+        .alert-warning {
+            border-left-color: var(--accent);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(168, 85, 247, 0.03));
+        }
+
+        .alert-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-content p {
+            margin-bottom: 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--border-color);
+            padding-left: 16px;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+  <div class="sidebar-header">DV1542 Study Kit</div>
+  <nav class="sidebar-nav">
+    <a class="nav-item " href="01_study_guide_overall_architecture.html">01. Overall Architecture</a>
+    <a class="nav-item " href="02_study_guide_obj_parser_buffers.html">02. Mesh Loading & Buffers</a>
+    <a class="nav-item " href="03_study_guide_quadtree_culling.html">03. Quadtree Culling</a>
+    <a class="nav-item " href="04_study_guide_deferred_rendering.html">04. Deferred Rendering</a>
+    <a class="nav-item " href="05_study_guide_shadow_mapping.html">05. Shadow Mapping</a>
+    <a class="nav-item " href="06_study_guide_phong_tessellation.html">06. Phong Tessellation</a>
+    <a class="nav-item " href="07_study_guide_normal_parallax.html">07. Normal & Parallax Maps</a>
+    <a class="nav-item active" href="08_study_guide_environment_mapping.html">08. Environment Maps</a>
+    <a class="nav-item " href="09_study_guide_particle_system.html">09. GPU Particles</a>
+    <a class="nav-item " href="10_study_guide_binding_dispatch.html">10. Bindings & Dispatch</a>
+    <a class="nav-item " href="11_study_guide_master_faq.html">11. Master FAQ</a>
+    <a class="nav-item " href="12_mock_presentations_with_teacher.html">12. Mock Presentations</a>
+  </nav>
+</div>
+
+    
+    <main class="main-content">
+        <h1>Study Guide 6: Environment Mapping (Skybox, Texture Cubemaps &amp; Dynamic Reflections)</h1>
+<p>This guide explains how real-time reflections are implemented: allocating texture cubemaps, configuring six virtual cameras to capture environment perspectives, rendering the scene into the cubemap faces, and sampling the reflection vector in the pixel shader.</p>
+<hr>
+<h2>1. Core Concept of Dynamic Environment Mapping</h2>
+<p>To render a reflective surface (like a chrome sphere) that reflects its surroundings in real-time, the application must capture what the sphere "sees" in all directions. 1. We position six virtual cameras at the center of the reflective object. 2. Each camera points in a different cardinal direction (+X, -X, +Y, -Y, +Z, -Z) with a <strong>90-degree field of view</strong> and a <strong>1:1 aspect ratio</strong>. 3. We render the scene six times (once per camera) into a <strong>texture cube</strong>. 4. When rendering the reflective object, the pixel shader calculates the reflection vector based on the player's view angle and samples the texture cube.</p>
+<hr>
+<h2>2. Allocation of <code>TextureCubeD3D11</code></h2>
+<p>A Direct3D 11 cubemap is represented as a texture array containing exactly six 2D textures. In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TextureCubeD3D11.cpp#L18">TextureCubeD3D11.cpp:L18</a>:</p>
+<h3>Texture Description</h3>
+<pre><code class="language-cpp">desc.ArraySize = 6;
+desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+desc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE; // Crucial flag for cubemaps</code></pre>
+<ul>
+  <li><strong><code>D3D11_RESOURCE_MISC_TEXTURECUBE</code></strong>: Tells the D3D11 runtime that this texture array can be bound to shaders as a 3D texture cube (<code>TextureCube</code> in HLSL), enabling 3D directional vector sampling.</li>
+</ul>
+<h3>Render Target Views (RTVs)</h3>
+We create a separate RTV for each of the six faces. This allows rendering to each face individually:
+<pre><code class="language-cpp">D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+rtvDesc.Format = desc.Format;
+rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
+rtvDesc.Texture2DArray.ArraySize = 1;
+
+for (int i = 0; i &lt; 6; ++i)
+{
+    rtvDesc.Texture2DArray.FirstArraySlice = i; // Map RTV to specific slice
+    device-&gt;CreateRenderTargetView(m_textureCube, &amp;rtvDesc, &amp;m_rtvs[i]);
+}</code></pre>
+<h3>Shared Depth Stencil View (DSV)</h3>
+To perform depth sorting while rendering into the cubemap faces, we create a single, shared depth texture of the same size ($512 \times 512$) and bind it alongside the active face RTV:
+<code>context-&gt;OMSetRenderTargets(1, &amp;cubeRTV, m_dsv);</code>
+<hr>
+<h2>3. Six Virtual Cameras and Orientations</h2>
+<p>To capture a seamless environment, the cameras must be oriented precisely to map to the DirectX cubemap specification. In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/EnvironmentMapRenderer.cpp#L29">EnvironmentMapRenderer.cpp:L29-52</a>: <ul>   <li><strong>FOV</strong>: <code>fovAngleY = XM_PIDIV2</code> (90 degrees). A larger FOV would overlap faces; a smaller FOV would leave gaps.</li>   <li><strong>Orientations</strong>:</li>   <li>Face 0 (+X, Right): Rotate right 90 degrees.</li>   <li>Face 1 (-X, Left): Rotate left 90 degrees.</li>   <li>Face 2 (+Y, Up): Rotate forward -90 degrees.</li>   <li>Face 3 (-Y, Down): Rotate forward 90 degrees, apply $\pi$ roll correction.</li>   <li>Face 4 (+Z, Forward): Facing forward (0 degrees).</li>   <li>Face 5 (-Z, Backward): Rotate right 180 degrees.</li> </ul> <hr></p>
+<h2>4. The Environment Render Loop</h2>
+<p>Dynamic environment map rendering occurs in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/EnvironmentMapRenderer.cpp#L54">EnvironmentMapRenderer.cpp:L54</a> before the main geometry pass.</p>
+<h3>Execution Sequence</h3>
+1. Move all six cameras to the reflective object's center:
+   <code>m_cameras[i].SetPosition(objectPosition);</code>
+2. Loop over the six faces (<code>faceIndex</code> 0 to 5):
+<ul>
+  <li>Bind the target slice RTV: <code>context-&gt;OMSetRenderTargets(1, &amp;m_rtvs[faceIndex], m_dsv);</code></li>
+  <li>Clear the face and depth buffer: <code>m_cubeMap.ClearFace(context, faceIndex, clearColor);</code></li>
+  <li>Set viewport: <code>context-&gt;RSSetViewports(1, &amp;cubeViewport);</code></li>
+  <li>Bind forward shaders (<code>VertexShader.hlsl</code> and <code>CubeMapPS.hlsl</code>).</li>
+  <li><strong>Crucial Step: Avoid Self-Reflection</strong>: We skip drawing the reflective object itself to prevent a feedback loop (or rendering its interior):</li>
+</ul><pre><code class="language-cpp">     if (objIdx == reflectiveObjectIndex)
+         continue;</code></pre>
+<ul>
+  <li>Draw the rest of the scene into the current face.</li>
+</ul>
+<hr>
+<h2>5. Shading Dynamic Reflections</h2>
+<p>When drawing the reflective object in the main Geometry Pass, we bind the cubemap SRV to slot <code>t1</code> and run the pixel shader <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ReflectionPS.hlsl">ReflectionPS.hlsl</a>:</p>
+<pre><code class="language-hlsl">TextureCube reflectionTexture : register(t1);
+SamplerState samplerState : register(s0);</code></pre>
+<h3>Reflection Math in HLSL</h3>
+1. <strong>Incoming View Vector ($\vec{V}$)</strong>: The vector from the camera to the pixel position:
+   $$\vec{V} = \text{normalize}(\vec{P}_{\text{world}} - \vec{P}_{\text{camera}})$$
+2. <strong>Reflected Vector ($\vec{R}$)</strong>: The path light takes as it bounces off the surface normal ($\vec{N}$):
+   $$\vec{R} = \vec{V} - 2(\vec{V} \cdot \vec{N})\vec{N}$$
+   In HLSL: <code>float3 reflectedView = reflect(incomingView, normalizedNormal);</code>
+3. <strong>Sampling</strong>: We look up the color using the 3D reflection direction $\vec{R}$ as the coordinates:
+   <code>float4 sampledValue = reflectionTexture.Sample(samplerState, reflectedView);</code>
+<hr>
+<h2>Teacher Presentation Tips 🎓</h2>
+<ul>
+  <li><strong>Explain why the dynamic cubemap pass uses forward rendering instead of deferred</strong>:</li>
+  <li><em>Answer</em>: Deferred rendering is optimized for drawing high-resolution screen images with many lights. The environment map has a low resolution ($512 \times 512$) and does not need particle effects or advanced POM. Performing deferred rendering 6 times per frame would require initializing six separate G-Buffers, which is extremely expensive in terms of GPU memory bandwidth. Simple forward rendering is much faster for capturing surrounding color.</li>
+  <li><strong>What is the difference between Texture2D and TextureCube in HLSL?</strong>:</li>
+  <li><em>Answer</em>: <code>Texture2D</code> is sampled using 2D UV coordinates. <code>TextureCube</code> is sampled using a 3D direction vector representing a ray cast from the center of a cube. The GPU automatically determines which face of the cube the ray intersects and performs bilinear filtering at the intersection point.</li>
+</ul>
+    </main>
+</body>
+</html>

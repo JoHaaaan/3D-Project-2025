@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>09. GPU Particles - DV1542 Study Kit</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/tokyo-night-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+    
+    <!-- MathJax Configuration -->
+    <script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #151b26;
+            --bg-sidebar: #0f131f;
+            --border-color: #242c3d;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --accent: #a855f7;
+            --accent-glow: rgba(168, 85, 247, 0.15);
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Sidebar Navigation Layout */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-nav {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-muted);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, var(--primary-glow), rgba(168, 85, 247, 0.05));
+            border-left: 3px solid var(--primary);
+            color: #fff;
+            padding-left: 11px;
+        }
+
+        /* Main Content Layout */
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 60%, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+
+        p {
+            margin-bottom: 18px;
+            color: var(--text-muted);
+            font-size: 0.975rem;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        li input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: var(--primary);
+            transform: scale(1.1);
+            vertical-align: middle;
+        }
+
+        /* Code Blocks */
+        pre {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary);
+            word-break: break-word;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: inherit;
+            word-break: normal;
+        }
+
+        /* Links */
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        a:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* Horizontal Rule */
+        hr {
+            border: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 40px 0;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: var(--bg-sidebar);
+            color: #fff;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Alerts */
+        .alert {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            border-left: 4px solid var(--primary);
+        }
+
+        .alert-note {
+            border-left-color: var(--primary);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(99, 102, 241, 0.03));
+        }
+
+        .alert-tip {
+            border-left-color: var(--success);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(16, 185, 129, 0.03));
+        }
+
+        .alert-important {
+            border-left-color: var(--warning);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(245, 158, 11, 0.03));
+        }
+
+        .alert-warning {
+            border-left-color: var(--accent);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(168, 85, 247, 0.03));
+        }
+
+        .alert-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-content p {
+            margin-bottom: 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--border-color);
+            padding-left: 16px;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+  <div class="sidebar-header">DV1542 Study Kit</div>
+  <nav class="sidebar-nav">
+    <a class="nav-item " href="01_study_guide_overall_architecture.html">01. Overall Architecture</a>
+    <a class="nav-item " href="02_study_guide_obj_parser_buffers.html">02. Mesh Loading & Buffers</a>
+    <a class="nav-item " href="03_study_guide_quadtree_culling.html">03. Quadtree Culling</a>
+    <a class="nav-item " href="04_study_guide_deferred_rendering.html">04. Deferred Rendering</a>
+    <a class="nav-item " href="05_study_guide_shadow_mapping.html">05. Shadow Mapping</a>
+    <a class="nav-item " href="06_study_guide_phong_tessellation.html">06. Phong Tessellation</a>
+    <a class="nav-item " href="07_study_guide_normal_parallax.html">07. Normal & Parallax Maps</a>
+    <a class="nav-item " href="08_study_guide_environment_mapping.html">08. Environment Maps</a>
+    <a class="nav-item active" href="09_study_guide_particle_system.html">09. GPU Particles</a>
+    <a class="nav-item " href="10_study_guide_binding_dispatch.html">10. Bindings & Dispatch</a>
+    <a class="nav-item " href="11_study_guide_master_faq.html">11. Master FAQ</a>
+    <a class="nav-item " href="12_mock_presentations_with_teacher.html">12. Mock Presentations</a>
+  </nav>
+</div>
+
+    
+    <main class="main-content">
+        <h1>Study Guide 8: GPU-Based Particle System (Compute Shaders, Geometry Shader Billboarding, and Blending)</h1>
+<p>This guide covers the GPU-driven particle system in this project: structured buffers with read/write access (UAV), Euler integration in compute shaders, vertex pulling, billboard geometry expansion, radial pixel masking, and alpha blending.</p>
+<hr>
+<h2>1. Why GPU-Based Particle Systems?</h2>
+<p>In a traditional CPU-based particle system: 1. The CPU updates particle positions and velocities. 2. The CPU writes all particle positions to a dynamic vertex buffer every frame. 3. The CPU uploads this buffer to the GPU. <ul>   <li><strong>The Bottleneck</strong>: Uploading megabytes of data from CPU memory to GPU memory across the PCIe bus every frame creates a major performance bottleneck.</li> </ul> In our GPU-based particle system: 1. The particle data stays in GPU memory inside a <strong>Structured Buffer</strong> with Unordered Access View (UAV) and Shader Resource View (SRV) bindings. 2. The <strong>Compute Shader</strong> updates the particle physics directly on the GPU. 3. The <strong>Vertex/Geometry Shaders</strong> draw the particles directly from the buffer. <ul>   <li><strong>Result</strong>: Zero bandwidth transfer across the PCIe bus during the simulation loop. We can simulate thousands of particles with minimal overhead.</li> </ul> <hr></p>
+<h2>2. Structured Buffers (SRV &amp; UAV)</h2>
+<p>In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleSystemD3D11.cpp#L22">ParticleSystemD3D11.cpp:L22</a>, the particle pool is initialized: <code>particleBuffer.Initialize(device, sizeof(Particle), numberOfParticles, particles, false, true);</code> This creates a structured buffer of 300 elements, each storing a <code>Particle</code> struct (48 bytes). It is initialized with two key views: <ul>   <li><strong>UAV (Unordered Access View)</strong>: Allows the Compute Shader to read and write randomly to any particle in the buffer:</li> </ul>  <code>RWStructuredBuffer&lt;Particle&gt; Particles : register(u0);</code> <ul>   <li><strong>SRV (Shader Resource View)</strong>: Allows the Vertex Shader to read the particle properties during rendering:</li> </ul>  <code>StructuredBuffer&lt;Particle&gt; Particles : register(t0);</code></p>
+<hr>
+<h2>3. Update Pass: Compute Shader (<code>ParticleUpdateCS.hlsl</code>)</h2>
+<p>Every frame, the update logic runs in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleSystemD3D11.cpp#L86">ParticleSystemD3D11.cpp:L86-124</a>: 1. <strong>Bind UAV</strong>: <code>context-&gt;CSSetUnorderedAccessViews(0, 1, &amp;uav, nullptr);</code> 2. <strong>Dispatch Groups</strong>: The compute shader processes particles in threads. The thread layout is defined as <code>[numthreads(32, 1, 1)]</code> (32 threads per group). We divide the total particle count by 32 to determine how many thread groups to launch:    <code>unsigned int numGroups = (numParticles + 31) / 32;</code>    <code>context-&gt;Dispatch(numGroups, 1, 1);</code> 3. <strong>Unbind UAV</strong>: We must set the UAV slot back to <code>nullptr</code> before using the buffer as an input to the rendering pipeline:    <code>context-&gt;CSSetUnorderedAccessViews(0, 1, &amp;nullUAV, nullptr);</code></p>
+<h3>Physics Integration inside the Compute Shader</h3>
+For each particle index, <code>ParticleUpdateCS.hlsl</code> performs Euler integration:
+<pre><code class="language-hlsl">// Position integration
+particle.position += particle.velocity * deltaTime;
+// Gravity acceleration (constant downward force)
+particle.velocity.y += -2.0f * deltaTime;
+// Age update
+particle.lifetime += deltaTime;</code></pre>
+If a particle exceeds its maximum lifetime, the shader calls <code>RespawnParticle()</code>. It uses a pseudo-random hash generator based on the thread index and current time to calculate a new position (emitter position) and a randomized velocity vector within <code>velocityMin</code> and <code>velocityMax</code>.
+<hr>
+<h2>4. Render Pass: Vertex Pulling and Geometry Billboarding</h2>
+<h3>Vertex Pulling (Vertex Buffer-less Drawing)</h3>
+Instead of binding a traditional vertex buffer, we bind <code>nullptr</code> and set the topology to a point list:
+<pre><code class="language-cpp">context-&gt;IASetInputLayout(nullptr);
+context-&gt;IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+context-&gt;VSSetShaderResources(0, 1, &amp;srv);
+context-&gt;Draw(numParticles, 0);</code></pre>
+During drawing, the GPU generates a sequential vertex index (<code>vertexID</code>). In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleVS.hlsl#L23">ParticleVS.hlsl:L23</a>, the shader pulls the vertex data manually:
+<pre><code class="language-hlsl">VS_OUTPUT main(uint vertexID : SV_VertexID)
+{
+    Particle particle = Particles[vertexID]; // Pull vertex from structured buffer SRV
+    ...
+}</code></pre>
+<h3>Geometry Billboarding (<code>ParticleGS.hlsl</code>)</h3>
+The vertex shader outputs a point (center position). The Geometry Shader <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleGS.hlsl">ParticleGS.hlsl</a> expands this single point into a 2D quad (2 triangles / 6 vertices) that always faces the camera.
+It uses the camera's <code>right</code> and <code>up</code> vectors (passed in the constant buffer <code>b0</code>):
+<pre><code class="language-hlsl">float3 right = cameraRight * quadSize;
+float3 up = cameraUp * quadSize;
+
+// Compute 4 corner points around the particle center position
+float3 vertex1 = particlePosition - right + up; // Top-Left
+float3 vertex2 = particlePosition + right + up; // Top-Right
+float3 vertex3 = particlePosition - right - up; // Bottom-Left
+float3 vertex4 = particlePosition + right - up; // Bottom-Right</code></pre>
+We project each corner vertex to screen coordinates using <code>viewProjection</code> and output UVs:
+<ul>
+  <li>Vertex 1: UV <code>(0.0, 0.0)</code></li>
+  <li>Vertex 2: UV <code>(1.0, 0.0)</code></li>
+  <li>Vertex 3: UV <code>(0.0, 1.0)</code></li>
+  <li>Vertex 4: UV <code>(1.0, 1.0)</code></li>
+</ul>These are streamed into two triangles using <code>output.Append(o)</code>.
+<hr>
+<h2>5. Shading and Alpha Blending</h2>
+<h3>Pixel Shading (<code>ParticlePS.hlsl</code>)</h3>
+To make the particles soft and round instead of square:
+1. Map UVs from $[0,1]$ to a centered $[-1,1]$ coordinate system:
+   <code>float2 centeredUV = input.uv * 2.0f - 1.0f;</code>
+2. Compute distance from the center: <code>float radiusSquared = dot(centeredUV, centeredUV);</code>
+3. Apply a smooth edge falloff using HLSL <code>smoothstep</code>:
+   <code>float alphaMask = 1.0f - smoothstep(0.85f, 1.0f, radiusSquared);</code>
+4. Discard pixels outside the radius to optimize performance:
+   <code>if (outputColor.a &lt;= 0.001f) discard;</code>
+<h3>Alpha Blending Configuration</h3>
+Because particles are transparent, they must blend with the geometry already drawn to the screen. In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L874">Main.cpp:L874</a>, the particle pass is performed immediately after the deferred lighting calculation. We bind the blend state:
+<pre><code class="language-cpp">context-&gt;OMSetBlendState(particleBlendState, nullptr, 0xffffffff);</code></pre>
+This is configured with:
+<ul>
+  <li><code>SrcBlend = D3D11_BLEND_SRC_ALPHA</code> (new particle color factor = alpha)</li>
+  <li><code>DestBlend = D3D11_BLEND_INV_SRC_ALPHA</code> (existing screen color factor = $1 - \text{alpha}$)</li>
+  <li><code>BlendOp = D3D11_BLEND_OP_ADD</code></li>
+</ul>This produces standard alpha transparency:
+$$\text{Color}_{\text{final}} = \text{Color}_{\text{src}} \times A_{\text{src}} + \text{Color}_{\text{dest}} \times (1 - A_{\text{src}})$$
+<hr>
+<h2>Teacher Presentation Tips 🎓</h2>
+<ul>
+  <li><strong>Explain the difference between SV_VertexID and SV_InstanceID</strong>:</li>
+  <li><em>Answer</em>: <code>SV_VertexID</code> is a system-generated index pointing to the current vertex in a draw call. In our vertex pulling setup, we call <code>Draw(numParticles, 0)</code>, which tells the GPU to render <code>numParticles</code> vertices. The GPU automatically increments <code>SV_VertexID</code> from $0$ to <code>numParticles - 1</code> for each vertex, allowing us to index our structured buffer. <code>SV_InstanceID</code> is used for instanced drawing, which is a different technique.</li>
+  <li><strong>Explain why you unbind the Geometry Shader after the particle pass</strong>:</li>
+  <li><em>Answer</em>: The Geometry Shader remains bound to the pipeline until it is explicitly unbound by setting it to <code>nullptr</code>. If we don't unbind it (<code>context-&gt;GSSetShader(nullptr, nullptr, 0)</code>), the next draw call in the next frame will attempt to run standard triangles through the particle geometry shader, leading to rendering errors or crashes.</li>
+</ul>
+    </main>
+</body>
+</html>

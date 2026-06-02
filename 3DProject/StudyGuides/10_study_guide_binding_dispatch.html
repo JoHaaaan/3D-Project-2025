@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>10. Bindings & Dispatch - DV1542 Study Kit</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/tokyo-night-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+    
+    <!-- MathJax Configuration -->
+    <script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #151b26;
+            --bg-sidebar: #0f131f;
+            --border-color: #242c3d;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --accent: #a855f7;
+            --accent-glow: rgba(168, 85, 247, 0.15);
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Sidebar Navigation Layout */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-nav {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-muted);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, var(--primary-glow), rgba(168, 85, 247, 0.05));
+            border-left: 3px solid var(--primary);
+            color: #fff;
+            padding-left: 11px;
+        }
+
+        /* Main Content Layout */
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 60%, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+
+        p {
+            margin-bottom: 18px;
+            color: var(--text-muted);
+            font-size: 0.975rem;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        li input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: var(--primary);
+            transform: scale(1.1);
+            vertical-align: middle;
+        }
+
+        /* Code Blocks */
+        pre {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary);
+            word-break: break-word;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: inherit;
+            word-break: normal;
+        }
+
+        /* Links */
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        a:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* Horizontal Rule */
+        hr {
+            border: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 40px 0;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: var(--bg-sidebar);
+            color: #fff;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Alerts */
+        .alert {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            border-left: 4px solid var(--primary);
+        }
+
+        .alert-note {
+            border-left-color: var(--primary);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(99, 102, 241, 0.03));
+        }
+
+        .alert-tip {
+            border-left-color: var(--success);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(16, 185, 129, 0.03));
+        }
+
+        .alert-important {
+            border-left-color: var(--warning);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(245, 158, 11, 0.03));
+        }
+
+        .alert-warning {
+            border-left-color: var(--accent);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(168, 85, 247, 0.03));
+        }
+
+        .alert-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-content p {
+            margin-bottom: 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--border-color);
+            padding-left: 16px;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+  <div class="sidebar-header">DV1542 Study Kit</div>
+  <nav class="sidebar-nav">
+    <a class="nav-item " href="01_study_guide_overall_architecture.html">01. Overall Architecture</a>
+    <a class="nav-item " href="02_study_guide_obj_parser_buffers.html">02. Mesh Loading & Buffers</a>
+    <a class="nav-item " href="03_study_guide_quadtree_culling.html">03. Quadtree Culling</a>
+    <a class="nav-item " href="04_study_guide_deferred_rendering.html">04. Deferred Rendering</a>
+    <a class="nav-item " href="05_study_guide_shadow_mapping.html">05. Shadow Mapping</a>
+    <a class="nav-item " href="06_study_guide_phong_tessellation.html">06. Phong Tessellation</a>
+    <a class="nav-item " href="07_study_guide_normal_parallax.html">07. Normal & Parallax Maps</a>
+    <a class="nav-item " href="08_study_guide_environment_mapping.html">08. Environment Maps</a>
+    <a class="nav-item " href="09_study_guide_particle_system.html">09. GPU Particles</a>
+    <a class="nav-item active" href="10_study_guide_binding_dispatch.html">10. Bindings & Dispatch</a>
+    <a class="nav-item " href="11_study_guide_master_faq.html">11. Master FAQ</a>
+    <a class="nav-item " href="12_mock_presentations_with_teacher.html">12. Mock Presentations</a>
+  </nav>
+</div>
+
+    
+    <main class="main-content">
+        <h1>Study Guide 10: Shader Bindings, Registers, and Dispatch Mathematics</h1>
+<p>This guide covers resource binding and compute dispatch mechanics: detailing shader registers (constant buffers, SRVs, UAVs, samplers), executing pipeline bindings via the device context, computing thread group sizes, and explaining the C++ lvalue requirement for D3D11 calls.</p>
+<hr>
+<h2>1. Complete Resource Binding Table</h2>
+<p>Shaders communicate with the C++ application through registers. Direct3D 11 uses prefixes: <ul>   <li><strong><code>b</code></strong>: Constant Buffers (read-only parameters).</li>   <li><strong><code>t</code></strong>: Shader Resource Views (SRVs - textures, structured buffers).</li>   <li><strong><code>u</code></strong>: Unordered Access Views (UAVs - read-write textures/buffers).</li>   <li><strong><code>s</code></strong>: Samplers (texture filtering states).</li> </ul> <h3>The Deferred Shading Compute Shader (<code>LightingCS.hlsl</code>)</h3> <table>   <thead>     <tr>       <th>Resource Name</th>       <th>Register</th>       <th>Type</th>       <th>C++ Binding Context Call</th>     </tr>   </thead>   <tbody>     <tr>       <td><strong><code>CameraBuffer</code></strong></td>       <td><code>b2</code></td>       <td>Constant Buffer</td>       <td><code>context-&gt;CSSetConstantBuffers(2, 1, &amp;cameraCB);</code></td>     </tr>     <tr>       <td><strong><code>LightingToggleBuffer</code></strong></td>       <td><code>b4</code></td>       <td>Constant Buffer</td>       <td><code>context-&gt;CSSetConstantBuffers(4, 1, &amp;toggleCB);</code></td>     </tr>     <tr>       <td><strong><code>gAlbedo</code></strong> (G-Buffer)</td>       <td><code>t0</code></td>       <td>Texture2D</td>       <td><code>context-&gt;CSSetShaderResources(0, 3, srvs);</code> (slot 0)</td>     </tr>     <tr>       <td><strong><code>gNormal</code></strong> (G-Buffer)</td>       <td><code>t1</code></td>       <td>Texture2D</td>       <td><code>context-&gt;CSSetShaderResources(0, 3, srvs);</code> (slot 1)</td>     </tr>     <tr>       <td><strong><code>gWorldPos</code></strong> (G-Buffer)</td>       <td><code>t2</code></td>       <td>Texture2D</td>       <td><code>context-&gt;CSSetShaderResources(0, 3, srvs);</code> (slot 2)</td>     </tr>     <tr>       <td><strong><code>shadowMaps</code></strong></td>       <td><code>t3</code></td>       <td>Texture2DArray</td>       <td><code>context-&gt;CSSetShaderResources(3, 1, &amp;shadowSRV);</code></td>     </tr>     <tr>       <td><strong><code>lights</code></strong></td>       <td><code>t4</code></td>       <td>StructuredBuffer</td>       <td><code>context-&gt;CSSetShaderResources(4, 1, &amp;lightSRV);</code></td>     </tr>     <tr>       <td><strong><code>outColor</code></strong> (Screen Output)</td>       <td><code>u0</code></td>       <td>RWTexture2D</td>       <td><code>context-&gt;CSSetUnorderedAccessViews(0, 1, &amp;lightingUAV, nullptr);</code></td>     </tr>     <tr>       <td><strong><code>shadowSampler</code></strong></td>       <td><code>s1</code></td>       <td>SamplerState</td>       <td><code>context-&gt;CSSetSamplers(1, 1, &amp;shadowSampler);</code></td>     </tr>   </tbody> </table> <hr></p>
+<h2>2. D3D11 Pipeline Binding Calls</h2>
+<p>To bind resources to specific stages of the graphics/compute pipeline, the C++ application calls <code>ID3D11DeviceContext</code> API functions.</p>
+<h3>Constant Buffers</h3>
+<ul>
+  <li><strong><code>VSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers)</code></strong> - Binds to the Vertex Shader.</li>
+  <li><strong><code>HSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers)</code></strong> - Binds to the Hull Shader.</li>
+  <li><strong><code>DSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers)</code></strong> - Binds to the Domain Shader.</li>
+  <li><strong><code>PSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers)</code></strong> - Binds to the Pixel Shader.</li>
+  <li><strong><code>CSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers)</code></strong> - Binds to the Compute Shader.</li>
+</ul>
+<h3>Textures &amp; SRVs</h3>
+<ul>
+  <li><strong><code>VSSetShaderResources(StartSlot, NumViews, ppShaderResourceViews)</code></strong></li>
+  <li><strong><code>PSSetShaderResources(StartSlot, NumViews, ppShaderResourceViews)</code></strong></li>
+  <li><strong><code>CSSetShaderResources(StartSlot, NumViews, ppShaderResourceViews)</code></strong></li>
+</ul>
+<h3>UAVs (Compute Stage only)</h3>
+<ul>
+  <li><strong><code>CSSetUnorderedAccessViews(StartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts)</code></strong></li>
+</ul>
+<hr>
+<h2>3. C++ Lvalue Reference and Address-of Getter Rules</h2>
+<p>A common C++ compile error in Direct3D 11 programming is trying to pass resource pointers directly from getter methods.</p>
+<h3>The Problem</h3>
+Consider this code:
+<pre><code class="language-cpp">// COMPILE ERROR: Cannot take the address of a temporary rvalue!
+context-&gt;CSSetShaderResources(3, 1, &amp;shadowMap.GetSRV());</code></pre>
+<ul>
+  <li><strong>Why it fails</strong>: <code>shadowMap.GetSRV()</code> returns a temporary copy of a pointer (<code>ID3D11ShaderResourceView*</code>). This is an <strong>rvalue</strong> (temporary expression). C++ does not allow taking the address (<code>&amp;</code>) of an rvalue because it has no permanent memory address.</li>
+</ul>
+<h3>The Solution</h3>
+We must store the return value in a local variable (an <strong>lvalue</strong>) first, then pass the address of that variable:
+<pre><code class="language-cpp">// CORRECT: shadowSRV is an lvalue
+ID3D11ShaderResourceView* shadowSRV = shadowMap.GetSRV();
+context-&gt;CSSetShaderResources(3, 1, &amp;shadowSRV);</code></pre>
+Since the D3D11 context functions take an array of pointers (represented by a pointer-to-pointer <code>ID3D11ShaderResourceView**</code>), we must pass the address of our local pointer.
+<hr>
+<h2>4. Compute Shader Dispatch and Grid Mathematics</h2>
+<p>To run a compute shader, we must define the thread execution grid. <ul>   <li><strong>Thread</strong>: The smallest unit of execution (runs on one GPU ALU).</li>   <li><strong>Thread Group</strong>: A block of threads that run together and can share cache memory.</li>   <li><strong>Dispatch Grid</strong>: A collection of thread groups launched in a single call.</li> </ul> <pre><code class="language-plaintext">                  ◄───────────────── WIDTH ─────────────────►
+           ┌──────┬──────┬──────┬──────┬──────┬──────┬──────┐ ▲
+           │16x16 │16x16 │      │      │      │      │      │ │
+           │Group │Group │      │      │      │      │      │ │
+           ├──────┼──────┼──────┼──────┼──────┼──────┼──────┤ HEIGHT
+           │      │      │      │      │      │      │      │ │
+           │      │      │      │      │      │      │      │ │
+           └──────┴──────┴──────┴──────┴──────┴──────┴──────┘ ▼</code></pre></p>
+<h3>1. Deferred Shading Dispatch (<code>LightingCS.hlsl</code>)</h3>
+In the shader file:
+<code>[numthreads(16, 16, 1)]</code>
+Each thread group contains $16 \times 16 = 256$ threads, mapped to a 2D screen coordinate.
+<p>In C++ <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L864">Main.cpp:L864</a>: <pre><code class="language-cpp">context-&gt;Dispatch((WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1);</code></pre> <ul>   <li><strong>The Math</strong>: If <code>WIDTH = 1024</code> and <code>HEIGHT = 576</code>:</li>   <li>$X = \frac{1024 + 15}{16} = 64$ groups.</li>   <li>$Y = \frac{576 + 15}{16} = 36.9375 \rightarrow 36$ groups (with integer division).</li>   <li>We add <code>15</code> before dividing by <code>16</code> to perform integer division <strong>rounding up</strong>, ensuring that partial screen boundary tiles are not clipped.</li>   <li><strong>The Bounds Check</strong>: Because rounding up can launch threads outside the screen dimensions, the shader performs an early return:</li> </ul><pre><code class="language-hlsl">  uint2 pixel = DTid.xy;
+  if (pixel.x &gt;= width || pixel.y &gt;= height) return;</code></pre></p>
+<h3>2. Particle Update Dispatch (<code>ParticleUpdateCS.hlsl</code>)</h3>
+In the shader:
+<code>[numthreads(32, 1, 1)]</code> (1D group of 32 threads).
+<p>In C++ <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleSystemD3D11.cpp#L116">ParticleSystemD3D11.cpp:L116</a>: <pre><code class="language-cpp">unsigned int numGroups = static_cast&lt;unsigned int&gt;(std::ceil(numParticles / 32.0f));
+context-&gt;Dispatch(numGroups, 1, 1);</code></pre> Inside the shader: <pre><code class="language-hlsl">uint index = DTid.x;
+if (index &gt;= particleCount) return;</code></pre> This ensures we simulate exactly <code>numParticles</code> without out-of-bounds array access.</p>
+<hr>
+<h2>Teacher Presentation Tips 🎓</h2>
+<ul>
+  <li><strong>What is the difference between SV_GroupID, SV_GroupThreadID, and SV_DispatchThreadID?</strong>:</li>
+  <li><em>Answer</em>:</li>
+  <li><code>SV_GroupID</code>: The index of the active thread group within the dispatch grid (e.g. $[0, 63]$ along X).</li>
+  <li><code>SV_GroupThreadID</code>: The local index of the thread within its group (e.g. $[0, 15]$ along X and Y).</li>
+  <li><code>SV_DispatchThreadID</code>: The global pixel coordinate on the screen. It is calculated automatically as:</li>
+</ul>      $$\text{DispatchThreadID} = \text{GroupID} \times \text{groupDim} + \text{GroupThreadID}$$
+<ul>
+  <li><strong>Why do we pass nullptr to unbind resources?</strong>:</li>
+  <li><em>Answer</em>: If we leave G-Buffer textures bound as SRVs to the compute shader, and in the next frame the geometry pass tries to write to them as Render Targets, a binding conflict occurs. Setting them to <code>nullptr</code> clears the slots, keeping the pipeline valid.</li>
+</ul>
+    </main>
+</body>
+</html>

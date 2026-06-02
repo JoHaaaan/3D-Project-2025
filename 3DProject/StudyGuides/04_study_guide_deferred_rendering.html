@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>04. Deferred Rendering - DV1542 Study Kit</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/tokyo-night-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+    
+    <!-- MathJax Configuration -->
+    <script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #151b26;
+            --bg-sidebar: #0f131f;
+            --border-color: #242c3d;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --accent: #a855f7;
+            --accent-glow: rgba(168, 85, 247, 0.15);
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Sidebar Navigation Layout */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-nav {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-muted);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, var(--primary-glow), rgba(168, 85, 247, 0.05));
+            border-left: 3px solid var(--primary);
+            color: #fff;
+            padding-left: 11px;
+        }
+
+        /* Main Content Layout */
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 60%, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+
+        p {
+            margin-bottom: 18px;
+            color: var(--text-muted);
+            font-size: 0.975rem;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        li input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: var(--primary);
+            transform: scale(1.1);
+            vertical-align: middle;
+        }
+
+        /* Code Blocks */
+        pre {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary);
+            word-break: break-word;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: inherit;
+            word-break: normal;
+        }
+
+        /* Links */
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        a:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* Horizontal Rule */
+        hr {
+            border: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 40px 0;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: var(--bg-sidebar);
+            color: #fff;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Alerts */
+        .alert {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            border-left: 4px solid var(--primary);
+        }
+
+        .alert-note {
+            border-left-color: var(--primary);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(99, 102, 241, 0.03));
+        }
+
+        .alert-tip {
+            border-left-color: var(--success);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(16, 185, 129, 0.03));
+        }
+
+        .alert-important {
+            border-left-color: var(--warning);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(245, 158, 11, 0.03));
+        }
+
+        .alert-warning {
+            border-left-color: var(--accent);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(168, 85, 247, 0.03));
+        }
+
+        .alert-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-content p {
+            margin-bottom: 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--border-color);
+            padding-left: 16px;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+  <div class="sidebar-header">DV1542 Study Kit</div>
+  <nav class="sidebar-nav">
+    <a class="nav-item " href="01_study_guide_overall_architecture.html">01. Overall Architecture</a>
+    <a class="nav-item " href="02_study_guide_obj_parser_buffers.html">02. Mesh Loading & Buffers</a>
+    <a class="nav-item " href="03_study_guide_quadtree_culling.html">03. Quadtree Culling</a>
+    <a class="nav-item active" href="04_study_guide_deferred_rendering.html">04. Deferred Rendering</a>
+    <a class="nav-item " href="05_study_guide_shadow_mapping.html">05. Shadow Mapping</a>
+    <a class="nav-item " href="06_study_guide_phong_tessellation.html">06. Phong Tessellation</a>
+    <a class="nav-item " href="07_study_guide_normal_parallax.html">07. Normal & Parallax Maps</a>
+    <a class="nav-item " href="08_study_guide_environment_mapping.html">08. Environment Maps</a>
+    <a class="nav-item " href="09_study_guide_particle_system.html">09. GPU Particles</a>
+    <a class="nav-item " href="10_study_guide_binding_dispatch.html">10. Bindings & Dispatch</a>
+    <a class="nav-item " href="11_study_guide_master_faq.html">11. Master FAQ</a>
+    <a class="nav-item " href="12_mock_presentations_with_teacher.html">12. Mock Presentations</a>
+  </nav>
+</div>
+
+    
+    <main class="main-content">
+        <h1>Study Guide 2: Deferred Rendering vs. Forward Rendering &amp; G-Buffer Design</h1>
+<p>This guide explains the fundamental differences between forward and deferred rendering, details the G-Buffer layout of this project, walks through the initialization of G-Buffer textures, and details how the lighting pass is performed via compute shaders.</p>
+<hr>
+<h2>1. Forward vs. Deferred Rendering: Theoretical Comparison</h2>
+<p>When rendering a 3D scene with $N$ objects and $M$ light sources:</p>
+<h3>Forward Rendering</h3>
+<ul>
+  <li><strong>How it works</strong>: For each of the $N$ objects, you submit a draw call. The pixel shader calculates the contribution of all $M$ lights for every single rasterized fragment.</li>
+  <li><strong>Complexity</strong>: $\mathcal{O}(N \times M)$ shading operations.</li>
+  <li><strong>Drawback</strong>: <strong>Overdraw</strong>. If object A is drawn, and then object B is drawn directly in front of it, object A’s pixels were shaded and lit, only to be overwritten. Shading is wasted on hidden surfaces.</li>
+</ul>
+<h3>Deferred Rendering</h3>
+<ul>
+  <li><strong>How it works</strong>: Splitting the rendering pipeline into two distinct passes:</li>
+</ul>  1. <strong>Geometry Pass (Write)</strong>: Render all objects once. Instead of performing expensive lighting calculations, write raw material properties (diffuse color, normal, position, specularity) into a set of screen-sized textures called the <strong>G-Buffer</strong> (Geometry Buffer).
+  2. <strong>Lighting/Shading Pass (Read)</strong>: Run a screen-space shader (in our case, a Compute Shader <code>LightingCS.hlsl</code>) that reads from the G-Buffer textures. For each screen pixel, compute the lighting using the unpacked material properties.
+<ul>
+  <li><strong>Complexity</strong>: $\mathcal{O}(N + M)$ operations. The geometry is processed once to fill the G-Buffer, and then the lights are processed once in screen space.</li>
+  <li><strong>Advantages</strong>:</li>
+  <li>Shading is only performed for visible pixels (no overdraw for lighting calculations).</li>
+  <li>Highly scaleable to dozens of dynamic lights.</li>
+  <li><strong>Disadvantages</strong>:</li>
+  <li>High memory bandwidth requirements.</li>
+  <li>Difficult to handle semi-transparent objects (because only the closest surface depth/material is stored in the G-Buffer).</li>
+  <li>Anti-aliasing (like MSAA) is complex to implement.</li>
+</ul>
+<hr>
+<h2>2. G-Buffer Layout in this Project</h2>
+<p>Our G-Buffer is managed by <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/GBufferD3D11.h">GBufferD3D11.h</a> and holds three render target textures. All three render targets are initialized with <strong><code>DXGI_FORMAT_R16G16B16A16_FLOAT</code></strong> (64-bit float format: 16 bits per channel for Red, Green, Blue, Alpha). This high-precision float format prevents banding and allows storing values outside the $[0, 1]$ range (like world positions).</p>
+<table>
+  <thead>
+    <tr>
+      <th>G-Buffer Texture</th>
+      <th>Channels</th>
+      <th>Stored Property</th>
+      <th>Unpacking / Reconstruct Method in <code>LightingCS.hlsl</code></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong><code>albedoRT</code></strong> (t0)</td>
+      <td><strong>RGB</strong> (16f)&lt;br&gt;<strong>A</strong> (16f)</td>
+      <td>Diffuse Color / Albedo&lt;br&gt;Ambient Strength</td>
+      <td><code>diffuseColor = albedoSample.rgb;</code>&lt;br&gt;<code>ambientStrength = albedoSample.a;</code></td>
+    </tr>
+    <tr>
+      <td><strong><code>normalRT</code></strong> (t1)</td>
+      <td><strong>RGB</strong> (16f)&lt;br&gt;<strong>A</strong> (16f)</td>
+      <td>World Normal vector&lt;br&gt;Specular Strength</td>
+      <td><code>normal = normalize(normalPacked * 2.0f - 1.0f);</code>&lt;br&gt;<code>specularStrength = normalSample.a;</code></td>
+    </tr>
+    <tr>
+      <td><strong><code>positionRT</code></strong> (t2)</td>
+      <td><strong>RGB</strong> (16f)&lt;br&gt;<strong>A</strong> (16f)</td>
+      <td>World Position $(X, Y, Z)$&lt;br&gt;Specular Exponent (Exponent / 256.0f)</td>
+      <td><code>worldPosition = positionSample.xyz;</code>&lt;br&gt;<code>specularPower = max(specularPacked * 256.0f, 1.0f);</code></td>
+    </tr>
+  </tbody>
+</table>
+&gt; [!NOTE]
+&gt; Normals are unit vectors with components in $[-1.0, 1.0]$. To store them in textures, we pack them into the $[0.0, 1.0]$ range in pixel shaders: <code>packed = normal * 0.5f + 0.5f</code>. In the lighting pass compute shader, we unpack them using: <code>normal = normalize(normalPacked * 2.0f - 1.0f)</code>.
+<hr>
+<h2>3. G-Buffer Pipeline Life-Cycle (D3D11 Commands)</h2>
+<h3>1. Initialization</h3>
+In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/GBufferD3D11.cpp#L3">GBufferD3D11.cpp:L3</a>, each <code>RenderTargetD3D11</code> is initialized. This calls <code>CreateTexture2D</code> with bind flags:
+<code>texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;</code>
+This allows these textures to be written to as Render Targets in the geometry pass, and read from as Shader Resource Views (SRVs) in the lighting pass.
+<h3>2. Binding as Render Targets</h3>
+Before drawing geometry, we bind the three G-Buffer Render Target Views (RTVs) and the scene's Depth Stencil View (DSV):
+<pre><code class="language-cpp">void GBufferD3D11::SetAsRenderTargets(ID3D11DeviceContext* context, ID3D11DepthStencilView* dsv)
+{
+    ID3D11RenderTargetView* rtvs[3] = { albedoRT.GetRTV(), normalRT.GetRTV(), positionRT.GetRTV() };
+    context-&gt;OMSetRenderTargets(3, rtvs, dsv);
+}</code></pre>
+<ul>
+  <li><strong>D3D11 Call</strong>: <code>OMSetRenderTargets</code> sets the render targets to output pixels from the rasterizer's pixel shader stage.</li>
+</ul>
+<h3>3. Clearing the G-Buffer</h3>
+Every frame, the G-Buffer must be cleared to prevent old data from bleeding over:
+<pre><code class="language-cpp">void GBufferD3D11::Clear(ID3D11DeviceContext* context, const float clearColor[4])
+{
+    context-&gt;ClearRenderTargetView(albedoRT.GetRTV(), clearColor);
+    context-&gt;ClearRenderTargetView(normalRT.GetRTV(), clearColor);
+    context-&gt;ClearRenderTargetView(positionRT.GetRTV(), clearColor);
+}</code></pre>
+<hr>
+<h2>4. The Lighting Pass: Compute Shader Shading</h2>
+<p>Once the G-Buffer contains the geometry data, we run the lighting pass. In our codebase, this is handled by <strong><code>LightingCS.hlsl</code></strong> (a Compute Shader).</p>
+<h3>Why a Compute Shader?</h3>
+<ul>
+  <li>It allows us to directly write to any screen pixel using random-access writes via an <code>RWTexture2D</code> (Unordered Access View or UAV), bypassing standard output merger restrictions.</li>
+  <li>High efficiency through thread grouping. Thread groups of $16 \times 16$ threads match GPU architecture warp sizes, optimizing performance.</li>
+</ul>
+<h3>Unpacking the G-Buffer</h3>
+In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/LightingCS.hlsl#L104">LightingCS.hlsl:L104</a>, the shader reads from the texture registers <code>t0</code>, <code>t1</code>, and <code>t2</code> using texture loads:
+<pre><code class="language-hlsl">float4 albedoSample = gAlbedo.Load(int3(pixel, 0));
+float4 normalSample = gNormal.Load(int3(pixel, 0));
+float4 positionSample = gWorldPos.Load(int3(pixel, 0));</code></pre>
+<ul>
+  <li><strong><code>gAlbedo.Load</code></strong> takes integer coordinates (<code>DTid.xy</code>) rather than UV coordinates (<code>0.0f</code> to <code>1.0f</code>), extracting exact texel values at the given screen pixel.</li>
+</ul>
+<h3>Lighting Accumulation</h3>
+The shader loops over all enabled light sources stored in a <code>StructuredBuffer&lt;LightData&gt; lights</code> (bound to <code>t4</code>).
+For each light, it calculates:
+1. <strong>Light Direction</strong>: Directional vs. Point/Spotlight.
+2. <strong>Distance Attenuation</strong>: Quadratic falloff for point/spotlights:
+   $$attenuation = \text{saturate}(1.0 - (\frac{d}{\text{range}}))^2$$
+3. <strong>Spotlight Cone Attenuation</strong>: Inside/outside cone angle calculation.
+4. <strong>Shadow Multiplier</strong>: Computes whether the pixel is shadowed using shadow maps (described in Study Guide 3).
+5. <strong>Blinn-Phong Shading</strong>:
+<ul>
+  <li><strong>Diffuse (Lambertian)</strong>: $I_{diff} = \max(\vec{N} \cdot \vec{L}, 0) \times \text{color} \times \text{intensity}$</li>
+  <li><strong>Specular (Blinn-Phong)</strong>: Uses the half-vector $\vec{H} = \text{normalize}(\vec{L} + \vec{V})$.</li>
+</ul>     $$I_{spec} = (\max(\vec{N} \cdot \vec{H}, 0))^{\text{specularPower}} \times \text{color} \times \text{intensity} \times \text{specularStrength}$$
+<p>Finally, it saturates the accumulated lighting and writes the color: <pre><code class="language-hlsl">outColor[pixel] = float4(lighting, 1.0f);</code></pre></p>
+<hr>
+<h2>Teacher Presentation Tips 🎓</h2>
+<ul>
+  <li><strong>Be prepared to explain DXGI_FORMAT_R16G16B16A16_FLOAT</strong>: Why did you choose it over standard <code>R8G8B8A8_UNORM</code>?</li>
+  <li><em>Answer</em>: Standard 8-bit formats clamp values to $[0.0, 1.0]$ and suffer from precision issues. For normals and positions, we need negative numbers, floating-point coordinates, and high-precision normals to avoid rendering artifacts (like blocky shadows and banding).</li>
+  <li><strong>Explain how G-Buffer is unbound before Compute Shader execution</strong>:</li>
+  <li><em>Answer</em>: In Direct3D 11, a resource cannot be bound as a Render Target (output) and a Shader Resource View (input) at the same time. If we try to bind a G-Buffer texture as an input to the Compute Shader while it is still bound as a Render Target, the D3D11 runtime will force bind it to <code>nullptr</code> to prevent read/write conflicts. To avoid this, we must unbind the RTVs before dispatching the Compute Shader.</li>
+</ul>
+    </main>
+</body>
+</html>

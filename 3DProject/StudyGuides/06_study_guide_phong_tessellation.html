@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>06. Phong Tessellation - DV1542 Study Kit</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/tokyo-night-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+    
+    <!-- MathJax Configuration -->
+    <script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #151b26;
+            --bg-sidebar: #0f131f;
+            --border-color: #242c3d;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --accent: #a855f7;
+            --accent-glow: rgba(168, 85, 247, 0.15);
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Sidebar Navigation Layout */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-nav {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-muted);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, var(--primary-glow), rgba(168, 85, 247, 0.05));
+            border-left: 3px solid var(--primary);
+            color: #fff;
+            padding-left: 11px;
+        }
+
+        /* Main Content Layout */
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 60%, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+
+        p {
+            margin-bottom: 18px;
+            color: var(--text-muted);
+            font-size: 0.975rem;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        li input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: var(--primary);
+            transform: scale(1.1);
+            vertical-align: middle;
+        }
+
+        /* Code Blocks */
+        pre {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary);
+            word-break: break-word;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: inherit;
+            word-break: normal;
+        }
+
+        /* Links */
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        a:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* Horizontal Rule */
+        hr {
+            border: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 40px 0;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: var(--bg-sidebar);
+            color: #fff;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Alerts */
+        .alert {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            border-left: 4px solid var(--primary);
+        }
+
+        .alert-note {
+            border-left-color: var(--primary);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(99, 102, 241, 0.03));
+        }
+
+        .alert-tip {
+            border-left-color: var(--success);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(16, 185, 129, 0.03));
+        }
+
+        .alert-important {
+            border-left-color: var(--warning);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(245, 158, 11, 0.03));
+        }
+
+        .alert-warning {
+            border-left-color: var(--accent);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(168, 85, 247, 0.03));
+        }
+
+        .alert-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-content p {
+            margin-bottom: 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--border-color);
+            padding-left: 16px;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+  <div class="sidebar-header">DV1542 Study Kit</div>
+  <nav class="sidebar-nav">
+    <a class="nav-item " href="01_study_guide_overall_architecture.html">01. Overall Architecture</a>
+    <a class="nav-item " href="02_study_guide_obj_parser_buffers.html">02. Mesh Loading & Buffers</a>
+    <a class="nav-item " href="03_study_guide_quadtree_culling.html">03. Quadtree Culling</a>
+    <a class="nav-item " href="04_study_guide_deferred_rendering.html">04. Deferred Rendering</a>
+    <a class="nav-item " href="05_study_guide_shadow_mapping.html">05. Shadow Mapping</a>
+    <a class="nav-item active" href="06_study_guide_phong_tessellation.html">06. Phong Tessellation</a>
+    <a class="nav-item " href="07_study_guide_normal_parallax.html">07. Normal & Parallax Maps</a>
+    <a class="nav-item " href="08_study_guide_environment_mapping.html">08. Environment Maps</a>
+    <a class="nav-item " href="09_study_guide_particle_system.html">09. GPU Particles</a>
+    <a class="nav-item " href="10_study_guide_binding_dispatch.html">10. Bindings & Dispatch</a>
+    <a class="nav-item " href="11_study_guide_master_faq.html">11. Master FAQ</a>
+    <a class="nav-item " href="12_mock_presentations_with_teacher.html">12. Mock Presentations</a>
+  </nav>
+</div>
+
+    
+    <main class="main-content">
+        <h1>Study Guide 4: Phong Tessellation</h1>
+<p>This guide explains hardware tessellation in Direct3D 11, walking through the Vertex Shader (VS), Hull Shader (HS), fixed-function Tessellator, and Domain Shader (DS) pipeline, and details the mathematical equations used in Phong Tessellation to smooth low-poly surfaces.</p>
+<hr>
+<h2>1. The Hardware Tessellation Pipeline</h2>
+<p>Tessellation splits a low-resolution geometric primitive (like a triangle patch) into many smaller primitives (sub-triangles) dynamically on the GPU. This increases detail without taxing memory bandwidth or the CPU.</p>
+<pre><code class="language-plaintext">[Input Assembler] (Patch Topology)
+       │
+[Vertex Shader] (Transforms control points)
+       │
+[Hull Shader] (Determines tessellation factors &amp; passes control points)
+       │
+[Tessellator] (Fixed-function stage: splits patch based on factors)
+       │
+[Domain Shader] (Interpolates new vertices &amp; projects to curve)
+       │
+[Geometry Shader / Rasterizer / Pixel Shader]</code></pre>
+<h3>Primitive Topology Changes</h3>
+Normally, meshes are drawn with <code>D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST</code>. When tessellation is active, we change the topology in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L652">Main.cpp:L652</a> to:
+<code>context-&gt;IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);</code>
+This instructs the Input Assembler to treat every three vertices as control points of a patch rather than a flat triangle.
+<hr>
+<h2>2. Pipeline Stages Detailed</h2>
+<h3>1. Vertex Shader (<code>TessellationVS.hlsl</code>)</h3>
+The Vertex Shader <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationVS.hlsl">TessellationVS.hlsl</a> transforms vertices into world space but does <strong>not</strong> project them into clip space:
+<pre><code class="language-hlsl">output.worldPosition = mul(float4(input.position, 1.0f), worldMatrix).xyz;
+output.worldNormal = normalize(mul(float4(input.normal, 0.0f), worldMatrix).xyz);</code></pre>
+<ul>
+  <li><strong>Why?</strong> The Hull and Domain shaders require world space positions and normals to compute distances from the camera and project vertices onto tangent planes.</li>
+</ul>
+<h3>2. Hull Shader (<code>TessellationHS.hlsl</code>)</h3>
+The Hull Shader <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationHS.hlsl">TessellationHS.hlsl</a> consists of two phases:
+1. <strong>Control Point Phase (<code>main</code>)</strong>: Runs once per output control point. It passes the vertices, normals, and UVs through.
+2. <strong>Patch Constant Phase (<code>PatchConstantFunc</code>)</strong>: Runs once per patch (triangle). It determines how much to subdivide the patch.
+<p>#### Edge-based Tessellation and Gap Prevention To prevent <strong>cracking</strong> (holes/gaps appearing between adjacent triangles due to mismatched tessellation levels), we calculate tessellation factors along the edges using the distance from the camera to the edge midpoints: <pre><code class="language-hlsl">float3 edge0Midpoint = (patch[0].worldPosition + patch[1].worldPosition) * 0.5f;
+output.edges[0] = CalculateTessellationFactor(edge0Midpoint);</code></pre> Because two sharing triangles share the exact same edge and midpoint, they will compute the identical edge tessellation factor. This ensures their boundary vertices match perfectly.</p>
+<p>#### Dynamic Level of Detail (LOD) In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationHS.hlsl#L39">TessellationHS.hlsl:L39</a>: <ul>   <li>If distance $\le 1.0\text{m}$, <code>tessFactor = 4.0</code> (highly subdivided).</li>   <li>If distance $\ge 10.0\text{m}$, <code>tessFactor = 1.0</code> (no subdivision).</li>   <li>Distances in between are linearly interpolated.</li> </ul> <h3>3. The Tessellator (Fixed-Function)</h3> The GPU's fixed-function hardware reads <code>edges[3]</code> and <code>inside</code> tessellation factors and generates a mesh of new vertices in a normalized space ($[0,1]$ coordinate range inside the triangle patch). It does not know anything about world positions or normals; it only outputs <strong>Barycentric Coordinates</strong> $(u, v, w)$ for every newly created vertex, where $u + v + w = 1.0$.</p>
+<h3>4. Domain Shader (<code>TessellationDS.hlsl</code>)</h3>
+The Domain Shader <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationDS.hlsl">TessellationDS.hlsl</a> is called for each new vertex generated by the Tessellator. It uses the barycentric coordinates to compute the physical attributes of the new vertex.
+<hr>
+<h2>3. Phong Tessellation Mathematical Formulation</h2>
+<p>Unlike standard tessellation (which simply interpolates coordinates linearly, yielding flat triangles), <strong>Phong Tessellation</strong> projects vertices onto the tangent planes of the control points to reconstruct a curved shape.</p>
+<pre><code class="language-plaintext">       Control Point 0 (P0)
+             / \
+            /   \      &lt;- Normal N0 (defines tangent plane 0)
+           /  P* \
+          /    .  \
+         /      .  \   &lt;- P* projected onto plane 1 and plane 2
+        /________.__\
+ Control Point 1 (P1)   Control Point 2 (P2)</code></pre>
+<h3>The Math Steps in <code>TessellationDS.hlsl</code></h3>
+<p>1. <strong>Calculate Linear Interpolated Position</strong>:    Find where the vertex would lie if the patch were flat:    $$P_{\text{linear}} = u P_0 + v P_1 + w P_2$$    <code>float3 linearPosition = patch[0].worldPosition * barycentricCoords.x + ...</code></p>
+<p>2. <strong>Project onto Tangent Planes</strong>:    For each control point $i \in \{0, 1, 2\}$, we define a tangent plane passing through $P_i$ with normal $N_i$. We project $P_{\text{linear}}$ onto each plane:    $$\pi_i(P_{\text{linear}}) = P_{\text{linear}} - \left( (P_{\text{linear}} - P_i) \cdot N_i \right) N_i$$    In code: <pre><code class="language-hlsl">   float3 ProjectToPlane(float3 position, float3 planePoint, float3 planeNormal)
+   {
+       float3 toPosition = position - planePoint;
+       float distanceToPlane = dot(toPosition, planeNormal);
+       return position - distanceToPlane * planeNormal;
+   }</code></pre>    We perform this projection for all three control points, yielding <code>projection0</code>, <code>projection1</code>, and <code>projection2</code>.</p>
+<p>3. <strong>Interpolate the Projections</strong>:    Combine the three projected coordinates using barycentric weights:    $$P_{\text{phong}} = u \pi_0(P_{\text{linear}}) + v \pi_1(P_{\text{linear}}) + w \pi_2(P_{\text{linear}})$$</p>
+<p>4. <strong>Blend flat and smooth</strong>:    Using <code>PHONG_ALPHA = 0.75f</code>, we blend the flat position with the curved position to control smoothing intensity:    $$P_{\text{final}} = (1 - \alpha) P_{\text{linear}} + \alpha P_{\text{phong}}$$    <code>output.worldPosition = lerp(linearPosition, phongPosition, PHONG_ALPHA);</code></p>
+<p>5. <strong>Transform to Clip Space</strong>:    Finally, project the smoothed position to screen coordinates:    <code>output.clipPosition = mul(float4(output.worldPosition, 1.0f), viewProjMatrix);</code></p>
+<hr>
+<h2>Teacher Presentation Tips 🎓</h2>
+<ul>
+  <li><strong>Explain why Phong Tessellation is useful without a heightmap</strong>:</li>
+  <li><em>Answer</em>: Standard displacement mapping requires a height map texture (like a displacement map) to offset vertices. Phong Tessellation uses only the vertex positions and normals already present in the mesh to mathematically reconstruct a smooth surface. It is extremely useful for making low-poly spheres, cylinders, and character models look high-poly.</li>
+  <li><strong>What is fractional_odd partitioning?</strong>:</li>
+  <li><em>Answer</em>: Defined via <code>[partitioning("fractional_odd")]</code> in the Hull Shader. It instructs the Tessellator to subdivide edges into an odd number of segments (e.g. 1, 3, 5, 7) and smoothly morph in new vertices as the tessellation factor increases, preventing sudden "pops" in geometry detail as the camera moves.</li>
+</ul>
+    </main>
+</body>
+</html>

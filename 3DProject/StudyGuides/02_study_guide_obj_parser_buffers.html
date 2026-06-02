@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>02. Mesh Loading & Buffers - DV1542 Study Kit</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/tokyo-night-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+    
+    <!-- MathJax Configuration -->
+    <script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #151b26;
+            --bg-sidebar: #0f131f;
+            --border-color: #242c3d;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --accent: #a855f7;
+            --accent-glow: rgba(168, 85, 247, 0.15);
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Sidebar Navigation Layout */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-nav {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-muted);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, var(--primary-glow), rgba(168, 85, 247, 0.05));
+            border-left: 3px solid var(--primary);
+            color: #fff;
+            padding-left: 11px;
+        }
+
+        /* Main Content Layout */
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 60%, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+
+        p {
+            margin-bottom: 18px;
+            color: var(--text-muted);
+            font-size: 0.975rem;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        li input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: var(--primary);
+            transform: scale(1.1);
+            vertical-align: middle;
+        }
+
+        /* Code Blocks */
+        pre {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary);
+            word-break: break-word;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: inherit;
+            word-break: normal;
+        }
+
+        /* Links */
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        a:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* Horizontal Rule */
+        hr {
+            border: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 40px 0;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: var(--bg-sidebar);
+            color: #fff;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Alerts */
+        .alert {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            border-left: 4px solid var(--primary);
+        }
+
+        .alert-note {
+            border-left-color: var(--primary);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(99, 102, 241, 0.03));
+        }
+
+        .alert-tip {
+            border-left-color: var(--success);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(16, 185, 129, 0.03));
+        }
+
+        .alert-important {
+            border-left-color: var(--warning);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(245, 158, 11, 0.03));
+        }
+
+        .alert-warning {
+            border-left-color: var(--accent);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(168, 85, 247, 0.03));
+        }
+
+        .alert-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-content p {
+            margin-bottom: 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--border-color);
+            padding-left: 16px;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+  <div class="sidebar-header">DV1542 Study Kit</div>
+  <nav class="sidebar-nav">
+    <a class="nav-item " href="01_study_guide_overall_architecture.html">01. Overall Architecture</a>
+    <a class="nav-item active" href="02_study_guide_obj_parser_buffers.html">02. Mesh Loading & Buffers</a>
+    <a class="nav-item " href="03_study_guide_quadtree_culling.html">03. Quadtree Culling</a>
+    <a class="nav-item " href="04_study_guide_deferred_rendering.html">04. Deferred Rendering</a>
+    <a class="nav-item " href="05_study_guide_shadow_mapping.html">05. Shadow Mapping</a>
+    <a class="nav-item " href="06_study_guide_phong_tessellation.html">06. Phong Tessellation</a>
+    <a class="nav-item " href="07_study_guide_normal_parallax.html">07. Normal & Parallax Maps</a>
+    <a class="nav-item " href="08_study_guide_environment_mapping.html">08. Environment Maps</a>
+    <a class="nav-item " href="09_study_guide_particle_system.html">09. GPU Particles</a>
+    <a class="nav-item " href="10_study_guide_binding_dispatch.html">10. Bindings & Dispatch</a>
+    <a class="nav-item " href="11_study_guide_master_faq.html">11. Master FAQ</a>
+    <a class="nav-item " href="12_mock_presentations_with_teacher.html">12. Mock Presentations</a>
+  </nav>
+</div>
+
+    
+    <main class="main-content">
+        <h1>Study Guide 5: Mesh Loading &amp; Buffer Management (Vertex, Index, Submeshes)</h1>
+<p>This guide covers mesh ingestion in this project: parsing OBJ/MTL files, using a vertex cache to consolidate index buffers, initializing GPU vertex and index buffers, dividing meshes into submeshes by material, and calculating local bounding boxes for collision detection.</p>
+<hr>
+<h2>1. The OBJ Format vs. GPU Input Assembler</h2>
+<p>An OBJ file stores geometric attributes separately: <ul>   <li><code>v x y z</code>: Vertex position.</li>   <li><code>vt u v</code>: Texture coordinate.</li>   <li><code>vn x y z</code>: Normal vector.</li>   <li><code>f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3</code>: Face index definitions.</li> </ul> <h3>The Indexing Conflict</h3> The GPU Input Assembler expects a single index buffer to reference a single vertex buffer. Each vertex must contain a position, normal, and UV combined at the same address. In the OBJ file, however, a face links index <code>1</code> for position, index <code>3</code> for texture coordinate, and index <code>2</code> for normal. They do not share indices.</p>
+<h3>The Solution: Vertex Consolidation &amp; Cache</h3>
+In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/OBJParser.cpp">OBJParser.cpp</a>, the parser reads the raw lines and resolves this mismatch:
+1. For each vertex in a face definition (e.g., <code>v/vt/vn</code>), the parser generates a string key (like <code>"1/3/2"</code>).
+2. It looks up this key in an <code>unordered_map&lt;std::string, unsigned int&gt; vertexCache</code>.
+3. <strong>If found</strong>: The combination already exists. The parser reuse the index of the existing vertex and adds it to the index buffer.
+4. <strong>If not found</strong>: This is a new combination. The parser constructs a new <code>Vertex</code> object (copying position <code>1</code>, UV <code>3</code>, and normal <code>2</code>), appends it to the vertex list, registers its index in the cache, and writes the new index to the index buffer.
+<p>This cache ensures no redundant vertices are created on the GPU, saving valuable memory.</p>
+<hr>
+<h2>2. Materials and Submesh Splitting</h2>
+<p>Large 3D models often use different textures for different parts (e.g., a crate with metallic brackets). The OBJ format denotes this with: <ul>   <li><code>mtllib library_name.mtl</code>: Defines material properties (ambient, diffuse, specular, textures).</li>   <li><code>usemtl material_name</code>: Applies a material to the subsequent faces.</li> </ul> <h3>Submeshes</h3> A single vertex and index buffer is created for the entire model. However, to draw parts with different textures, the model is split into <strong>submeshes</strong>. In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/OBJParser.h#L35">OBJParser.h:L35</a>: <ul>   <li>A <strong>SubMeshInfo</strong> stores:</li>   <li><code>startIndexValue</code>: The byte offset or index number where the submesh starts in the main index buffer.</li>   <li><code>nrOfIndicesInSubMesh</code>: The number of indices belonging to this submesh.</li>   <li>Pointers to the texture SRVs (<code>diffuseTextureSRV</code>, <code>normalHeightTextureSRV</code>, etc.).</li>   <li>Material color coefficients.</li> </ul> When the parser encounters <code>usemtl</code>, it packages the current list of indices into a <code>SubMeshInfo</code> and starts a new submesh for subsequent faces, tracking the index offsets.</p>
+<hr>
+<h2>3. Direct3D 11 Buffer Allocation</h2>
+<p>Once the parser returns the vertex vector and index vector, the <code>MeshD3D11</code> class allocates them into GPU memory.</p>
+<h3>1. Vertex Buffer Setup (<code>VertexBufferD3D11.cpp</code>)</h3>
+We describe the buffer and pass a pointer to our CPU vertex array using <code>D3D11_SUBRESOURCE_DATA</code>:
+<pre><code class="language-cpp">D3D11_BUFFER_DESC bufferDesc = {};
+bufferDesc.Usage = D3D11_USAGE_DEFAULT;
+bufferDesc.ByteWidth = sizeOfVertex * nrOfVertices; // total bytes
+bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;   // bound as vertex buffer
+bufferDesc.CPUAccessFlags = 0;
+
+D3D11_SUBRESOURCE_DATA initData = {};
+initData.pSysMem = vertexData; // CPU pointer to Vertex vector
+device-&gt;CreateBuffer(&amp;bufferDesc, &amp;initData, &amp;buffer);</code></pre>
+<h3>2. Index Buffer Setup (<code>IndexBufferD3D11.cpp</code>)</h3>
+Similar to the vertex buffer, but bound as an index buffer:
+<pre><code class="language-cpp">bufferDesc.ByteWidth = sizeof(uint32_t) * nrOfIndices;
+bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+initData.pSysMem = indexData;
+device-&gt;CreateBuffer(&amp;bufferDesc, &amp;initData, &amp;buffer);</code></pre>
+<hr>
+<h2>4. Local Bounding Box Calculation</h2>
+<p>To perform view frustum culling, each mesh calculates a local-space axis-aligned bounding box (AABB) when initialized. In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/MeshD3D11.cpp#L41">MeshD3D11.cpp:L41-79</a>: 1. Loop over the raw floats in the vertex array using stride offsets. 2. Find the minimum and maximum coordinates $(X, Y, Z)$ across all vertices. 3. Compute the center:    $$\text{Center} = \frac{\text{minPos} + \text{maxPos}}{2}$$ 4. Compute the half-extents:    $$\text{Extents} = \frac{\text{maxPos} - \text{minPos}}{2}$$ 5. Save these into <code>localBoundingBox</code> (<code>DirectX::BoundingBox</code>).</p>
+<hr>
+<h2>5. Binding and Drawing</h2>
+<p>To render the mesh, we perform these steps:</p>
+<p>1. <strong>Bind Buffers to the Input Assembler</strong>:    In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/MeshD3D11.cpp#L82">MeshD3D11.cpp:L82</a>: <pre><code class="language-cpp">   UINT stride = vertexBuffer.GetVertexSize(); // size of Vertex struct (32 bytes)
+   UINT offset = 0;
+   ID3D11Buffer* vb = vertexBuffer.GetBuffer();
+   context-&gt;IASetVertexBuffers(0, 1, &amp;vb, &amp;stride, &amp;offset);
+   context-&gt;IASetIndexBuffer(indexBuffer.GetBuffer(), DXGI_FORMAT_R32_UINT, 0);</code></pre> 2. <strong>Perform Submesh Draw Calls</strong>:    For each submesh, we bind its textures and materials, then issue the draw call: <pre><code class="language-cpp">   void SubMeshD3D11::PerformDrawCall(ID3D11DeviceContext* context) const
+   {
+       context-&gt;DrawIndexed(static_cast&lt;UINT&gt;(nrOfIndices), static_cast&lt;UINT&gt;(startIndex), 0);
+   }</code></pre> <ul>   <li><strong><code>DrawIndexed</code> arguments</strong>:</li>   <li><code>nrOfIndices</code>: Number of index elements to draw for this submesh.</li>   <li><code>startIndex</code>: Offset where this submesh's indices begin.</li>   <li><code>baseVertexLocation</code>: Offset added to each index value (we pass <code>0</code>).</li> </ul> <hr></p>
+<h2>Teacher Presentation Tips 🎓</h2>
+<ul>
+  <li><strong>How is the vertex data laid out in memory?</strong>:</li>
+  <li><em>Answer</em>: Each vertex is represented by the <code>Vertex</code> struct. It is 32 bytes in size: <code>XMFLOAT3 Position</code> (12 bytes) + <code>XMFLOAT3 Normal</code> (12 bytes) + <code>XMFLOAT2 UV</code> (8 bytes). They are packed sequentially in a contiguous array.</li>
+  <li><strong>Why do we use 32-bit indices (DXGI_FORMAT_R32_UINT) instead of 16-bit (DXGI_FORMAT_R16_UINT)?</strong>:</li>
+  <li><em>Answer</em>: 16-bit indices restrict meshes to a maximum of 65,535 vertices. High-resolution models easily exceed this limit. Using 32-bit indices allows up to 4.29 billion vertices per mesh, which easily accommodates complex geometry.</li>
+</ul>
+    </main>
+</body>
+</html>

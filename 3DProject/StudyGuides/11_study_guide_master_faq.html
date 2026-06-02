@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>11. Master FAQ - DV1542 Study Kit</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/tokyo-night-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+    
+    <!-- MathJax Configuration -->
+    <script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #151b26;
+            --bg-sidebar: #0f131f;
+            --border-color: #242c3d;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --accent: #a855f7;
+            --accent-glow: rgba(168, 85, 247, 0.15);
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Sidebar Navigation Layout */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-nav {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-muted);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, var(--primary-glow), rgba(168, 85, 247, 0.05));
+            border-left: 3px solid var(--primary);
+            color: #fff;
+            padding-left: 11px;
+        }
+
+        /* Main Content Layout */
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 60%, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+
+        p {
+            margin-bottom: 18px;
+            color: var(--text-muted);
+            font-size: 0.975rem;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        li input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: var(--primary);
+            transform: scale(1.1);
+            vertical-align: middle;
+        }
+
+        /* Code Blocks */
+        pre {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary);
+            word-break: break-word;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: inherit;
+            word-break: normal;
+        }
+
+        /* Links */
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        a:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* Horizontal Rule */
+        hr {
+            border: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 40px 0;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: var(--bg-sidebar);
+            color: #fff;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Alerts */
+        .alert {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            border-left: 4px solid var(--primary);
+        }
+
+        .alert-note {
+            border-left-color: var(--primary);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(99, 102, 241, 0.03));
+        }
+
+        .alert-tip {
+            border-left-color: var(--success);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(16, 185, 129, 0.03));
+        }
+
+        .alert-important {
+            border-left-color: var(--warning);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(245, 158, 11, 0.03));
+        }
+
+        .alert-warning {
+            border-left-color: var(--accent);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(168, 85, 247, 0.03));
+        }
+
+        .alert-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-content p {
+            margin-bottom: 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--border-color);
+            padding-left: 16px;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+  <div class="sidebar-header">DV1542 Study Kit</div>
+  <nav class="sidebar-nav">
+    <a class="nav-item " href="01_study_guide_overall_architecture.html">01. Overall Architecture</a>
+    <a class="nav-item " href="02_study_guide_obj_parser_buffers.html">02. Mesh Loading & Buffers</a>
+    <a class="nav-item " href="03_study_guide_quadtree_culling.html">03. Quadtree Culling</a>
+    <a class="nav-item " href="04_study_guide_deferred_rendering.html">04. Deferred Rendering</a>
+    <a class="nav-item " href="05_study_guide_shadow_mapping.html">05. Shadow Mapping</a>
+    <a class="nav-item " href="06_study_guide_phong_tessellation.html">06. Phong Tessellation</a>
+    <a class="nav-item " href="07_study_guide_normal_parallax.html">07. Normal & Parallax Maps</a>
+    <a class="nav-item " href="08_study_guide_environment_mapping.html">08. Environment Maps</a>
+    <a class="nav-item " href="09_study_guide_particle_system.html">09. GPU Particles</a>
+    <a class="nav-item " href="10_study_guide_binding_dispatch.html">10. Bindings & Dispatch</a>
+    <a class="nav-item active" href="11_study_guide_master_faq.html">11. Master FAQ</a>
+    <a class="nav-item " href="12_mock_presentations_with_teacher.html">12. Mock Presentations</a>
+  </nav>
+</div>
+
+    
+    <main class="main-content">
+        <h1>Study Guide 11: Master FAQ &amp; Exam Preparation Database</h1>
+<p>This document contains over 50 highly technical questions and detailed answers designed to prepare you for the 1-on-1 presentation/exam with your teacher. These cover overall architecture, deferred rendering, shadow mapping, Phong tessellation, buffers, environment maps, quadtrees, particle systems, normals/POM, and binding/dispatch math.</p>
+<hr>
+<h2>Part 1: Win32 &amp; Core Direct3D 11 Setup</h2>
+<h3>Q1: What is the purpose of <code>_CrtSetDbgFlag</code> at the start of <code>wWinMain</code>?</h3>
+<strong>Answer</strong>: It configures the MSVC runtime library’s debug heap allocator to track allocated memory blocks. When the program terminates, it checks for memory leaks and outputs details (file, line number, allocation ID) of any unreleased buffers to the Debug console.
+<h3>Q2: What is the difference between <code>ID3D11Device</code> and <code>ID3D11DeviceContext</code>?</h3>
+<strong>Answer</strong>: 
+<ul>
+  <li><code>ID3D11Device</code> represents the GPU adapter and is used to allocate hardware resources (textures, buffers, shaders, state objects). It is thread-safe.</li>
+  <li><code>ID3D11DeviceContext</code> represents the pipeline controller and is used to bind those resources, set pipeline states, configure render targets, and dispatch draw calls. It is not thread-safe and executes commands.</li>
+</ul>
+<h3>Q3: What is the role of <code>IDXGISwapChain</code> in rendering?</h3>
+<strong>Answer</strong>: It handles double buffering. It owns a back buffer texture (which the GPU renders to) and a front buffer texture (which is currently displayed on the monitor). When <code>Present</code> is called, DXGI swaps the pointers of these buffers to display the newly rendered frame without screen tearing.
+<h3>Q4: Why is <code>GetFocus() == window</code> checked before updating camera rotation?</h3>
+<strong>Answer</strong>: This checks if the game window is currently the active foreground window. If it isn't (e.g. the player Alt-Tabs out), we disable mouse tracking and cursor centering, preventing the mouse from getting locked and the camera from spinning uncontrollably in the background.
+<h3>Q5: How is delta time ($dt$) calculated, and why is it essential for frame-rate independence?</h3>
+<strong>Answer</strong>: It is computed using <code>std::chrono::high_resolution_clock</code> by measuring the time elapsed since the previous frame. It is essential because computing movements using absolute values (like shifting position by <code>0.1</code> per frame) would run 10x faster on a 300 FPS PC than on a 30 FPS PC. Multiplying updates by $dt$ guarantees objects move at a constant speed per second regardless of frame rate.
+<h3>Q6: What is a local orthonormal basis for a camera?</h3>
+<strong>Answer</strong>: It is a set of three mutually perpendicular unit vectors pointing along the camera's local axes: <code>forward</code> (look direction), <code>right</code> (horizontal axis), and <code>up</code> (vertical axis). These vectors define the camera's orientation in 3D world space.
+<h3>Q7: How are pitch and yaw calculated using quaternions in <code>CameraD3D11.cpp</code>?</h3>
+<strong>Answer</strong>: We construct rotation quaternions: one for yaw (rotating around the global up axis <code>(0, 1, 0)</code>) and one for pitch (rotating around the camera's local <code>right</code> vector). Multiplying these quaternions creates a combined rotation quaternion, which we use to rotate the camera's <code>forward</code>, <code>right</code>, and <code>up</code> vectors.
+<h3>Q8: What does the View Matrix represent?</h3>
+<strong>Answer</strong>: The View Matrix transforms coordinates from global <strong>World Space</strong> to <strong>Camera Space</strong> (putting the camera at <code>(0,0,0)</code> looking down $+Z$). It is constructed using <code>XMMatrixLookAtLH(cameraPosition, cameraPosition + cameraForward, cameraUp)</code>.
+<h3>Q9: What does the Projection Matrix represent?</h3>
+<strong>Answer</strong>: The Projection Matrix transforms coordinates from <strong>Camera Space</strong> to <strong>Clip Space</strong> ($[-1,1]$ boundary for X/Y, $[0,1]$ for Z). It scales coordinates to simulate perspective (farther objects appear smaller) and defines the view boundaries using FOV, aspect ratio, and near/far clip planes.
+<hr>
+<h2>Part 2: Deferred Rendering &amp; G-Buffer Design</h2>
+<h3>Q10: What is the main performance advantage of Deferred Rendering over Forward Rendering?</h3>
+<strong>Answer</strong>: Forward rendering shades every fragment that passes the depth test, which leads to <strong>overdraw</strong> when objects overlap (lit pixels get overwritten). Deferred rendering separates geometry rendering from lighting. We only compute lighting once per screen pixel for visible surfaces, reducing shading complexity from $\mathcal{O}(N \times M)$ to $\mathcal{O}(N + M)$ (where $N$ is objects, $M$ is lights).
+<h3>Q11: What is stored in each of the three Render Targets in our G-Buffer?</h3>
+<strong>Answer</strong>:
+1. <code>albedoRT</code>: Diffuse Color (RGB) + Ambient Strength (A).
+2. <code>normalRT</code>: World-space normal vector (RGB, packed as $normal \times 0.5 + 0.5$) + Specular Strength (A).
+3. <code>positionRT</code>: World-space position coordinates (RGB) + Specular Exponent (A, scaled down by 256.0).
+<h3>Q12: Why do G-Buffer textures use <code>DXGI_FORMAT_R16G16B16A16_FLOAT</code>?</h3>
+<strong>Answer</strong>: Traditional formats like <code>R8G8B8A8_UNORM</code> clamp values to $[0.0, 1.0]$ and suffer from precision issues. For normals and world positions, we need negative values and high floating-point precision to prevent rendering artifacts (like blocky shadows and banding).
+<h3>Q13: How is the G-Buffer bound to the pipeline during the geometry pass?</h3>
+<strong>Answer</strong>: We create an array of three Render Target Views (RTVs) and bind them along with the main depth buffer's depth-stencil view (DSV) using:
+<code>context-&gt;OMSetRenderTargets(3, rtvs, dsv);</code>
+<h3>Q14: Why must the G-Buffer RTVs be unbound before the Compute Shader lighting pass?</h3>
+<strong>Answer</strong>: Direct3D 11 does not allow a resource to be bound as an output (RTV) and an input (SRV) at the same time. If we try to bind a G-Buffer texture as an input to the Compute Shader while it is still bound as a Render Target, the D3D11 runtime will force bind it to <code>nullptr</code> to prevent read/write conflicts. To avoid this, we must unbind the RTVs before dispatching the Compute Shader.
+<h3>Q15: How does <code>LightingCS.hlsl</code> load G-Buffer texels?</h3>
+<strong>Answer</strong>: It uses the <code>.Load</code> instruction on <code>Texture2D</code> objects with integer pixel coordinates (<code>DTid.xy</code>) rather than floating-point UV coordinates:
+<code>float4 albedoSample = gAlbedo.Load(int3(pixel, 0));</code>
+<h3>Q16: How is the normal vector reconstructed in <code>LightingCS.hlsl</code>?</h3>
+<strong>Answer</strong>: The G-Buffer stores normals packed in the $[0.0, 1.0]$ range. We unpack them back into $[-1.0, 1.0]$ space and normalize the result:
+<code>float3 normal = normalize(normalPacked * 2.0f - 1.0f);</code>
+<h3>Q17: What formula is used to calculate distance-based light attenuation in <code>LightingCS.hlsl</code>?</h3>
+<strong>Answer</strong>: It uses a quadratic falloff formula:
+$$attenuation = \text{saturate}(1.0 - (\frac{d}{\text{range}}))^2$$
+<hr>
+<h2>Part 3: Shadow Mapping &amp; Shadow Map Arrays</h2>
+<h3>Q18: What is a Shadow Map Array, and why is it used?</h3>
+<strong>Answer</strong>: A Shadow Map Array is a single 2D texture array containing multiple depth maps (one slice per light). It allows us to bind all shadow maps to the lighting shader at once (register <code>t3</code>), avoiding expensive texture swaps in C++ between rendering different lights.
+<h3>Q19: Why does the shadow map texture use the format <code>DXGI_FORMAT_R24G8_TYPELESS</code>?</h3>
+<strong>Answer</strong>: Typeless formats allow the same memory block to be viewed differently in different pipeline stages. We bind it as <code>DXGI_FORMAT_D24_UNORM_S8_UINT</code> for writing depth in the shadow pass, and as <code>DXGI_FORMAT_R24_UNORM_X8_TYPELESS</code> to read depth values in the lighting shader.
+<h3>Q20: Why do we swap viewports to $2048 \times 2048$ during the shadow pass?</h3>
+<strong>Answer</strong>: The shadow map texture has a higher resolution ($2048 \times 2048$) than the screen swap chain ($1024 \times 576$). We must adjust the rasterizer viewport to match the shadow texture dimensions, or the depth buffer will only render to a fraction of the texture.
+<h3>Q21: What is Shadow Acne, and how do we solve it using Rasterizer and Shader Biases?</h3>
+<strong>Answer</strong>: Shadow Acne consists of self-shadowing striping artifacts caused by floating-point precision limits. We solve it with two techniques:
+1. <strong>Hardware Bias</strong>: In the shadow pass rasterizer state, we set <code>DepthBias = 2000</code> and <code>SlopeScaledDepthBias = 2.0f</code> to shift the rendered depth slightly away from the light.
+2. <strong>Slope-Dependent Shader Bias</strong>: In the compute shader, we calculate a bias based on the angle between the normal and the light direction:
+   <code>bias = 0.0005f * (sqrt(1.0f - cosTheta * cosTheta) / (cosTheta + 0.0001f))</code>
+<h3>Q22: What is Peter Panning, and what causes it?</h3>
+<strong>Answer</strong>: It occurs when the depth bias is set too high, causing shadows to detach from their objects and appear to float. We must balance the hardware bias (2000) and shader bias clamp ($0.001$) to eliminate acne without causing Peter Panning.
+<h3>Q23: How does the Comparison Sampler work in hardware PCF?</h3>
+<strong>Answer</strong>: We configure the sampler with <code>Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT</code> and <code>ComparisonFunc = D3D11_COMPARISON_LESS_EQUAL</code>. When we call <code>SampleCmpLevelZero</code>, the GPU compares our reference depth against the four nearest texels, interpolates the boolean results, and returns a value between $0.0$ (fully shadowed) and $1.0$ (fully lit), yielding smooth shadow edges.
+<h3>Q24: Why is <code>D3D11_TEXTURE_ADDRESS_BORDER</code> with white border color used for the shadow sampler?</h3>
+<strong>Answer</strong>: If a pixel falls outside the boundaries of the light's frustum, the sampler returns the border color (<code>1.0f</code>, meaning fully lit). This prevents pixels outside the light cone from incorrectly rendering in shadow.
+<hr>
+<h2>Part 4: Phong Tessellation</h2>
+<h3>Q25: What are the three stages of Direct3D 11 hardware tessellation?</h3>
+<strong>Answer</strong>: 
+1. <strong>Hull Shader (HS)</strong>: Runs per control point and patch, determining tessellation factors (LOD).
+2. <strong>Tessellator</strong>: A fixed-function unit that subdivides the patch into a mesh of triangles based on the factors.
+3. <strong>Domain Shader (DS)</strong>: Evaluates the subdivided vertices, interpolating position/UV data and applying displacement math.
+<h3>Q26: What primitive topology must be set for tessellation?</h3>
+<strong>Answer</strong>: <code>D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST</code>. This tells the Input Assembler to treat every three vertices as control points of a patch rather than a flat triangle.
+<h3>Q27: How does the Hull Shader calculate dynamic, distance-based LOD?</h3>
+<strong>Answer</strong>: In the patch constant phase, we compute the midpoint of each edge of the patch. We calculate the distance from the camera to the midpoint:
+<ul>
+  <li>If distance $\le 1.0\text{m}$, <code>tessFactor = 4.0</code>.</li>
+  <li>If distance $\ge 10.0\text{m}$, <code>tessFactor = 1.0</code> (no subdivision).</li>
+  <li>Distances in between are linearly interpolated.</li>
+</ul>
+<h3>Q28: How does the Hull Shader prevent edge cracking/gaps between adjacent triangles?</h3>
+<strong>Answer</strong>: By calculating tessellation factors at the <strong>edge midpoints</strong> of the patch. Since adjacent triangles share the exact same edge and midpoint, they will compute identical edge tessellation factors. This ensures their boundary vertices match perfectly.
+<h3>Q29: What mathematical inputs are received by the Domain Shader?</h3>
+<strong>Answer</strong>:
+1. The original control points of the patch.
+2. The patch constant tessellation factors.
+3. The <strong>Barycentric Coordinates</strong> $(u, v, w)$ of the generated vertex, where $u + v + w = 1.0$.
+<h3>Q30: Write the tangent plane projection formula used in Phong Tessellation.</h3>
+<strong>Answer</strong>: Given a flat interpolated position $P_{\text{linear}}$, we project it onto the tangent plane of control point $P_i$ with normal $N_i$:
+$$\pi_i(P_{\text{linear}}) = P_{\text{linear}} - \left( (P_{\text{linear}} - P_i) \cdot N_i \right) N_i$$
+<h3>Q31: How is the final vertex position calculated in the Domain Shader?</h3>
+<strong>Answer</strong>: We project $P_{\text{linear}}$ onto the tangent planes of all three control points, yielding <code>projection0</code>, <code>projection1</code>, and <code>projection2</code>. We interpolate these using barycentrics to find $P_{\text{phong}}$:
+$$P_{\text{phong}} = u \pi_0(P_{\text{linear}}) + v \pi_1(P_{\text{linear}}) + w \pi_2(P_{\text{linear}})$$
+We then blend the flat and curved positions using $\alpha = 0.75$:
+$$P_{\text{final}} = \text{lerp}(P_{\text{linear}}, P_{\text{phong}}, 0.75)$$
+<hr>
+<h2>Part 5: Mesh Loading &amp; Buffer Management</h2>
+<h3>Q32: Why does an OBJ file contain separate index counts for positions, UVs, and normals?</h3>
+<strong>Answer</strong>: The OBJ format is designed for storage efficiency. A vertex might reuse a position index while referencing a new UV or normal index. However, the GPU Input Assembler requires a 1:1 mapping: each vertex index must map to a unique set of position, normal, and UV coordinates.
+<h3>Q33: How does the <code>vertexCache</code> in <code>OBJParser.cpp</code> consolidate vertex/index buffers?</h3>
+<strong>Answer</strong>: The parser constructs a string key (like <code>"positionIndex/uvIndex/normalIndex"</code>) for each vertex. It looks it up in a hash map. If the combination already exists, it reuses the cached index. If it is new, it appends a new <code>Vertex</code> to the vertex array and stores its index in the cache. This removes redundant vertices.
+<h3>Q34: What properties define a <code>Submesh</code> in our codebase?</h3>
+<strong>Answer</strong>: A submesh is defined by a start index offset and the number of indices in the index buffer, along with its specific material parameters (ambient, diffuse, specular, and texture SRVs).
+<h3>Q35: How is a static Vertex Buffer initialized in Direct3D 11?</h3>
+<strong>Answer</strong>: We configure a <code>D3D11_BUFFER_DESC</code> with <code>BindFlags = D3D11_BIND_VERTEX_BUFFER</code> and <code>Usage = D3D11_USAGE_DEFAULT</code>. We pass the CPU data pointer to a <code>D3D11_SUBRESOURCE_DATA</code> struct and call <code>device-&gt;CreateBuffer</code>.
+<h3>Q36: How is the local-space bounding box calculated for a mesh?</h3>
+<strong>Answer</strong>: During initialization, we loop over all vertices to find the minimum and maximum $X, Y, Z$ coordinates. The center is calculated as $\frac{\text{min} + \text{max}}{2}$, and the extents are calculated as $\frac{\text{max} - \text{min}}{2}$.
+<hr>
+<h2>Part 6: Environment Mapping</h2>
+<h3>Q37: How is the <code>ID3D11Texture2D</code> allocated to act as a Cubemap Render Target?</h3>
+<strong>Answer</strong>: We set <code>ArraySize = 6</code> in the texture description, along with the flag <code>MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE</code> and bind flags <code>D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE</code>.
+<h3>Q38: Why do we have six separate RTVs but only one shared DSV for the cubemap?</h3>
+<strong>Answer</strong>: We render to each face of the cubemap one by one, requiring six individual Render Target Views. However, we only render to one face at a time, so we can reuse a single, shared depth buffer for all face passes, saving GPU memory.
+<h3>Q39: Why does the environment map render loop skip drawing the reflective object itself?</h3>
+<strong>Answer</strong>: To prevent a feedback loop and avoid rendering the interior geometry of the reflective object. When capturing what the sphere sees, the sphere itself is not visible in its own perspective.
+<h3>Q40: How is the reflection vector calculated in <code>ReflectionPS.hlsl</code>?</h3>
+<strong>Answer</strong>: We compute the view direction vector $\vec{V}$ from the camera to the pixel world position, and reflect it around the normal vector $\vec{N}$ using:
+$$\vec{R} = \vec{V} - 2(\vec{V} \cdot \vec{N})\vec{N}$$
+<code>float3 reflectedView = reflect(incomingView, normalizedNormal);</code>
+<hr>
+<h2>Part 7: Quadtree Culling</h2>
+<h3>Q41: What is the difference between a node's bounding box and an element's bounding box in the quadtree?</h3>
+<strong>Answer</strong>: A node's bounding box represents the static horizontal quadrant boundary of that quadtree cell. An element's bounding box represents the bounding box of a dynamic <code>GameObject</code> inserted into the tree.
+<h3>Q42: How does the Quadtree partition space when a node is subdivided?</h3>
+<strong>Answer</strong>: It divides the parent node's bounding box center/extents into four new, half-sized bounding boxes on the X and Z axes, creating 4 child nodes.
+<h3>Q43: How does the quadtree query speed up frustum culling?</h3>
+<strong>Answer</strong>: During a query, if the camera frustum does not intersect a node's bounding box, we skip querying that node and all its children. This rejects large sectors of the scene with a single intersection test.
+<h3>Q44: Why do we need a <code>std::unordered_set&lt;T&gt; visited</code> during a quadtree query?</h3>
+<strong>Answer</strong>: Large game objects may overlap the boundary of two or more quadrants, so a pointer to them is placed in multiple leaf nodes. The <code>visited</code> set ensures that each object is added to the output rendering list only once.
+<hr>
+<h2>Part 8: GPU Particle System</h2>
+<h3>Q45: What is Vertex Pulling (or vertex buffer-less drawing) in the particle pipeline?</h3>
+<strong>Answer</strong>: Instead of binding a vertex buffer, we bind <code>nullptr</code> and set the topology to a point list. The Vertex Shader reads directly from a <code>StructuredBuffer&lt;Particle&gt;</code> using the system-generated index <code>SV_VertexID</code> to retrieve particle data.
+<h3>Q46: How does the Geometry Shader expand point list primitives into billboards?</h3>
+<strong>Answer</strong>: It takes one point input (particle position) and uses the camera's <code>right</code> and <code>up</code> vectors to calculate four corner vertices in world space facing the camera. It projects them and streams them out as 6 vertices (forming two triangles).
+<h3>Q47: What formula is used to fade out particles based on lifetime in <code>ParticlePS.hlsl</code>?</h3>
+<strong>Answer</strong>: We calculate the squared distance of the pixel from the center of the billboard using UVs mapped to $[-1, 1]$. We apply a smooth edge falloff using:
+<code>float alphaMask = 1.0f - smoothstep(0.85f, 1.0f, radiusSquared);</code>
+<h3>Q48: How is the blend state configured for transparent particles?</h3>
+<strong>Answer</strong>: 
+<ul>
+  <li><code>SrcBlend = D3D11_BLEND_SRC_ALPHA</code> (factor = source alpha).</li>
+  <li><code>DestBlend = D3D11_BLEND_INV_SRC_ALPHA</code> (factor = $1 - \text{source alpha}$).</li>
+  <li><code>BlendOp = D3D11_BLEND_OP_ADD</code>.</li>
+</ul>This mixes the particle color with the existing screen background color.
+<hr>
+<h2>Part 9: Normal Mapping &amp; POM Shaders</h2>
+<h3>Q49: Explain the math behind screen-space derivative TBN calculation in <code>ComputeTBN</code>.</h3>
+<strong>Answer</strong>: We compute derivatives of world position (<code>ddx(worldPosition)</code>, <code>ddy(worldPosition)</code>) and UVs (<code>ddx(uv)</code>, <code>ddy(uv)</code>) across the rasterized triangle. We use these differences to solve for the tangent ($\vec{T}$) and bitangent ($\vec{B}$) direction vectors relative to the surface normal ($\vec{N}$), ensuring they align with the texture space.
+<h3>Q50: How does Parallax Occlusion Mapping (POM) ray-marching work?</h3>
+<strong>Answer</strong>: We step along the view vector direction in UV space (<code>deltaTexCoords</code>) and compare the current ray depth against the height map value. Once the ray depth exceeds the height map value, we linearly interpolate between the intersection step and the step immediately before it to find the precise intersection point.
+<h3>Q51: Why is <code>SampleGrad</code> required in POM, and what parameters does it take?</h3>
+<strong>Answer</strong>: When sampling textures inside loops with modified UVs, the UV coordinates can jump suddenly at triangle boundaries, making the GPU load a tiny, blurry mipmap. <code>SampleGrad</code> forces the GPU to use explicit UV gradients (<code>ddx</code> and <code>ddy</code> calculated before ray-marching) to select the correct mipmap level, keeping textures sharp.
+<h3>Q52: Why must the world position coordinates be modified in the G-Buffer for POM surfaces?</h3>
+<strong>Answer</strong>: POM shifts the texture coordinate inward to simulate depth. If we write the flat polygon position to the G-Buffer, our deferred light calculations will be calculated at the wrong position. We subtract <code>normal * depthOffset</code> from the world position before writing it to the G-Buffer to ensure correct screen-space lighting.
+<hr>
+<h2>Part 10: Binding &amp; Dispatch Math</h2>
+<h3>Q53: Explain the math behind dispatching a compute shader with threads of <code>16x16</code> over a <code>1024x576</code> screen.</h3>
+<strong>Answer</strong>: We divide the screen width and height by the thread group dimensions, rounding up to prevent boundary clipping:
+<ul>
+  <li>$X = \frac{1024 + 15}{16} = 64$ groups.</li>
+  <li>$Y = \frac{576 + 15}{16} = 36$ groups.</li>
+</ul>We dispatch these groups using: <code>context-&gt;Dispatch(64, 36, 1);</code>
+<h3>Q54: What does the system-generated value <code>SV_DispatchThreadID</code> represent?</h3>
+<strong>Answer</strong>: It represents the global pixel coordinate of the active thread across the entire execution grid. It is calculated automatically as:
+$$\text{DispatchThreadID} = \text{GroupID} \times \text{groupDim} + \text{GroupThreadID}$$
+    </main>
+</body>
+</html>
