@@ -336,91 +336,117 @@
 
     
     <main class="main-content">
-        <h1>Study Guide 7: Quadtree Culling &amp; Frustum Culling</h1>
-<p>This guide covers spatial partitioning and visibility determination in this project: the mathematics of a view frustum, the structural design of the quadtree, dynamic subdivision, bounding volume intersection testing, and duplicate filtering.</p>
+        <h1>Study Guide 3: CPU Frustum Culling and Quadtree Traversal</h1>
+<p>This guide covers spatial partitioning and view frustum culling: extracting camera frustum planes from view-projection matrices, calculating plane-to-box intersections, traversing the Quadtree structure, and compiling the visible render list.</p>
 <hr>
-<h2>1. The Need for Frustum Culling</h2>
-<p>In a large 3D scene, rendering every object regardless of whether it is visible to the player is highly inefficient. <ul>   <li><strong>The CPU Bottleneck</strong>: Processing meshes that are behind the player involves calculating world transformations and setting binding states, wasting valuable frame time.</li>   <li><strong>The Solution</strong>: <strong>Frustum Culling</strong>. We compare each object's bounding box against the camera's view frustum. If an object is outside, we skip its draw call entirely.</li> </ul> <h3>What is a View Frustum?</h3> A view frustum represents the pyramid-like volume of space visible to the camera. It is defined by six clipping planes: Left, Right, Top, Bottom, Near, and Far. In DirectX, we use the helper class <strong><code>DirectX::BoundingFrustum</code></strong> to represent and test intersections against this volume.</p>
+<h2>1. Camera Frustum Planes Extraction</h2>
+<p>To determine if an object is visible to the camera, we must check it against the camera's <strong>View Frustum</strong> (the 3D pyramid volume defining the camera's field of view). The frustum is bounded by 6 planes: Left, Right, Bottom, Top, Near, and Far.</p>
+<pre><code class="language-plaintext">       Far Plane
+     +-----------+
+    /             \
+   /   Frustum     \
+  /    Volume       \
+ /                   \
++---------------------+
+ Near Plane  (Camera origin at apex)</code></pre>
+<p>Each plane is defined by a 3D normal vector $\vec{N} = (A,B,C)$ and a distance constant $D$: $$A \cdot x + B \cdot y + C \cdot z + D = 0$$</p>
+<h3>Mathematical Extraction from View-Projection Matrix</h3>
+<p>Rather than calculating these planes manually using camera angles and FOV geometry, we extract them directly from the rows of the combined <strong>View-Projection Matrix ($M = V \cdot P$)</strong>.</p>
+<p>If $M$ is a column-major matrix or row-major matrix transposed, its rows represent the coordinate transformation coefficients. The clipping boundaries in homogeneous clip space are $-W \le X \le W$, $-W \le Y \le W$, and $0 \le Z \le W$.</p>
+<p>By mapping these boundaries, we extract the planes: <ul>   <li><strong>Left Plane</strong>: $\vec{P}_{\text{left}} = \text{Row}_3 + \text{Row}_0$</li>   <li><strong>Right Plane</strong>: $\vec{P}_{\text{right}} = \text{Row}_3 - \text{Row}_0$</li>   <li><strong>Bottom Plane</strong>: $\vec{P}_{\text{bottom}} = \text{Row}_3 + \text{Row}_1$</li>   <li><strong>Top Plane</strong>: $\vec{P}_{\text{top}} = \text{Row}_3 - \text{Row}_1$</li>   <li><strong>Near Plane</strong>: $\vec{P}_{\text{near}} = \text{Row}_2$ (or $\text{Row}_3 + \text{Row}_2$ depending on D3D coordinate convention)</li>   <li><strong>Far Plane</strong>: $\vec{P}_{\text{far}} = \text{Row}_3 - \text{Row}_2$</li> </ul> <h3>Normalization</h3> The extracted vectors are typeless plane parameters. To measure the actual Euclidean distance from a point to a plane, we must normalize the plane equations. We divide the components $A, B, C, D$ by the length of the normal vector: $$\text{Length} = \sqrt{A^2 + B^2 + C^2}$$ $$\vec{N}_{\text{normalized}} = \frac{(A, B, C)}{\text{Length}}, \quad D_{\text{normalized}} = \frac{D}{\text{Length}}$$ After normalization, evaluating $A \cdot x + B \cdot y + C \cdot z + D$ for any point $(x,y,z)$ returns the exact signed distance in world units. If the result is positive, the point is in front of the plane; if negative, the point is behind the plane.</p>
 <hr>
-<h2>2. Why a Quadtree instead of an Octree?</h2>
-<p>An <strong>Octree</strong> divides 3D space into 8 octants, whereas a <strong>Quadtree</strong> divides a 2D plane into 4 quadrants. <ul>   <li><strong>Why Quadtree?</strong> In our project, the scene is laid out horizontally across a terrain/floor (X and Z plane). The vertical (Y) variation is minimal. Partitioning the vertical space (Y-axis) with an Octree would create empty layers and add extra intersection checks for no benefit.</li>   <li><strong>The Setup</strong>: We define the root bounding box covering the entire playable arena in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L443">Main.cpp:L443</a> ($100 \times 50 \times 100$ meters):</li> </ul><pre><code class="language-cpp">  DirectX::BoundingBox worldBoundingBox(XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT3(50.0f, 25.0f, 50.0f));
-  QuadTree&lt;GameObject*&gt; sceneTree(worldBoundingBox, 5, 8);</code></pre> <ul>   <li><code>maxDepth = 5</code>: Limits recursion to prevent infinite loops.</li>   <li><code>maxElementsPerNode = 8</code>: Splitting threshold.</li> </ul> <hr></p>
-<h2>3. Quadtree Node and Subdivision Design</h2>
-<p>In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/QuadTree.h#L26">QuadTree.h:L26</a>, a node in the tree is defined as: <pre><code class="language-cpp">struct Node
-{
-    DirectX::BoundingBox boundingBox;  // AABB covering this node's sector
-    std::unique_ptr&lt;Node&gt; children[4]; // 4 Quadrants
-    std::vector&lt;QuadTreeElement&lt;T&gt;&gt; elements; // Elements stored if leaf node
-    bool isLeaf = true;
-};</code></pre></p>
-<h3>Subdivision (<code>Subdivide</code>)</h3>
-When an insertion causes a leaf node to exceed <code>maxElementsPerNode</code>, we subdivide it into 4 quadrants:
-1. <strong>Top-Left (0)</strong>: $(-X, +Z)$
-2. <strong>Top-Right (1)</strong>: $(+X, +Z)$
-3. <strong>Bottom-Left (2)</strong>: $(-X, -Z)$
-4. <strong>Bottom-Right (3)</strong>: $(+X, -Z)$
-The child nodes retain the full height ($Y$) of the parent node but cover exactly a quarter of the horizontal area:
-<pre><code class="language-cpp">float halfX = extents.x * 0.5f;
-float halfZ = extents.z * 0.5f;
-node-&gt;children[0]-&gt;boundingBox.Center = XMFLOAT3(center.x - halfX, center.y, center.z + halfZ);
-node-&gt;children[0]-&gt;boundingBox.Extents = XMFLOAT3(halfX, extents.y, halfZ);</code></pre>
-Once subdivided, the elements previously stored in the parent node are redistributed to the children, and the parent's elements vector is cleared.
+<h2>2. Frustum vs. Bounding Box (AABB) Intersection</h2>
+<p>To cull objects, we test their Axis-Aligned Bounding Box (AABB) against each of the 6 normalized frustum planes.</p>
+<h3>The Positive/Negative Vertex Method (P-vertex / N-vertex)</h3>
+For any plane with normal vector $\vec{N} = (N_x, N_y, N_z)$, we can find the corner of the AABB (defined by $\vec{min}$ and $\vec{max}$) that lies furthest in the direction of the normal (the <strong>P-vertex</strong>) and the corner furthest in the opposite direction (the <strong>N-vertex</strong>):
+<p>$$\vec{P}_{\text{vertex}.x} = (N_x \ge 0) ? x_{\text{max}} : x_{\text{min}}$$ $$\vec{P}_{\text{vertex}.y} = (N_y \ge 0) ? y_{\text{max}} : y_{\text{min}}$$ $$\vec{P}_{\text{vertex}.z} = (N_z \ge 0) ? z_{\text{max}} : z_{\text{min}}$$</p>
+<p>$$\vec{N}_{\text{vertex}.x} = (N_x \ge 0) ? x_{\text{min}} : x_{\text{max}}$$ $$\vec{N}_{\text{vertex}.y} = (N_y \ge 0) ? y_{\text{min}} : y_{\text{max}}$$ $$\vec{N}_{\text{vertex}.z} = (N_z \ge 0) ? z_{\text{min}} : z_{\text{max}}$$</p>
+<pre><code class="language-plaintext">       AABB Box
+     +---------+ max (P-vertex for positive normal)
+     |         |
+     |    *    |
+     |         |
+     +---------+
+    min (N-vertex for positive normal)</code></pre>
+<p>We evaluate the plane equation for these vertices: 1. <strong>Fully Outside</strong>: If the distance to the P-vertex is negative:    $$\vec{N} \cdot \vec{P}_{\text{vertex}} + D &lt; 0$$    The entire bounding box lies in the negative half-space of the plane. The object is completely outside the frustum and is culled immediately. 2. <strong>Intersecting</strong>: If the P-vertex is in front of the plane (positive) but the N-vertex is behind the plane (negative):    The bounding box overlaps the plane. 3. <strong>Fully Inside</strong>: If the N-vertex is in front of the plane (positive):    The entire bounding box lies in the positive half-space. If this condition is met for all 6 planes, the object is fully inside the frustum, and we can bypass culling tests for its subcomponents.</p>
 <hr>
-<h2>4. Node Traversal: Insertion and Query</h2>
-<h3>1. Insertion (<code>Insert</code>)</h3>
-Inserting an element is a recursive traversal:
+<h2>3. Spatial Partitioning: The Quadtree</h2>
+<p>Frustum culling every object in the world one by one is an $\mathcal{O}(N)$ operation. In large scenes, this creates a CPU bottleneck. To solve this, we use a <strong>Quadtree</strong> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/QuadTree.h">QuadTree.h</a> to organize objects based on their horizontal positions.</p>
+<h3>Structure of the Quadtree</h3>
 <ul>
-  <li>If the element's bounding box does not intersect the current node's bounding box, return immediately.</li>
-  <li>If the node is a leaf, append the element. If it exceeds 8 elements and depth $&lt; 5$, subdivide it and re-insert all elements into the children.</li>
-  <li>If it is an internal node, recursively call <code>Insert</code> on all four children.</li>
+  <li>A <strong>Node</strong> represents a square boundary on the horizontal $XZ$-plane.</li>
+  <li>It contains:</li>
+  <li>A bounding box describing its boundary.</li>
+  <li>A list of pointers to game objects located within its boundary.</li>
+  <li>Four pointers to child nodes representing its sub-quadrants (North-West, North-East, South-West, South-East).</li>
+  <li><strong>Division Criteria</strong>: If the number of objects in a node exceeds a limit (e.g., 8 elements) and the node's size is larger than a minimum limit, it splits into four children, distributing its objects to them.</li>
 </ul>
-<h3>2. Querying (<code>Query</code>)</h3>
-To gather visible objects, we query the tree using the camera frustum:
-<pre><code class="language-cpp">template&lt;typename T&gt;
-void QuadTree&lt;T&gt;::Query(Node* node, const DirectX::BoundingFrustum&amp; frustum, std::unordered_set&lt;T&gt;&amp; visited, std::vector&lt;T&gt;&amp; result) const
+<pre><code class="language-plaintext">+-------------------+-------------------+
+|                   |                   |
+|    North-West     |    North-East     |
+|                   |                   |
++-------------------+-------------------+
+|                   |                   |
+|    South-West     |    South-East     |
+|                   |                   |
++-------------------+-------------------+</code></pre>
+<ul>
+  <li><strong>Why 2D Quadtree over 3D Octree?</strong>: An Octree splits space on three axes ($X, Y, Z$), creating 8 children. Since our game environments are horizontally expansive with low vertical variation, partitioning the vertical $Y$-axis adds unnecessary traversal overhead. A 2D Quadtree is faster and easier to manage for these layouts.</li>
+</ul>
+<hr>
+<h2>4. Traversal and Culling</h2>
+<p>During rendering, we query the Quadtree to compile a list of visible objects:</p>
+<pre><code class="language-cpp">void QueryVisible(Node* node, const Frustum&amp; frustum, std::vector&lt;GameObject*&gt;&amp; outList)
 {
-    if (!node) return;
-
-    // 1. If frustum does not overlap the node's bounds, skip the entire branch
-    if (!frustum.Intersects(node-&gt;boundingBox))
-        return;
-
-    // 2. If it is a leaf, check the elements individually
-    if (node-&gt;isLeaf)
+    // Test node's XZ bounding box against frustum
+    if (frustum.IsOutside(node-&gt;boundingBox))
     {
-        for (const auto&amp; elem : node-&gt;elements)
+        return; // Cull the entire branch
+    }
+
+    if (frustum.IsInside(node-&gt;boundingBox))
+    {
+        // Node is fully inside frustum; add all objects in this branch
+        AppendAllChildren(node, outList);
+        return;
+    }
+
+    // Node is intersecting; check individual elements
+    for (auto* element : node-&gt;elements)
+    {
+        if (frustum.Intersect(element-&gt;boundingBox))
         {
-            if (frustum.Intersects(elem.boundingBox))
-            {
-                // Ensure duplicate nodes are filtered
-                if (visited.find(elem.data) == visited.end())
-                {
-                    visited.insert(elem.data);
-                    result.push_back(elem.data);
-                }
-            }
+            outList.push_back(element);
         }
     }
-    // 3. If internal node, traverse down
-    else
+
+    // Recurse into child nodes
+    for (int i = 0; i &lt; 4; ++i)
     {
-        for (int i = 0; i &lt; 4; ++i)
-            Query(node-&gt;children[i].get(), frustum, visited, result);
+        if (node-&gt;children[i])
+        {
+            QueryVisible(node-&gt;children[i], frustum, outList);
+        }
     }
 }</code></pre>
-<h3>Why we need a <code>visited</code> filter</h3>
-If a game object is large (e.g. the ground floor mesh), it may overlap the boundary of two or more quadrants. As a result, the insertion routine will place a pointer to it in multiple leaf nodes. During the query, both leaf nodes might intersect the frustum. The <code>unordered_set&lt;T&gt; visited</code> ensures that each object is added to the rendering list only once, avoiding duplicate draw calls.
-<hr>
-<h2>5. Dynamic Frame Update Cycle</h2>
-<p>Every frame in <code>Main.cpp</code>: 1. <strong>Clear Tree</strong>: <code>sceneTree.Clear()</code> resets child nodes and clears arrays. 2. <strong>Re-Insert</strong>: As game objects move (like the rotating cubes), their world bounding boxes change. We re-insert them into the tree:    <code>sceneTree.Insert(&amp;obj, obj.GetWorldBoundingBox());</code> 3. <strong>Extract Visible Objects</strong>: Query using the camera's bounding frustum:    <code>sceneTree.Query(cullingFrustum, visibleObjects);</code> 4. <strong>Draw</strong>: Loop through <code>visibleObjects</code> and perform the draw calls.</p>
+<h3>The Visited Set</h3>
+Large objects (like bridges or castle walls) can cross quadrant boundaries, so their pointers are stored in multiple leaf nodes.
+<p>To prevent rendering the same object multiple times (which wastes draw calls), we keep a tracking set during traversal: <code>std::unordered_set&lt;GameObject*&gt; visited;</code> Before adding an object to the output rendering list, we check if it is already in the <code>visited</code> set. If it is, we skip it.</p>
 <hr>
 <h2>Teacher Presentation Tips 🎓</h2>
 <ul>
-  <li><strong>Explain the difference in complexity between Brute-Force and Quadtree Culling</strong>:</li>
-  <li><em>Answer</em>: In a brute-force approach, we would check all $N$ objects in the scene individually against the camera frustum every frame, which runs in $\mathcal{O}(N)$ time. With a Quadtree, if a quadrant containing 100 objects is outside the frustum, we reject the entire branch with a single intersection test. The query runs in $\mathcal{O}(\log N)$ time, significantly improving CPU performance as the scene scales.</li>
-  <li><strong>How are objects stored in the Quadtree?</strong>:</li>
-  <li><em>Answer</em>: The tree stores pointers to <code>GameObject</code> instances inside <code>QuadTreeElement</code> structs along with their world bounding boxes. This keeps memory overhead minimal, as we only copy pointers rather than duplicating mesh data.</li>
-</ul>
+  <li><strong>Why is it safe to rebuild the Quadtree from scratch every frame in this project?</strong>:</li>
+  <li><em>Answer</em>: Rebuilding a quadtree involves clearing it and re-inserting all dynamic game objects. Since our project has a relatively small number of moving objects (less than 1000), rebuilding takes under a microsecond on the CPU. Incremental updates require complex tree restructuring, boundary checking, and recursive element re-linking. Rebuilding is faster, simpler, and guarantees the tree structure remains balanced.</li>
+  <li><strong>Explain how we optimize memory when rebuilding the Quadtree</strong>:</li>
+  <li><em>Answer</em>: Frequent memory allocations and de-allocations can cause memory fragmentation and CPU cache misses. In our Quadtree, clearing a node only resets its element counts (<code>elements.clear()</code>) and does not release the underlying vector capacity. The child node structures are kept allocated in a pre-allocated memory block, reusing the same pointers frame after frame without invoking the OS heap manager.</li>
+  <li><strong>How do we handle objects that are too large to fit in any child quadrant?</strong>:</li>
+  <li><em>Answer</em>: If an object is so large that it overlaps multiple quadrants at the center of a node, it cannot be placed cleanly into a single child. The Quadtree handles this by storing the object in the <strong>parent node</strong> itself, rather than forcing it down to the children. When traversing, parent elements are checked first before recursing.</li>
+  <li><strong>Under what scenario does frustum culling with a Quadtree become slower than brute-force culling?</strong>:</li>
+  <li><em>Answer</em>: If all objects are clustered in a single corner of the map, or if the camera's FOV is extremely wide and captures the entire map, the Quadtree must traverse and test almost every node anyway. The overhead of recursive function calls, tree traversal, and node bounding box checks makes the Quadtree slower than simply running a flat loop over the objects in a brute-force array.</li>
+  <li><strong>What is the mathematical difference between checking a sphere vs. checking an AABB against a frustum plane?</strong>:</li>
+  <li><em>Answer</em>: Sphere-plane checks are computationally cheap. We compute the dot product of the plane normal and the sphere center, add the plane distance constant, and compare the result to the sphere's radius. If the distance is less than negative radius, it is culled:</li>
+</ul>    $$\vec{N} \cdot \vec{C} + D &lt; -R$$
+    Checking an AABB is slightly more expensive because we must evaluate the signs of the plane normal components to locate the P-vertex and N-vertex coordinates before running the distance comparison.
     </main>
 </body>
 </html>

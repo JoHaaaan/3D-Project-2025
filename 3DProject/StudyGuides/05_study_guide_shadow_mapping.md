@@ -1,148 +1,161 @@
-# Study Guide 3: Shadow Mapping & Shadow Map Arrays
+# Study Guide 5: Shadow Mapping & Shadow Map Arrays
 
-This guide explains how shadows are generated in this project: rendering depth from the light's perspective, configuring the shadow map texture array, rendering to individual array slices, implementing Percentage Closer Filtering (PCF), and applying depth bias to solve shadow acne.
-
----
-
-## 1. Core Concept of Shadow Mapping
-
-Shadow mapping is a two-pass rendering technique:
-1. **Shadow Pass**: Render the scene from the light source's perspective. Instead of outputting color, we only output depth to a depth-stencil texture. This records the distance from the light to the closest surfaces.
-2. **Lighting Pass**: When shading a pixel on a surface, we transform its world position into the light's perspective (clip space). We perform a depth comparison:
-   * Let $d_{\text{current}}$ be the distance from the pixel to the light.
-   * Let $d_{\text{map}}$ be the distance stored in the shadow map at the matching coordinate.
-   * If $d_{\text{current}} > d_{\text{map}}$, another surface is closer to the light than the current pixel, meaning the current pixel is **in shadow**. Otherwise, it is **lit**.
+This guide covers shadow mapping implementation: depth-only rendering, configuring light view-projection matrices, sampling shadow maps with comparison states, and implementing point light shadows using Texture arrays.
 
 ---
 
-## 2. Light View-Projection Matrix
+## 1. Depth-Only Rendering (The Shadow Pass)
 
-In [LightManager.cpp:L73](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/LightManager.cpp#L73), the light-space view-projection matrix is constructed:
-* **Point/Spotlights (Perspective)**: Since light propagates outward from a point, we use a perspective projection:
-  `XMMatrixPerspectiveFovLH(XMConvertToRadians(90.f), 1.0f, 0.1f, 40.f)`
-  The view matrix is built using:
-  `XMMatrixLookAtLH(pos, pos + dir, up)`
-* **Directional Lights (Orthographic)**: (If active) would use an orthographic projection since directional light rays are parallel.
+Before rendering our scene colors, we run a **Shadow Pass** in [Main.cpp:L571](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L571). The goal is to capture the depth of all objects from the perspective of each light source.
 
----
-
-## 3. The Shadow Map Array Setup
-
-Instead of creating a separate depth texture for each light (which would require switching textures and bindings constantly), this project creates a **Texture Array** of size 4.
-In [Main.cpp:L297](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L297):
-```cpp
-DepthBufferD3D11 shadowMap;
-shadowMap.Initialize(device, 2048, 2048, true, 4);
 ```
-This allocates a single 2D texture array on the GPU with 4 slices, each slice being $2048 \times 2048$ pixels.
+LIGHT CAMERA PERSPECTIVE
+           Light
+            / \
+           /   \
+          /     \
+    Mesh 1 (Blocks Light)  --> Depth written to Shadow Map
+        |
+        v
+    Mesh 2 (In Shadow)     --> Fails depth check in Lighting Pass
+```
 
-### The Typeless Format Trick
-To enable both writing depth and reading it as a shader resource, we use a typeless texture format:
-* **Texture Format**: `DXGI_FORMAT_R24G8_TYPELESS` (allocates 32 bits per texel: 24 bits for red/depth, 8 bits for green/stencil, but no data type is assigned yet).
-* **Depth Stencil View (DSV) Format**: `DXGI_FORMAT_D24_UNORM_S8_UINT` (reinterprets the bits as a 24-bit unsigned normalized depth value and 8-bit stencil during write).
-* **Shader Resource View (SRV) Format**: `DXGI_FORMAT_R24_UNORM_X8_TYPELESS` (reinterprets the depth channel as a 24-bit float red channel for shader reading, ignoring the stencil channel).
-
----
-
-## 4. The Shadow Pass Implementation
-
-The shadow pass runs in a loop for each light in `Main.cpp:L571-618`.
-
-### Step-by-Step Execution Sequence
-1. **Shaders and Topology**:
-   Disable pixel, hull, and domain shaders (as we only write depth, which is handled automatically after the vertex shader):
-   ```cpp
-   context->IASetInputLayout(inputLayout.GetInputLayout());
-   context->VSSetShader(vShader, nullptr, 0);
-   context->HSSetShader(nullptr, nullptr, 0);
-   context->DSSetShader(nullptr, nullptr, 0);
-   context->PSSetShader(nullptr, nullptr, 0);
-   ```
-2. **Clear Depth Slice**:
-   Get the DSV for the current light slice (`shadowMap.GetDSV(lightIdx)`) and clear it:
-   `context->ClearDepthStencilView(shadowDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);`
-3. **Viewport Swapping**:
-   Since the shadow map resolution ($2048 \times 2048$) is higher than the window resolution ($1024 \times 576$), we must swap viewports:
-   ```cpp
-   D3D11_VIEWPORT shadowViewport = { 0.0f, 0.0f, 2048.0f, 2048.0f, 0.0f, 1.0f };
-   context->RSSetViewports(1, &shadowViewport);
-   ```
-4. **Bind the Depth Target (with null RTV)**:
-   We render without writing color:
+### Pipeline Optimizations
+To speed up rendering during the shadow pass, we disable parts of the graphics pipeline:
+1. **Unbind Render Target**: We do not calculate or write color values, so we pass a `nullptr` RTV:
    ```cpp
    ID3D11RenderTargetView* nullRTV = nullptr;
    context->OMSetRenderTargets(1, &nullRTV, shadowDSV);
    ```
-5. **Draw Scene Geometry**:
-   We update our constant buffer with the light’s view-projection matrix and draw every mesh:
-   ```cpp
-   MatrixPair shadowData;
-   XMStoreFloat4x4(&shadowData.world, XMMatrixTranspose(obj.GetWorldMatrix()));
-   XMStoreFloat4x4(&shadowData.viewProj, XMMatrixTranspose(lightVP));
-   constantBuffer.UpdateBuffer(context, &shadowData);
-   // Perform draw call...
+2. **Disable Pixel Shader**: We set the pixel shader to null:
+   `context->PSSetShader(nullptr, nullptr, 0);`
+   With no pixel shader bound, the GPU stops execution after rasterization. The rasterizer generates fragments, and the hardware **Early-Z** unit writes the depth value ($Z$) of each fragment directly to the depth buffer (`shadowDSV`), bypassing pixel shading calculations.
+3. **Change Viewport**: We set the viewport to match our shadow map resolution ($2048 \times 2048$), which is larger than the screen resolution ($1024 \times 576$) to ensure sharp shadow edges.
+4. **Culling State**: We bind a rasterizer state configured with `D3D11_CULL_BACK`. This culls faces pointing away from the light, preventing unnecessary depth tests.
+
+---
+
+## 2. Light View-Projection Matrices & Coordinate Mapping
+
+To render from the light's perspective, we construct a View-Projection matrix for the light source.
+
+### 1. Matrix Setup
+* **Spotlights**: Emit light in a cone, requiring a **Perspective Projection**:
+  $$P_{\text{spot}} = \text{XMMatrixPerspectiveFovLH}(\text{coneAngle}, 1.0f, \text{nearZ}, \text{farZ})$$
+* **Directional Lights**: Emit parallel light rays from an infinite distance, requiring an **Orthographic Projection**:
+  $$P_{\text{dir}} = \text{XMMatrixOrthographicLH}(\text{width}, \text{height}, \text{nearZ}, \text{farZ})$$
+* **View Matrix**: Built using the light's position and direction vector:
+  $$V_{\text{light}} = \text{XMMatrixLookAtLH}(\text{lightPos}, \text{lightPos} + \text{lightDir}, \text{worldUp})$$
+
+We multiply these matrices to get the combined light view-projection transform:
+$$M_{\text{light}} = V_{\text{light}} \cdot P_{\text{light}}$$
+
+### 2. Mapping to UV Space
+When rendering our main pass, the vertex shader outputs the world position of each vertex. In the lighting shader, we transform this world position into the light's clip space:
+$$\vec{P}_{\text{lightClip}} = \vec{P}_{\text{world}} \cdot M_{\text{light}}$$
+In clip space, coordinates range from $[-1, 1]$ on the X and Y axes, and $[0, 1]$ on the Z axis. To map these coordinates to UV space to sample the shadow texture, we apply the following transformation:
+$$u = 0.5 \times \frac{X_{\text{lightClip}}}{W_{\text{lightClip}}} + 0.5$$
+$$v = -0.5 \times \frac{Y_{\text{lightClip}}}{W_{\text{lightClip}}} + 0.5$$
+$$z_{\text{ref}} = \frac{Z_{\text{lightClip}}}{W_{\text{lightClip}}}$$
+where $z_{\text{ref}}$ represents the distance from the light to our pixel.
+
+---
+
+## 3. Shadow Sampler & Percentage-Closer Filtering (PCF)
+
+To query the shadow map, we bind a comparison sampler state in [SamplerD3D11.cpp](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/SamplerD3D11.cpp).
+
+### Comparison Sampler Configuration
+* **Filter**: `D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT`. This enables hardware comparison filtering.
+* **ComparisonFunc**: `D3D11_COMPARISON_LESS_EQUAL`.
+When sampling with `SampleCmpLevelZero`, the GPU compares our reference depth ($z_{\text{ref}}$) against the depth stored in the shadow map ($z_{\text{map}}$). 
+* If $z_{\text{ref}} \le z_{\text{map}}$, the pixel is closer to the light than the blocker. It is lit (returns `1.0`).
+* If $z_{\text{ref}} > z_{\text{map}}$, an object blocks the light. The pixel is in shadow (returns `0.0`).
+
+### Percentage-Closer Filtering (PCF)
+Sampling a single texel generates hard, jagged edges. To soften shadow edges, we implement PCF by sampling a grid of neighboring texels and averaging the results.
+
+```hlsl
+// HLSL PCF Implementation in LightingCS.hlsl
+float CalculatePCFShadow(Texture2DArray shadowMaps, SamplerComparisonState shadowSampler, 
+                         float3 shadowUV, float depthRef, float texelSize)
+{
+    float shadow = 0.0f;
+    
+    // Sample a 3x3 grid around the target shadow texel
+    [unroll]
+    for (int x = -1; x <= 1; ++x)
+    {
+        [unroll]
+        for (int y = -1; y <= 1; ++y)
+        {
+            float2 offset = float2(x, y) * texelSize;
+            shadow += shadowMaps.SampleCmpLevelZero(
+                shadowSampler, 
+                float3(shadowUV.xy + offset, shadowUV.z), // XY coordinates, Z slice
+                depthRef
+            );
+        }
+    }
+    
+    return shadow / 9.0f; // Average the 9 samples
+}
+```
+
+---
+
+## 4. Point Light Cubemap Shadows (Slices)
+
+Unlike spotlights (which point in a single direction), point lights emit light in all directions, requiring a $360^\circ$ shadow map. We implement this using a **Texture Array** with 6 slices (one for each face of a cube: $+X, -X, +Y, -Y, +Z, -Z$).
+
+### Rendering the Cube Array
+In `Main.cpp` at line 583:
+1. We define six view matrices centered at the point light source, pointing in the cardinal directions.
+2. We bind the shadow map texture array. During each pass, we render the scene from the perspective of one of the 6 views and write the depth to the corresponding array slice using the depth-stencil view index.
+3. In `LightingCS.hlsl`, we identify the light index and slice offset to sample:
+   ```hlsl
+   // Sample point light shadow from the correct slice face
+   float3 direction = pixelWorldPos - lightPos;
+   float3 absDir = abs(direction);
+   int faceIndex = 0;
+   // Mathematical face selection based on largest coordinate component...
+   float shadow = shadowMaps.SampleCmpLevelZero(shadowSampler, float3(uv, faceIndex), depthRef);
    ```
 
 ---
 
-## 5. Solving Shadow Acne and Peter Panning
+## 5. Shadow Acne & depth bias calculations
 
-### Shadow Acne
-* **What it is**: Moire-like black stripes across lit surfaces. It occurs because the shadow map resolution is finite. Multiple screen pixels map to the same shadow map texel. Due to precision limits and surface sloping, some screen pixels end up slightly deeper than the stored texel depth, triggering self-shadowing.
-* **Solution 1: Hardware Rasterizer Depth Bias**:
-  In [Main.cpp:L79](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L79), we configure a shadow rasterizer state:
-  ```cpp
-  rastDesc.DepthBias = 2000;
-  rastDesc.SlopeScaledDepthBias = 2.0f;
-  context->RSSetState(shadowRasterizerState);
-  ```
-  This shifts the rendered depth values slightly away from the light during the shadow pass.
-* **Solution 2: Slope-Dependent Shader Bias**:
-  In [LightingCS.hlsl:L82](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/LightingCS.hlsl#L82), we subtract a small dynamic bias based on the angle between the surface normal ($\vec{N}$) and the light direction ($\vec{L}$):
-  ```hlsl
-  float cosTheta = saturate(dot(normal, lightDir));
-  float bias = 0.0005f * (sqrt(1.0f - cosTheta * cosTheta) / (cosTheta + 0.0001f));
-  bias = clamp(bias, 0.0f, 0.001f);
-  depth -= bias;
-  ```
-  Slanted surfaces need a larger bias because shadow map texels cover larger physical areas on them.
+Shadow Acne occurs because of precision limits in the shadow map texture. Multiple screen pixels map to a single shadow map texel. When checking depth, the floating-point values alternate due to precision, creating dark banding lines.
 
-### Peter Panning
-* **What it is**: If the depth bias is too large, shadows detach from the objects and appear to float (named after Peter Pan's shadow). We must balance the hardware bias (2000) and shader bias clamp ($0.001$) to eliminate acne without causing shadows to detach.
-
----
-
-## 6. Percentage Closer Filtering (PCF) and Comparison Sampler
-
-Direct3D 11 provides hardware-accelerated **Percentage Closer Filtering (PCF)** to smooth out jagged shadow borders.
-
-### The Shadow Sampler Configuration
-In [Main.cpp:L86](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L86):
-```cpp
-D3D11_SAMPLER_DESC desc = {};
-desc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
-desc.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
-desc.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
-desc.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
-desc.BorderColor[0] = desc.BorderColor[1] = desc.BorderColor[2] = desc.BorderColor[3] = 1.0f;
-desc.ComparisonFunc = D3D11_COMPARISON_LESS_EQUAL;
 ```
-* **`D3D11_FILTER_COMPARISON_...`**: Instructs the texture unit that when we sample, it shouldn't return the raw depth value. Instead, it compares our lookup depth against the texel values, filters the boolean results (using bilinear interpolation), and returns a single float representing how much of the surrounding area is lit (between $0.0$ and $1.0$).
-* **`D3D11_TEXTURE_ADDRESS_BORDER`**: If a pixel falls outside the boundaries of the light's viewport frustum, the sampler returns the `BorderColor` (which is `1.0f`, meaning fully lit). This avoids visual artifacts at the boundaries.
-* **`ComparisonFunc = D3D11_COMPARISON_LESS_EQUAL`**: Returns `1.0` if `depth <= shadowMapDepth` (lit), and `0.0` if `depth > shadowMapDepth` (shadowed).
-
-### Compute Shader Sampling
-In [LightingCS.hlsl:L88](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/LightingCS.hlsl#L88):
-```hlsl
-float shadow = shadowMaps.SampleCmpLevelZero(shadowSampler, float3(shadowUV, lightIndex), depth);
+SHADOW ACNE:
+  Pixel surface:       \__________/__________\
+  Shadow map texels:   [== 0.45 ==][== 0.46 ==]
+  Result:              Acne Acne Lit Lit Acne Acne
 ```
-We specify a 3-component coordinate: the UV coordinates (`shadowUV`), and the slice index of the light (`lightIndex`) in the texture array.
+
+We resolve this by applying a bias to the depth values during shadow rendering. The D3D11 formula is:
+$$\text{Bias} = (\text{DepthBias} \times r) + (\text{SlopeScaledDepthBias} \times \text{MaxSlope})$$
+where $r$ is the minimum resolvable depth difference depending on the depth buffer format. 
+* **`DepthBias`** shifts all triangles slightly away from the light.
+* **`SlopeScaledDepthBias`** scales the bias based on the angle of the triangle relative to the light. Steeper slopes require a larger bias.
+* **`DepthBiasClamp`** prevents this bias from scaling too high on extremely steep angles, which would cause 'Peter Panning' (where shadows appear detached from the object base). 
+In our project, we tune `DepthBias = 100` and `SlopeScaledDepthBias = 1.5` to match our $2048 \times 2048$ resolution and prevent both acne and Peter Panning.
 
 ---
 
 ## Teacher Presentation Tips 🎓
 
-* **Explain how to bind a single slice of a Texture Array as a Depth Target**:
-  * *Answer*: In [DepthBufferD3D11.cpp:L115](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/DepthBufferD3D11.cpp#L115), when arraySize > 1, we populate a `D3D11_DEPTH_STENCIL_VIEW_DESC` structure with `ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DARRAY`. We then specify `dsvDesc.Texture2DArray.FirstArraySlice = i;` and `dsvDesc.Texture2DArray.ArraySize = 1;`. This creates $N$ individual `ID3D11DepthStencilView` pointers, each mapping to exactly one slice of the array. During the shadow pass, we bind only that slice's view using `OMSetRenderTargets`.
-* **Why do we use SampleCmpLevelZero instead of standard Sample?**:
-  * *Answer*: Regular texture sampling is disabled for depth comparison samplers in HLSL because it would interpolate the raw depth values, which is mathematically incorrect for shadow checks. `SampleCmpLevelZero` forces the hardware to compare the depth values of the 4 nearest texels individually, and then interpolate the 0 or 1 result flags, giving us smooth anti-aliased shadow boundaries.
+* **Why must we disable the pixel shader during the shadow pass?**:
+  * *Answer*: If a pixel shader is bound, the GPU runs pixel shading instructions for every rasterized fragment, even though we do not output color values. Disabling the pixel shader allows the GPU to write depth values directly using hardware **Early-Z** optimization, bypassing pixel shading and doubling shadow rendering speeds.
+* **Explain the difference between `DXGI_FORMAT_R24G8_TYPELESS` and `DXGI_FORMAT_D24_UNORM_S8_UINT`**:
+  * *Answer*: Typeless formats allocate memory but do not define how data bytes are interpreted. We allocate the shadow texture as typeless so we can view it differently in different stages:
+    1. During the shadow pass, we bind it using a Depth Stencil View (DSV) with format `D24_UNORM_S8_UINT` to write depth.
+    2. During the lighting pass, we bind it using a Shader Resource View (SRV) with format `R24_UNORM_X8_TYPELESS` to sample depth.
+* **What is the purpose of setting the shadow sampler's address mode to border color white?**:
+  * *Answer*: When a pixel falls outside the boundaries of the light's view frustum, the sampler returns the border color. We set the border color to white (`1.0f`). Since white represents the furthest depth value, checking `depthRef <= shadowMapDepth` returns `true`, and the pixel is lit. This prevents pixels outside the light cone from incorrectly rendering in shadow.
+* **Why does a higher shadow map resolution require a different depth bias?**:
+  * *Answer*: Higher resolutions reduce the physical size of each texel, reducing the depth difference between adjacent texels. A large depth bias tuned for a $512 \times 512$ map will cause shadows to detach (Peter Panning) on a $2048 \times 2048$ map. We must scale down our depth bias settings as resolution increases.
+* **How does the GPU's hardware comparison sampler perform bilinear filtering on shadow comparisons?**:
+  * *Answer*: A standard sampler interpolates the depth values of the four nearest texels, then compares the result to the reference depth, which still generates jagged edges. A comparison sampler compares the reference depth against each of the four texels individually, then interpolates the resulting boolean values ($0$ or $1$) to return a smooth gradient factor.

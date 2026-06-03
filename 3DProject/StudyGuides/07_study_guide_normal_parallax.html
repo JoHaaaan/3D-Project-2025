@@ -336,81 +336,114 @@
 
     
     <main class="main-content">
-        <h1>Study Guide 9: Normal Mapping &amp; Parallax Occlusion Mapping</h1>
-<p>This guide explains how fine surface details are simulated: derivative-based TBN matrix derivation, transforming vectors into tangent space, ray-marching heightmaps in Parallax Occlusion Mapping (POM), fixing mipmapping blur with <code>SampleGrad</code>, and updating G-Buffer world coordinates.</p>
+        <h1>Study Guide 7: Normal &amp; Parallax Maps</h1>
+<p>This guide covers tangent space calculations and texture offset shaders: deriving Tangents and Bitangents, constructing the TBN matrix, implementing Normal Mapping, and writing Ray-Marched Parallax Occlusion Mapping (POM) with hardware gradient sampling.</p>
 <hr>
-<h2>1. What is Normal Mapping and Parallax Mapping?</h2>
-<p>Standard low-poly meshes have flat polygons, which look smooth but lack depth and rough surface textures. <ul>   <li><strong>Normal Mapping</strong>: Alters the normal vector at each pixel using a normal map texture. This changes how light bounces off the surface, simulating bumps and grooves. However, the surface remains physically flat.</li>   <li><strong>Parallax Occlusion Mapping (POM)</strong>: Actually shifts the texture coordinates (UVs) along the view vector by ray-marching a heightmap. This simulates physical displacement: raised areas occlude deep areas, creating parallax shifts when the viewer moves.</li> </ul> <hr></p>
-<h2>2. On-The-Fly TBN Matrix Derivation (No Vertex Attributes!)</h2>
-<p>Typically, normal mapping requires storing three vectors per vertex: the normal ($\vec{N}$), tangent ($\vec{T}$), and bitangent ($\vec{B}$). These form the TBN (Tangent, Bitangent, Normal) rotation matrix.</p>
-<p>To save vertex memory and bandwidth, this project calculates the TBN matrix <strong>on-the-fly in the pixel shader</strong> using <strong>Screen-Space Derivatives</strong> (<code>ddx</code> and <code>ddy</code>). In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/NormalMapPS.hlsl#L36">NormalMapPS.hlsl:L36</a>:</p>
-<pre><code class="language-hlsl">float3x3 ComputeTBN(float3 worldPosition, float3 worldNormal, float2 uv)
+<h2>1. Normal Mapping &amp; Tangent Space</h2>
+<p>A mesh's vertex normals represent the overall curvature of the geometry. To add fine details (like cracks in brick walls) without adding vertices, we use <strong>Normal Mapping</strong>.</p>
+<pre><code class="language-plaintext">Polygon Surface:     _______________________________ (Flat Geometry)
+Normal Map Normals:  / \  |  / \  \ /  |  / \  |  \ /  (Detailed Lighting)</code></pre>
+<p>Normal maps are textures that store high-resolution surface normals. To keep normal maps reusable across different models, the normal vectors are stored in a local coordinate system called <strong>Tangent Space</strong> (or texture space). In tangent space: <ul>   <li>The $+Z$ axis points along the surface normal direction.</li>   <li>The $+X$ axis points along the texture horizontal coordinate direction ($U$).</li>   <li>The $+Y$ axis points along the texture vertical coordinate direction ($V$).</li> </ul> <h3>Unpacking</h3> Normals store coordinates in the $[-1.0, 1.0]$ range. Texture colors are stored in the $[0.0, 1.0]$ range. We unpack the texture sample to reconstruct the original normal vector: $$\vec{N}_{\text{unpacked}} = 2.0 \times \vec{C}_{\text{sample}} - 1.0$$ Because the unpacked normals point mostly along the $+Z$ axis (the surface normal), normal map textures look light blue.</p>
+<hr>
+<h2>2. Deriving Tangents, Bitangents, and the TBN Matrix</h2>
+<p>To use tangent-space normal maps for lighting, we must transform them into world space. This requires constructing a coordinate transition matrix called the <strong>TBN Matrix</strong>.</p>
+<pre><code class="language-plaintext">         Normal (N)
+            |
+            |
+            |____ Tangent (T)
+           /
+          /
+     Bitangent (B)</code></pre>
+<h3>Mathematical Derivation of Tangent and Bitangent</h3>
+For a triangle defined by positions $P_0, P_1, P_2$ and UV coordinates $U_0, U_1, U_2$:
+1. We calculate edge vectors and UV differences:
+   $$\vec{E}_1 = P_1 - P_0, \quad \vec{E}_2 = P_2 - P_0$$
+   $$\Delta u_1 = u_1 - u_0, \quad \Delta v_1 = v_1 - v_0$$
+   $$\Delta u_2 = u_2 - u_0, \quad \Delta v_2 = v_2 - v_0$$
+2. The relationship between edge vectors, UV vectors, and the tangent basis ($\vec{T}, \vec{B}$) is:
+   $$\vec{E}_1 = \Delta u_1 \cdot \vec{T} + \Delta v_1 \cdot \vec{B}$$
+   $$\vec{E}_2 = \Delta u_2 \cdot \vec{T} + \Delta v_2 \cdot \vec{B}$$
+3. We write this as a matrix multiplication:
+   $$\begin{bmatrix} \vec{E}_1 \\ \vec{E}_2 \end{bmatrix} = \begin{bmatrix} \Delta u_1 &amp; \Delta v_1 \\ \Delta u_2 &amp; \Delta v_2 \end{bmatrix} \begin{bmatrix} \vec{T} \\ \vec{B} \end{bmatrix}$$
+4. Inverting the UV matrix yields the solution for $\vec{T}$ and $\vec{B}$:
+   $$\begin{bmatrix} \vec{T} \\ \vec{B} \end{bmatrix} = \frac{1}{\Delta u_1 \Delta v_2 - \Delta u_2 \Delta v_1} \begin{bmatrix} \Delta v_2 &amp; -\Delta v_1 \\ -\Delta u_2 &amp; \Delta u_1 \end{bmatrix} \begin{bmatrix} \vec{E}_1 \\ \vec{E}_2 \end{bmatrix}$$
+<h3>Gram-Schmidt Orthonormalization</h3>
+Due to precision limits and UV stretching, the calculated vectors $\vec{T}$ and $\vec{B}$ might not be perfectly perpendicular to the normal $\vec{N}$. In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/NormalMapPS.hlsl">NormalMapPS.hlsl</a>, we orthonormalize the basis:
+$$\vec{T}' = \text{normalize}(\vec{T} - (\vec{T} \cdot \vec{N})\vec{N})$$
+$$\vec{B}' = \vec{N} \times \vec{T}'$$
+The resulting T, B, and N vectors are mutually perpendicular unit vectors. The TBN matrix is constructed as:
+$$\text{TBN} = \begin{bmatrix} T'_x &amp; B'_x &amp; N_x \\ T'_y &amp; B'_y &amp; N_y \\ T'_z &amp; B'_z &amp; N_z \end{bmatrix}$$
+<p>World space normals are calculated by multiplying the tangent normal by the TBN matrix: $$\vec{N}_{\text{world}} = \text{mul}(\vec{N}_{\text{unpacked}}, \text{TBN})$$</p>
+<hr>
+<h2>3. Parallax Mapping (Offset Mapping)</h2>
+<p>Normal mapping alters lighting angles but keeps the polygon surface flat. <strong>Parallax Mapping</strong> shifts UV coordinates based on the camera view angle and a heightmap to simulate depth, making details (like brick cracks) look recessed.</p>
+<pre><code class="language-plaintext">PARALLAX UV OFFSET:
+  Camera View Vector (V)
+       \
+________\___________ Polygon Surface
+   |     \
+   |      \--&gt; Adjusted UV Coordinate (Samples lower height point)
+ Heightmap Profile</code></pre>
+<p>We transform the camera view vector $\vec{V}$ into tangent space: $$\vec{V}_{\text{tangent}} = \text{mul}(\vec{V}_{\text{world}}, \text{transpose}(\text{TBN}))$$ The UV offset calculation is: $$\vec{UV}_{\text{offset}} = \vec{UV}_{\text{orig}} - \left( \frac{\vec{V}_{\text{tangent}.xy}}{\vec{V}_{\text{tangent}.z}} \times \text{height} \times \text{scale} \right)$$ where <code>height</code> is sampled from the heightmap, and <code>scale</code> controls the depth intensity.</p>
+<hr>
+<h2>4. Parallax Occlusion Mapping (POM)</h2>
+<p>Simple parallax offset mapping fails at steep angles, causing texture stretching. <strong>Parallax Occlusion Mapping (POM)</strong> resolves this by ray-marching through layers of the heightmap in tangent space to find the exact intersection point.</p>
+<pre><code class="language-plaintext">PARALLAX OCCLUSION RAY MARCHING:
+  Ray steps:    *       *       * (Depth increases)
+                \       \       \
+  Height profile:________\_______[Intersection Found]_______</code></pre>
+<h3>POM Shader Implementation in <code>ParallaxPS.hlsl</code></h3>
+<pre><code class="language-hlsl">float2 CalculatePOMCoords(float2 uv, float3 viewDirTS, float2 dx, float2 dy)
 {
-    // 1. Calculate rate of change of position and UVs between adjacent screen pixels
-    float3 dp1 = ddx(worldPosition);
-    float3 dp2 = ddy(worldPosition);
-    float2 duv1 = ddx(uv);
-    float2 duv2 = ddy(uv);
+    const float minLayers = 8.0f;
+    const float maxLayers = 32.0f;
     
-    // 2. Solve the linear system mapping UV changes to position changes
-    float3 dp2perp = cross(dp2, worldNormal);
-    float3 dp1perp = cross(worldNormal, dp1);
-
-    float3 tangent = dp2perp * duv1.x + dp1perp * duv2.x;
-    float3 bitangent = dp2perp * duv1.y + dp1perp * duv2.y;
+    // Fewer layers when looking straight down, more layers at steep angles
+    float numLayers = lerp(maxLayers, minLayers, abs(dot(float3(0,0,1), viewDirTS)));
+    float layerDepth = 1.0f / numLayers;
     
-    // Flip bitangent for DirectX coordinates
-    bitangent = -bitangent;
+    float2 p = viewDirTS.xy / viewDirTS.z * gHeightScale;
+    float2 deltaTexCoords = p / numLayers;
     
-    // 3. Orthonormalize the vectors
-    float invmax = rsqrt(max(dot(tangent, tangent), dot(bitangent, bitangent)));
-    return float3x3(tangent * invmax, bitangent * invmax, worldNormal);
+    float2 currentTexCoords = uv;
+    float currentLayerDepth = 0.0f;
+    
+    // Sample heightmap using explicit gradients to prevent mipmap blurring
+    float currentDepthMapValue = gHeightMap.SampleGrad(gSampler, currentTexCoords, dx, dy).r;
+    
+    [loop]
+    while(currentLayerDepth &lt; currentDepthMapValue)
+    {
+        currentTexCoords -= deltaTexCoords;
+        currentDepthMapValue = gHeightMap.SampleGrad(gSampler, currentTexCoords, dx, dy).r;
+        currentLayerDepth += layerDepth;
+    }
+    
+    // Calculate intersection interpolation
+    float2 prevTexCoords = currentTexCoords + deltaTexCoords;
+    float afterDepth  = currentDepthMapValue - currentLayerDepth;
+    float beforeDepth = gHeightMap.SampleGrad(gSampler, prevTexCoords, dx, dy).r - (currentLayerDepth - layerDepth);
+    
+    float weight = afterDepth / (afterDepth - beforeDepth);
+    return lerp(currentTexCoords, prevTexCoords, weight);
 }</code></pre>
-<ul>
-  <li><strong>How it works</strong>: <code>ddx</code> and <code>ddy</code> are hardware instructions that return the difference of a variable between neighboring horizontal and vertical pixels on the screen. Since three pixels form a rasterized triangle, we can solve for the spatial direction of the texture axes ($\vec{T}$ and $\vec{B}$) relative to the normal ($\vec{N}$) using these derivatives.</li>
-</ul>
-<hr>
-<h2>3. Parallax Occlusion Mapping (POM) Ray-Marching</h2>
-<p>POM traces a ray through a heightmap texture (where black is deep and white is raised) to find where the player's view vector intersects the geometry.</p>
-<pre><code class="language-plaintext"> View Vector (V)
-   \   .
-====\===\================== Zero Height Level
-     \   \  &lt;- Step 1
-______\___\________________ Height Map Surface
-       \ * \  &lt;- Intersection point (*)
-________\___\______________ Deepest Level</code></pre>
-<p>In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParallaxPS.hlsl#L70">ParallaxPS.hlsl:L70</a>:</p>
-<p>1. <strong>Transform View Vector to Tangent Space</strong>:    We project the world view direction vector into the coordinate system of the polygon:    <code>viewDirTangent.x = dot(TBN[0], viewDirWorld); // etc.</code> 2. <strong>Determine Steps dynamically (LOD)</strong>:    If we look straight down (high <code>viewDirTangent.z</code>), we use few steps (<code>MIN_LAYERS = 8</code>). If looking at a steep grazing angle, we use many steps (<code>MAX_LAYERS = 64</code>) to prevent artifacts:    <code>float numLayers = lerp(MAX_LAYERS, MIN_LAYERS, abs(viewDirTangent.z));</code> 3. <strong>Ray-Marching Loop</strong>:    We step along the view vector direction in UV space (<code>deltaTexCoords</code>) and compare the current ray depth against the height map: <pre><code class="language-hlsl">   for (int i = 0; i &lt; 64 &amp;&amp; currentLayerDepth &lt; currentDepthMapValue; i++)
-   {
-       currentTexCoords -= deltaTexCoords;
-       currentDepthMapValue = heightTexture.SampleGrad(samplerState, currentTexCoords, gradientX, gradientY).r;
-       currentLayerDepth += layerDepth;
-   }</code></pre> 4. <strong>Precision Interpolation (Relaxation)</strong>:    Once we break out of the loop (ray depth &gt; surface height), we interpolate between the current step and the previous step to locate the precise intersection point: <pre><code class="language-hlsl">   float weight = afterDepth / (afterDepth - beforeDepth + 0.0001f);
-   float2 finalTexCoords = lerp(currentTexCoords, prevTexCoords, weight);</code></pre></p>
-<hr>
-<h2>4. The Mipmapping Blur Fix (<code>SampleGrad</code>)</h2>
-<h3>The Problem</h3>
-When sampling textures inside a loop with modified UVs (like POM), the GPU calculates pixel-to-pixel UV differences (<code>ddx</code> and <code>ddy</code>) to choose a mipmap level. At the edges of POM surfaces, the UV coordinate jumps suddenly. This large jump makes the GPU think the texture is extremely far away, forcing it to load a tiny, blurry $1\times1$ mipmap.
-<h3>The Fix</h3>
-In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParallaxPS.hlsl#L114">ParallaxPS.hlsl:L114</a>, we compute the UV derivatives <strong>before</strong> modifying the UVs:
-<pre><code class="language-hlsl">float2 gradientX = ddx(input.uv);
-float2 gradientY = ddy(input.uv);</code></pre>
-We then sample all textures inside POM using <code>SampleGrad</code> instead of <code>Sample</code>:
-<pre><code class="language-hlsl">diffuseTexture.SampleGrad(samplerState, parallaxUV, gradientX, gradientY);</code></pre>
-This instructs the GPU to ignore the UV changes from ray-marching and use the gradients of the original mesh UVs, keeping the texture sharp.
-<hr>
-<h2>5. Adjusting World Positions in the G-Buffer</h2>
-<p>Because POM simulates depth offset, a pixel on a brick wall appears deeper than its actual polygon position. If we write the flat polygon position to the G-Buffer, our deferred light calculations will be calculated at the wrong position, causing incorrect shadows and lighting.</p>
-<p>To fix this, we recalculate the pixel's world position based on the final height displacement: <pre><code class="language-hlsl">float depthOffset = depthFactor * HEIGHT_SCALE + DEPTH_BIAS;
-float3 adjustedWorldPosition = input.worldPosition - normalizedNormal * depthOffset;
-output.Extra = float4(adjustedWorldPosition, specularPacked);</code></pre> This adjusted position is written to <code>Target2</code> (Position G-Buffer), ensuring perfect screen-space lighting.</p>
+<h3>The <code>SampleGrad</code> Optimization</h3>
+Normally, the GPU calculates mipmaps automatically based on coordinate differences between adjacent pixels. Inside dynamic loops with branching statements, the GPU cannot evaluate these differences, defaulting to the lowest, most blurry mipmap level.
+<p>To keep textures sharp, we compute coordinate gradients (<code>ddx</code>, <code>ddy</code>) <strong>before</strong> the ray-marching loop: <pre><code class="language-cpp">float2 dx = ddx(uv);
+float2 dy = ddy(uv);</code></pre> We pass these gradients to <strong><code>SampleGrad</code></strong> to force the GPU to load the correct mipmap level inside the loop.</p>
 <hr>
 <h2>Teacher Presentation Tips 🎓</h2>
 <ul>
-  <li><strong>Explain why you discard pixels in Parallax Occlusion Mapping</strong>:</li>
-  <li><em>Answer</em>: In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParallaxPS.hlsl#L129">ParallaxPS.hlsl:L129</a>, if the shifted UVs exceed the $[0,1]$ range, it means the ray-marched view vector has exited the boundary of the surface polygon. Discarding these fragments prevents ugly texture wrapping and coordinates bleeding at the edges of the box.</li>
-  <li>*<em>Why do we subtract normal </em> depthOffset?*<em>:</li>
-  <li></em>Answer*: Because the displacement goes "inward" (into the surface), we move the world position coordinate backward along the surface normal vector.</li>
+  <li><strong>Explain the difference between Normal Mapping and Parallax Occlusion Mapping</strong>:</li>
+  <li><em>Answer</em>: Normal mapping modifies surface normals to alter lighting angles, but the underlying geometry remains flat. Parallax Occlusion Mapping (POM) ray-marches through a heightmap to shift texture coordinates, creating parallax depth effects. POM simulates depth, self-occlusion, and parallax shifts as the camera moves, but the silhouette edge of the polygon remains flat.</li>
+  <li><strong>Why must we transpose the TBN matrix to transform vectors from World Space to Tangent Space?</strong>:</li>
+  <li><em>Answer</em>: The vectors $\vec{T}, \vec{B}, \vec{N}$ form an orthonormal basis, making the TBN matrix orthogonal. A key mathematical property of orthogonal matrices is that their inverse is equal to their transpose ($M^{-1} = M^T$). Transposing is computationally cheaper than calculating a full matrix inversion on the GPU.</li>
+  <li><strong>What causes texture artifacts at polygon edges in POM, and how do we prevent them?</strong>:</li>
+  <li><em>Answer</em>: At steep angles, the POM ray-march can step outside the $[0.0, 1.0]$ boundary of the triangle's UV coordinates, sampling neighboring textures. We prevent this by checking boundary limits inside the pixel shader and clamping or discarding coordinate updates that fall outside the range.</li>
+  <li><strong>How do you calculate soft shadows inside the heightmap with POM?</strong>:</li>
+  <li><em>Answer</em>: Once the intersection point is found, we run a second ray-march from the intersection point towards the light source in tangent space. If the ray hits a higher height value before exiting, the pixel is in shadow relative to the surface details, creating self-shadowing effects.</li>
+  <li><strong>Why do we reconstruct world positions after running POM offsets?</strong>:</li>
+  <li><em>Answer</em>: POM shifts texture coordinates to simulate depth. If we write the original, flat polygon positions to the G-Buffer, deferred lighting calculations will be computed at the wrong depth. We adjust the world position before writing it to the G-Buffer by subtracting <code>normal * depthOffset</code> to ensure lighting is calculated at the correct depth.</li>
 </ul>
     </main>
 </body>

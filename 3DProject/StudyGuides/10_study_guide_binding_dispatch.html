@@ -336,81 +336,91 @@
 
     
     <main class="main-content">
-        <h1>Study Guide 10: Shader Bindings, Registers, and Dispatch Mathematics</h1>
-<p>This guide covers resource binding and compute dispatch mechanics: detailing shader registers (constant buffers, SRVs, UAVs, samplers), executing pipeline bindings via the device context, computing thread group sizes, and explaining the C++ lvalue requirement for D3D11 calls.</p>
+        <h1>Study Guide 10: Shader Resource Binding, Constant Buffers, and Compute Dispatch</h1>
+<p>This guide covers resource binding, constant buffer alignment, CPU-GPU memory updates, register slots, compute shader thread grids, and thread group boundaries in Direct3D 11.</p>
 <hr>
-<h2>1. Complete Resource Binding Table</h2>
-<p>Shaders communicate with the C++ application through registers. Direct3D 11 uses prefixes: <ul>   <li><strong><code>b</code></strong>: Constant Buffers (read-only parameters).</li>   <li><strong><code>t</code></strong>: Shader Resource Views (SRVs - textures, structured buffers).</li>   <li><strong><code>u</code></strong>: Unordered Access Views (UAVs - read-write textures/buffers).</li>   <li><strong><code>s</code></strong>: Samplers (texture filtering states).</li> </ul> <h3>The Deferred Shading Compute Shader (<code>LightingCS.hlsl</code>)</h3> <table>   <thead>     <tr>       <th>Resource Name</th>       <th>Register</th>       <th>Type</th>       <th>C++ Binding Context Call</th>     </tr>   </thead>   <tbody>     <tr>       <td><strong><code>CameraBuffer</code></strong></td>       <td><code>b2</code></td>       <td>Constant Buffer</td>       <td><code>context-&gt;CSSetConstantBuffers(2, 1, &amp;cameraCB);</code></td>     </tr>     <tr>       <td><strong><code>LightingToggleBuffer</code></strong></td>       <td><code>b4</code></td>       <td>Constant Buffer</td>       <td><code>context-&gt;CSSetConstantBuffers(4, 1, &amp;toggleCB);</code></td>     </tr>     <tr>       <td><strong><code>gAlbedo</code></strong> (G-Buffer)</td>       <td><code>t0</code></td>       <td>Texture2D</td>       <td><code>context-&gt;CSSetShaderResources(0, 3, srvs);</code> (slot 0)</td>     </tr>     <tr>       <td><strong><code>gNormal</code></strong> (G-Buffer)</td>       <td><code>t1</code></td>       <td>Texture2D</td>       <td><code>context-&gt;CSSetShaderResources(0, 3, srvs);</code> (slot 1)</td>     </tr>     <tr>       <td><strong><code>gWorldPos</code></strong> (G-Buffer)</td>       <td><code>t2</code></td>       <td>Texture2D</td>       <td><code>context-&gt;CSSetShaderResources(0, 3, srvs);</code> (slot 2)</td>     </tr>     <tr>       <td><strong><code>shadowMaps</code></strong></td>       <td><code>t3</code></td>       <td>Texture2DArray</td>       <td><code>context-&gt;CSSetShaderResources(3, 1, &amp;shadowSRV);</code></td>     </tr>     <tr>       <td><strong><code>lights</code></strong></td>       <td><code>t4</code></td>       <td>StructuredBuffer</td>       <td><code>context-&gt;CSSetShaderResources(4, 1, &amp;lightSRV);</code></td>     </tr>     <tr>       <td><strong><code>outColor</code></strong> (Screen Output)</td>       <td><code>u0</code></td>       <td>RWTexture2D</td>       <td><code>context-&gt;CSSetUnorderedAccessViews(0, 1, &amp;lightingUAV, nullptr);</code></td>     </tr>     <tr>       <td><strong><code>shadowSampler</code></strong></td>       <td><code>s1</code></td>       <td>SamplerState</td>       <td><code>context-&gt;CSSetSamplers(1, 1, &amp;shadowSampler);</code></td>     </tr>   </tbody> </table> <hr></p>
-<h2>2. D3D11 Pipeline Binding Calls</h2>
-<p>To bind resources to specific stages of the graphics/compute pipeline, the C++ application calls <code>ID3D11DeviceContext</code> API functions.</p>
-<h3>Constant Buffers</h3>
-<ul>
-  <li><strong><code>VSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers)</code></strong> - Binds to the Vertex Shader.</li>
-  <li><strong><code>HSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers)</code></strong> - Binds to the Hull Shader.</li>
-  <li><strong><code>DSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers)</code></strong> - Binds to the Domain Shader.</li>
-  <li><strong><code>PSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers)</code></strong> - Binds to the Pixel Shader.</li>
-  <li><strong><code>CSSetConstantBuffers(StartSlot, NumBuffers, ppConstantBuffers)</code></strong> - Binds to the Compute Shader.</li>
-</ul>
-<h3>Textures &amp; SRVs</h3>
-<ul>
-  <li><strong><code>VSSetShaderResources(StartSlot, NumViews, ppShaderResourceViews)</code></strong></li>
-  <li><strong><code>PSSetShaderResources(StartSlot, NumViews, ppShaderResourceViews)</code></strong></li>
-  <li><strong><code>CSSetShaderResources(StartSlot, NumViews, ppShaderResourceViews)</code></strong></li>
-</ul>
-<h3>UAVs (Compute Stage only)</h3>
-<ul>
-  <li><strong><code>CSSetUnorderedAccessViews(StartSlot, NumUAVs, ppUnorderedAccessViews, pUAVInitialCounts)</code></strong></li>
-</ul>
+<h2>1. Constant Buffers &amp; 16-Byte Register Packing</h2>
+<p>Constant Buffers (<code>cbuffers</code>) store global parameters (like view-projection matrices, light arrays, and time constants) that remain uniform for a draw call.</p>
+<h3>The 16-Byte Alignment Rule</h3>
+Direct3D 11 requires that all constant buffers be allocated with a size that is a multiple of <strong>16 bytes</strong> (matching a single 4-component vector register, <code>float4</code>). The GPU packing unit groups variables into 16-byte registers ($X, Y, Z, W$).
+<p>If variables cross this 16-byte boundary, they are pushed to the next register, leaving empty padding bytes: <pre><code class="language-hlsl">// HLSL Constant Buffer Layout
+cbuffer MaterialBuffer : register(b1)
+{
+    float3 diffuseColor;  // Occupies bytes 0 to 11 (3 floats * 4 bytes)
+    float roughness;      // Fits in the remaining 4 bytes (bytes 12 to 15) -&gt; Register 0 complete.
+    float3 specularColor; // Cannot fit in Register 0. Moved to Register 1 (bytes 16 to 27).
+    float specularExp;    // Fits in Register 1 (bytes 28 to 31) -&gt; Register 1 complete.
+}; // Total size = 32 bytes (Multiple of 16)</code></pre></p>
+<p>If the C++ struct size does not match this HLSL packing layout (e.g., if we forget padding variables or mismatched data types), the GPU will read misaligned bytes, scrambling variables.</p>
 <hr>
-<h2>3. C++ Lvalue Reference and Address-of Getter Rules</h2>
-<p>A common C++ compile error in Direct3D 11 programming is trying to pass resource pointers directly from getter methods.</p>
-<h3>The Problem</h3>
-Consider this code:
-<pre><code class="language-cpp">// COMPILE ERROR: Cannot take the address of a temporary rvalue!
-context-&gt;CSSetShaderResources(3, 1, &amp;shadowMap.GetSRV());</code></pre>
+<h2>2. Memory Updates: <code>Map</code>/<code>Unmap</code> vs. <code>UpdateSubresource</code></h2>
+<p>To update constant buffers with new camera matrices or frame times, we send data from the CPU to the GPU. We choose between two update techniques in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ConstantBufferD3D11.cpp">ConstantBufferD3D11.cpp</a>:</p>
+<h3>1. <code>Map</code> / <code>Unmap</code> (Dynamic Renaming)</h3>
+For dynamic buffers updated every frame, we configure <code>D3D11_USAGE_DYNAMIC</code> with write CPU access flags. We lock the buffer using <code>Map</code>:
+<pre><code class="language-cpp">D3D11_MAPPED_SUBRESOURCE mappedResource;
+context-&gt;Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &amp;mappedResource);
+memcpy(mappedResource.pData, cpuDataPointer, dataSize);
+context-&gt;Unmap(buffer, 0);</code></pre>
 <ul>
-  <li><strong>Why it fails</strong>: <code>shadowMap.GetSRV()</code> returns a temporary copy of a pointer (<code>ID3D11ShaderResourceView*</code>). This is an <strong>rvalue</strong> (temporary expression). C++ does not allow taking the address (<code>&amp;</code>) of an rvalue because it has no permanent memory address.</li>
+  <li><strong><code>D3D11_MAP_WRITE_DISCARD</code></strong>: Tells the GPU driver that we do not care about the old data in the buffer. If the GPU is currently reading from the buffer during a draw call, the driver allocates a new memory block (renaming), copies our CPU data, and binds it to the pipeline. This avoids CPU stalling, allowing the CPU to write updates without waiting for the GPU to finish.</li>
 </ul>
-<h3>The Solution</h3>
-We must store the return value in a local variable (an <strong>lvalue</strong>) first, then pass the address of that variable:
-<pre><code class="language-cpp">// CORRECT: shadowSRV is an lvalue
-ID3D11ShaderResourceView* shadowSRV = shadowMap.GetSRV();
-context-&gt;CSSetShaderResources(3, 1, &amp;shadowSRV);</code></pre>
-Since the D3D11 context functions take an array of pointers (represented by a pointer-to-pointer <code>ID3D11ShaderResourceView**</code>), we must pass the address of our local pointer.
+<h3>2. <code>UpdateSubresource</code> (Direct GPU Copy)</h3>
+For static buffers updated rarely, we use <code>UpdateSubresource</code>:
+<code>context-&gt;UpdateSubresource(buffer, 0, nullptr, cpuDataPointer, 0, 0);</code>
+The driver copy-commands the CPU data to a temporary memory block and submits a command to swap it on the GPU queue. This avoids buffer renaming overhead but can stall the CPU if the GPU is busy.
 <hr>
-<h2>4. Compute Shader Dispatch and Grid Mathematics</h2>
-<p>To run a compute shader, we must define the thread execution grid. <ul>   <li><strong>Thread</strong>: The smallest unit of execution (runs on one GPU ALU).</li>   <li><strong>Thread Group</strong>: A block of threads that run together and can share cache memory.</li>   <li><strong>Dispatch Grid</strong>: A collection of thread groups launched in a single call.</li> </ul> <pre><code class="language-plaintext">                  ◄───────────────── WIDTH ─────────────────►
-           ┌──────┬──────┬──────┬──────┬──────┬──────┬──────┐ ▲
-           │16x16 │16x16 │      │      │      │      │      │ │
-           │Group │Group │      │      │      │      │      │ │
-           ├──────┼──────┼──────┼──────┼──────┼──────┼──────┤ HEIGHT
-           │      │      │      │      │      │      │      │ │
-           │      │      │      │      │      │      │      │ │
-           └──────┴──────┴──────┴──────┴──────┴──────┴──────┘ ▼</code></pre></p>
-<h3>1. Deferred Shading Dispatch (<code>LightingCS.hlsl</code>)</h3>
-In the shader file:
-<code>[numthreads(16, 16, 1)]</code>
-Each thread group contains $16 \times 16 = 256$ threads, mapped to a 2D screen coordinate.
-<p>In C++ <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L864">Main.cpp:L864</a>: <pre><code class="language-cpp">context-&gt;Dispatch((WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1);</code></pre> <ul>   <li><strong>The Math</strong>: If <code>WIDTH = 1024</code> and <code>HEIGHT = 576</code>:</li>   <li>$X = \frac{1024 + 15}{16} = 64$ groups.</li>   <li>$Y = \frac{576 + 15}{16} = 36.9375 \rightarrow 36$ groups (with integer division).</li>   <li>We add <code>15</code> before dividing by <code>16</code> to perform integer division <strong>rounding up</strong>, ensuring that partial screen boundary tiles are not clipped.</li>   <li><strong>The Bounds Check</strong>: Because rounding up can launch threads outside the screen dimensions, the shader performs an early return:</li> </ul><pre><code class="language-hlsl">  uint2 pixel = DTid.xy;
-  if (pixel.x &gt;= width || pixel.y &gt;= height) return;</code></pre></p>
-<h3>2. Particle Update Dispatch (<code>ParticleUpdateCS.hlsl</code>)</h3>
-In the shader:
-<code>[numthreads(32, 1, 1)]</code> (1D group of 32 threads).
-<p>In C++ <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleSystemD3D11.cpp#L116">ParticleSystemD3D11.cpp:L116</a>: <pre><code class="language-cpp">unsigned int numGroups = static_cast&lt;unsigned int&gt;(std::ceil(numParticles / 32.0f));
-context-&gt;Dispatch(numGroups, 1, 1);</code></pre> Inside the shader: <pre><code class="language-hlsl">uint index = DTid.x;
-if (index &gt;= particleCount) return;</code></pre> This ensures we simulate exactly <code>numParticles</code> without out-of-bounds array access.</p>
+<h2>3. Shader Resource View (SRV) &amp; Unordered Access View (UAV) Mappings</h2>
+<p>For deferred lighting in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp">Main.cpp</a>, we bind resources to specific register slots:</p>
+<pre><code class="language-plaintext">+-----------------------------------------------------------------------------+
+|                                LIGHTING PASS                                |
+|  INPUTS (SRVs):                                    OUTPUT (UAV):            |
+|  [Slot t0] -&gt; G-Buffer Albedo (R16G16B16A16)       [Slot u0] -&gt; OutputTex   |
+|  [Slot t1] -&gt; G-Buffer Normal (R16G16B16A16)                     (UAV)      |
+|  [Slot t2] -&gt; G-Buffer Position (R16G16B16A16)                              |
+|  [Slot t3] -&gt; Shadow Map Array (Texture2DArray)                            |
+|  [Slot t4] -&gt; Light Structured Buffer                                       |
++-----------------------------------------------------------------------------+</code></pre>
+<p>We bind these resources using device context calls: <pre><code class="language-cpp">context-&gt;CSSetShaderResources(0, 3, gBufferSRVs);
+context-&gt;CSSetShaderResources(3, 1, &amp;shadowSRV);
+context-&gt;CSSetShaderResources(4, 1, &amp;lightBufferSRV);
+context-&gt;CSSetUnorderedAccessViews(0, 1, &amp;lightingUAV, nullptr);</code></pre></p>
+<hr>
+<h2>4. Compute Shader Dispatch and Warp Scheduling</h2>
+<p>Compute Shaders execute threads in groups. In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/LightingCS.hlsl">LightingCS.hlsl</a>, we define a thread group layout: <code>[numthreads(16, 16, 1)]</code> (256 threads total per group).</p>
+<h3>Warp/Wavefront Scheduling</h3>
+At the hardware level, GPU execution units (SIMD cores) execute threads in lockstep groups called <strong>Warps</strong> (Nvidia, 32 threads) or <strong>Wavefronts</strong> (AMD, 64 threads). 
+<ul>
+  <li>Selecting thread group counts that are multiples of 32 (like 256) ensures the warp schedulers are fully occupied with zero idle execution units.</li>
+  <li>Storing thread groups in a $16 \times 16$ tile layout optimizes texture read cache locality, as neighboring threads access adjacent texels in L1 cache.</li>
+</ul>
+<h3>Out-of-Bounds Protection</h3>
+If screen resolution dimensions ($1024 \times 576$) are not multiples of our group tile size, the dispatch boundary can extend beyond the screen area. To prevent out-of-bounds memory writes, we run bounds checks inside the shader:
+<pre><code class="language-hlsl">[numthreads(16, 16, 1)]
+void main(uint3 DTid : SV_DispatchThreadID)
+{
+    // If the global thread coordinates exceed screen dimensions, exit immediately
+    if (DTid.x &gt;= screenWidth || DTid.y &gt;= screenHeight)
+    {
+        return;
+    }
+    
+    // Shader calculations...
+}</code></pre>
 <hr>
 <h2>Teacher Presentation Tips 🎓</h2>
 <ul>
-  <li><strong>What is the difference between SV_GroupID, SV_GroupThreadID, and SV_DispatchThreadID?</strong>:</li>
-  <li><em>Answer</em>:</li>
-  <li><code>SV_GroupID</code>: The index of the active thread group within the dispatch grid (e.g. $[0, 63]$ along X).</li>
-  <li><code>SV_GroupThreadID</code>: The local index of the thread within its group (e.g. $[0, 15]$ along X and Y).</li>
-  <li><code>SV_DispatchThreadID</code>: The global pixel coordinate on the screen. It is calculated automatically as:</li>
-</ul>      $$\text{DispatchThreadID} = \text{GroupID} \times \text{groupDim} + \text{GroupThreadID}$$
-<ul>
-  <li><strong>Why do we pass nullptr to unbind resources?</strong>:</li>
-  <li><em>Answer</em>: If we leave G-Buffer textures bound as SRVs to the compute shader, and in the next frame the geometry pass tries to write to them as Render Targets, a binding conflict occurs. Setting them to <code>nullptr</code> clears the slots, keeping the pipeline valid.</li>
+  <li><strong>What is the difference between <code>SV_GroupThreadID</code> and <code>SV_DispatchThreadID</code>?</strong>:</li>
+  <li><em>Answer</em>: </li>
+  <li><code>SV_GroupThreadID</code> represents the thread's local coordinate within its active thread group (range $[0, 15]$ on X/Y in our $16 \times 16$ layout).</li>
+  <li><code>SV_DispatchThreadID</code> represents the thread's global coordinate across the entire dispatch grid (range $[0, 1023]$ on X, $[0, 575]$ on Y), corresponding to the pixel coordinates on the screen.</li>
+  <li><strong>Why do we get a D3D11 validation warning if a constant buffer struct has a size of 44 bytes in C++?</strong>:</li>
+  <li><em>Answer</em>: Constant buffers must have a size that is a multiple of 16 bytes. A struct of 44 bytes violates this alignment rule. The D3D11 runtime will refuse to bind the buffer, generating a validation warning and rendering the object invisible. We fix this by adding padding variables to align the size to 48 bytes.</li>
+  <li><strong>Explain how <code>D3D11_MAP_WRITE_DISCARD</code> prevents GPU pipeline stalls</strong>:</li>
+  <li><em>Answer</em>: If we try to write to a buffer currently in use by the GPU, the CPU must wait for the GPU to finish, stalling execution. <code>D3D11_MAP_WRITE_DISCARD</code> tells the driver to ignore the old buffer memory. The driver renames the buffer and assigns a new memory block to the CPU, allowing it to write updates immediately without stalling.</li>
+  <li><strong>What is the register slot bound limit for SRVs and UAVs in Direct3D 11?</strong>:</li>
+  <li><em>Answer</em>: D3D11 supports binding up to 128 Shader Resource Views (slots <code>t0</code> to <code>t127</code>) and up to 8 Unordered Access Views (slots <code>u0</code> to <code>u7</code>) in a single shader pass.</li>
+  <li><strong>How does memory coalescing affect structured buffer performance in Compute Shaders?</strong>:</li>
+  <li><em>Answer</em>: Memory coalescing occurs when threads in a warp access contiguous memory addresses. When thread 0 reads index 0, thread 1 reads index 1, and so on, the GPU hardware combines these reads into a single memory transaction. If threads access random, non-contiguous indices, the hardware must execute multiple separate memory fetches, slowing down performance.</li>
 </ul>
     </main>
 </body>

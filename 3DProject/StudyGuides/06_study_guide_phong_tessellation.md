@@ -1,125 +1,166 @@
-# Study Guide 4: Phong Tessellation
+# Study Guide 6: Tessellation Shaders & Phong Smoothing
 
-This guide explains hardware tessellation in Direct3D 11, walking through the Vertex Shader (VS), Hull Shader (HS), fixed-function Tessellator, and Domain Shader (DS) pipeline, and details the mathematical equations used in Phong Tessellation to smooth low-poly surfaces.
+This guide covers Direct3D 11 hardware tessellation: writing Hull Shaders (HS) and Domain Shaders (DS), configuring partitioning modes, calculating barycentric coordinates, projecting vertices onto tangent planes for Phong smoothing, and comparing it to Bezier-based PN-Triangles.
 
 ---
 
-## 1. The Hardware Tessellation Pipeline
+## 1. Direct3D 11 Tessellation Pipeline
 
-Tessellation splits a low-resolution geometric primitive (like a triangle patch) into many smaller primitives (sub-triangles) dynamically on the GPU. This increases detail without taxing memory bandwidth or the CPU.
+Tessellation allows the GPU to dynamically subdivide low-polygon meshes into high-polygon meshes on the fly, saving storage space and VRAM bandwidth.
 
 ```
-[Input Assembler] (Patch Topology)
-       │
-[Vertex Shader] (Transforms control points)
-       │
-[Hull Shader] (Determines tessellation factors & passes control points)
-       │
-[Tessellator] (Fixed-function stage: splits patch based on factors)
-       │
-[Domain Shader] (Interpolates new vertices & projects to curve)
-       │
-[Geometry Shader / Rasterizer / Pixel Shader]
++--------------------+      +--------------------+      +--------------------+
+|    Hull Shader     | ---> |    Tessellator     | ---> |   Domain Shader    |
+| (Control points &  |      |  (Fixed-Function   |      |  (Evaluate bary-   |
+|   LOD factors)     |      |  Subdivision Unit) |      |  centrics & morph) |
++--------------------+      +--------------------+      +--------------------+
 ```
 
-### Primitive Topology Changes
-Normally, meshes are drawn with `D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST`. When tessellation is active, we change the topology in [Main.cpp:L652](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L652) to:
+### Topologies
+Tessellation requires setting the primitive topology to a patch control list:
 `context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);`
 This instructs the Input Assembler to treat every three vertices as control points of a patch rather than a flat triangle.
 
 ---
 
-## 2. Pipeline Stages Detailed
+## 2. The Hull Shader (HS)
 
-### 1. Vertex Shader (`TessellationVS.hlsl`)
-The Vertex Shader [TessellationVS.hlsl](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationVS.hlsl) transforms vertices into world space but does **not** project them into clip space:
+The Hull Shader runs in two phases:
+
+### 1. The Control Point Phase
+This phase runs once for each output control point, passing attributes (like positions and normals) from the vertex shader to the domain shader:
 ```hlsl
-output.worldPosition = mul(float4(input.position, 1.0f), worldMatrix).xyz;
-output.worldNormal = normalize(mul(float4(input.normal, 0.0f), worldMatrix).xyz);
+struct HS_OUTPUT
+{
+    float3 worldPosition : POSITION;
+    float3 worldNormal   : NORMAL;
+    float2 uv            : TEXCOORD;
+};
+
+[domain("tri")]
+[partitioning("fractional_odd")]
+[outputtopology("triangle_cw")]
+[outputcontrolpoints(3)]
+[patchconstantfunc("PatchConstantFunction")]
+HS_OUTPUT main(InputPatch<VS_OUTPUT, 3> ip, uint i : SV_OutputControlPointID)
+{
+    HS_OUTPUT output;
+    output.worldPosition = ip[i].worldPosition;
+    output.worldNormal   = ip[i].worldNormal;
+    output.uv            = ip[i].uv;
+    return output;
+}
 ```
-* **Why?** The Hull and Domain shaders require world space positions and normals to compute distances from the camera and project vertices onto tangent planes.
 
-### 2. Hull Shader (`TessellationHS.hlsl`)
-The Hull Shader [TessellationHS.hlsl](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationHS.hlsl) consists of two phases:
-1. **Control Point Phase (`main`)**: Runs once per output control point. It passes the vertices, normals, and UVs through.
-2. **Patch Constant Phase (`PatchConstantFunc`)**: Runs once per patch (triangle). It determines how much to subdivide the patch.
+### 2. The Patch Constant Phase
+This phase runs once per triangle patch to compute the subdivision detail level, known as **Tessellation Factors**:
+* **Edge Factors** (`SV_TessFactor`): Details the subdivision along the three outer edges.
+* **Inside Factor** (`SV_InsideTessFactor`): Details the subdivision inside the patch.
 
-#### Edge-based Tessellation and Gap Prevention
-To prevent **cracking** (holes/gaps appearing between adjacent triangles due to mismatched tessellation levels), we calculate tessellation factors along the edges using the distance from the camera to the edge midpoints:
+To calculate dynamic, distance-based Level of Detail (LOD) in [TessellationHS.hlsl](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationHS.hlsl):
 ```hlsl
-float3 edge0Midpoint = (patch[0].worldPosition + patch[1].worldPosition) * 0.5f;
-output.edges[0] = CalculateTessellationFactor(edge0Midpoint);
+HS_CONSTANT_OUTPUT PatchConstantFunction(InputPatch<VS_OUTPUT, 3> ip)
+{
+    HS_CONSTANT_OUTPUT output;
+    
+    // Calculate distance from camera to the midpoints of the 3 edges
+    float3 edgeMidpoint0 = (ip[0].worldPosition + ip[1].worldPosition) * 0.5f;
+    float3 edgeMidpoint1 = (ip[1].worldPosition + ip[2].worldPosition) * 0.5f;
+    float3 edgeMidpoint2 = (ip[2].worldPosition + ip[0].worldPosition) * 0.5f;
+    
+    float dist0 = distance(cameraPosition, edgeMidpoint0);
+    float dist1 = distance(cameraPosition, edgeMidpoint1);
+    float dist2 = distance(cameraPosition, edgeMidpoint2);
+    
+    // Interpolate factors: 4.0 close up, 1.0 far away
+    output.EdgeTess[0] = lerp(4.0f, 1.0f, saturate((dist0 - 1.0f) / 9.0f));
+    output.EdgeTess[1] = lerp(4.0f, 1.0f, saturate((dist1 - 1.0f) / 9.0f));
+    output.EdgeTess[2] = lerp(4.0f, 1.0f, saturate((dist2 - 1.0f) / 9.0f));
+    
+    // Inside factor is the average of the edges
+    output.InsideTess = (output.EdgeTess[0] + output.EdgeTess[1] + output.EdgeTess[2]) / 3.0f;
+    
+    return output;
+}
 ```
-Because two sharing triangles share the exact same edge and midpoint, they will compute the identical edge tessellation factor. This ensures their boundary vertices match perfectly.
 
-#### Dynamic Level of Detail (LOD)
-In [TessellationHS.hlsl:L39](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationHS.hlsl#L39):
-* If distance $\le 1.0\text{m}$, `tessFactor = 4.0` (highly subdivided).
-* If distance $\ge 10.0\text{m}$, `tessFactor = 1.0` (no subdivision).
-* Distances in between are linearly interpolated.
-
-### 3. The Tessellator (Fixed-Function)
-The GPU's fixed-function hardware reads `edges[3]` and `inside` tessellation factors and generates a mesh of new vertices in a normalized space ($[0,1]$ coordinate range inside the triangle patch). It does not know anything about world positions or normals; it only outputs **Barycentric Coordinates** $(u, v, w)$ for every newly created vertex, where $u + v + w = 1.0$.
-
-### 4. Domain Shader (`TessellationDS.hlsl`)
-The Domain Shader [TessellationDS.hlsl](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationDS.hlsl) is called for each new vertex generated by the Tessellator. It uses the barycentric coordinates to compute the physical attributes of the new vertex.
+* **Preventing Edge Cracking**: If adjacent triangles computed different edge factors, their shared boundaries would generate mismatching vertices, creating visible holes in the mesh. Calculating factors at the **edge midpoints** ensures that both triangles calculate identical factors, preventing holes.
 
 ---
 
-## 3. Phong Tessellation Mathematical Formulation
+## 3. The Tessellator Stage
 
-Unlike standard tessellation (which simply interpolates coordinates linearly, yielding flat triangles), **Phong Tessellation** projects vertices onto the tangent planes of the control points to reconstruct a curved shape.
+The Tessellator is a fixed-function hardware unit that subdivides the patch based on the tessellation factors using three main partitioning modes:
+1. **Integer**: Factors are rounded to the nearest integer. This causes visible "popping" artifacts as vertices are suddenly added or removed.
+2. **Fractional Even / Odd**: Factors are treated as fractional values. Under **fractional_odd** partitioning, if the factor increases, new vertices morph smoothly from existing corners, eliminating popping.
+
+---
+
+## 4. The Domain Shader (DS) & Phong Smoothing Math
+
+The Domain Shader is executed for every vertex generated by the Tessellator. It receives the patch control points and the vertex's **Barycentric Coordinates** $(u, v, w)$ from the Tessellator.
 
 ```
-       Control Point 0 (P0)
-             / \
-            /   \      <- Normal N0 (defines tangent plane 0)
-           /  P* \
-          /    .  \
-         /      .  \   <- P* projected onto plane 1 and plane 2
-        /________.__\
- Control Point 1 (P1)   Control Point 2 (P2)
+            P1 (0, 1, 0)
+               /\
+              /  \
+             /    \
+            /   *  \  P = u*P0 + v*P1 + w*P2
+           /________\
+ P0 (1, 0, 0)        P2 (0, 0, 1)
 ```
 
-### The Math Steps in `TessellationDS.hlsl`
+Barycentric coordinates represent a weight distribution across the triangle surface, where:
+$$u + v + w = 1.0$$
+We use these coordinates to interpolate properties like positions and normals:
+$$P_{\text{linear}} = u \cdot P_0 + v \cdot P_1 + w \cdot P_2$$
 
-1. **Calculate Linear Interpolated Position**:
-   Find where the vertex would lie if the patch were flat:
-   $$P_{\text{linear}} = u P_0 + v P_1 + w P_2$$
-   `float3 linearPosition = patch[0].worldPosition * barycentricCoords.x + ...`
+### Phong Tessellation Math
+Linear interpolation generates a flat surface. To round out the geometry (e.g., turning a low-poly sphere into a smooth sphere), we project the flat point onto the tangent plane of each control point:
 
-2. **Project onto Tangent Planes**:
-   For each control point $i \in \{0, 1, 2\}$, we define a tangent plane passing through $P_i$ with normal $N_i$. We project $P_{\text{linear}}$ onto each plane:
-   $$\pi_i(P_{\text{linear}}) = P_{\text{linear}} - \left( (P_{\text{linear}} - P_i) \cdot N_i \right) N_i$$
-   In code:
-   ```hlsl
-   float3 ProjectToPlane(float3 position, float3 planePoint, float3 planeNormal)
-   {
-       float3 toPosition = position - planePoint;
-       float distanceToPlane = dot(toPosition, planeNormal);
-       return position - distanceToPlane * planeNormal;
-   }
-   ```
-   We perform this projection for all three control points, yielding `projection0`, `projection1`, and `projection2`.
+```hlsl
+// Project point onto the tangent plane defined by planePoint and planeNormal
+float3 ProjectToPlane(float3 position, float3 planePoint, float3 planeNormal)
+{
+    float3 toPosition = position - planePoint;
+    float distanceToPlane = dot(toPosition, planeNormal);
+    return position - distanceToPlane * planeNormal;
+}
+```
 
-3. **Interpolate the Projections**:
-   Combine the three projected coordinates using barycentric weights:
-   $$P_{\text{phong}} = u \pi_0(P_{\text{linear}}) + v \pi_1(P_{\text{linear}}) + w \pi_2(P_{\text{linear}})$$
+In the Domain Shader [TessellationDS.hlsl](file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationDS.hlsl):
+1. Project $P_{\text{linear}}$ onto the tangent planes of the three control points:
+   $$\vec{S}_0 = \text{ProjectToPlane}(P_{\text{linear}}, P_0, N_0)$$
+   $$\vec{S}_1 = \text{ProjectToPlane}(P_{\text{linear}}, P_1, N_1)$$
+   $$\vec{S}_2 = \text{ProjectToPlane}(P_{\text{linear}}, P_2, N_2)$$
+2. Average these projections using the barycentric coordinates to find the curved position $P_{\text{phong}}$:
+   $$P_{\text{phong}} = u \cdot \vec{S}_0 + v \cdot \vec{S}_1 + w \cdot \vec{S}_2$$
+3. Blend the flat and curved positions using alpha (typically $0.75$):
+   $$P_{\text{final}} = \text{lerp}(P_{\text{linear}}, P_{\text{phong}}, 0.75)$$
 
-4. **Blend flat and smooth**:
-   Using `PHONG_ALPHA = 0.75f`, we blend the flat position with the curved position to control smoothing intensity:
-   $$P_{\text{final}} = (1 - \alpha) P_{\text{linear}} + \alpha P_{\text{phong}}$$
-   `output.worldPosition = lerp(linearPosition, phongPosition, PHONG_ALPHA);`
+---
 
-5. **Transform to Clip Space**:
-   Finally, project the smoothed position to screen coordinates:
-   `output.clipPosition = mul(float4(output.worldPosition, 1.0f), viewProjMatrix);`
+## 5. Phong Tessellation vs. PN-Triangles
+
+| Aspect | Phong Tessellation | PN-Triangles (Point-Normal) |
+| :--- | :--- | :--- |
+| **Approximation Method** | Tangent Plane Projections. | Cubic Bezier Surface Patches. |
+| **Control Points** | Reuses the 3 input control points. | Generates 10 position and 6 normal control points. |
+| **Math Complexity** | Low (3 dot products, linear blend). | High (evaluating 10-point Bezier formulas). |
+| **Edge Cracking** | Prevented by midpoint LOD calculations. | Requires boundary matching algorithms. |
+| **Memory/VRAM** | Low CPU/GPU memory footprint. | Requires extra register storage for Bezier controls. |
 
 ---
 
 ## Teacher Presentation Tips 🎓
 
-* **Explain why Phong Tessellation is useful without a heightmap**:
-  * *Answer*: Standard displacement mapping requires a height map texture (like a displacement map) to offset vertices. Phong Tessellation uses only the vertex positions and normals already present in the mesh to mathematically reconstruct a smooth surface. It is extremely useful for making low-poly spheres, cylinders, and character models look high-poly.
-* **What is fractional_odd partitioning?**:
-  * *Answer*: Defined via `[partitioning("fractional_odd")]` in the Hull Shader. It instructs the Tessellator to subdivide edges into an odd number of segments (e.g. 1, 3, 5, 7) and smoothly morph in new vertices as the tessellation factor increases, preventing sudden "pops" in geometry detail as the camera moves.
+* **Explain why we perform barycentric normalization inside the Domain Shader**:
+  * *Answer*: In the Domain Shader, we normalize the interpolated normal vector using `normalize()`. Since we linearly interpolate normals across three control points, the length of the vector drops below $1.0$ at the center of the triangle. Normalization restores the unit vector length to ensure accurate lighting math.
+* **What is the maximum Tessellation Factor in D3D11?**:
+  * *Answer*: The hardware limit is **$64.0$**. If we pass a factor larger than 64.0, the hardware clamps it. A factor of 64 splits a single triangle edge into 64 segments.
+* **Why does Phong Tessellation not require displacement heightmaps?**:
+  * *Answer*: Displacement mapping requires a heightmap texture to offset vertices along their normals. Phong Tessellation is an analytical smoothing technique. It uses the vertex normal directions at the triangle corners to construct curved tangent planes, rounding out the geometry automatically without requiring extra textures.
+* **What does `[domain("tri")]` mean in the Hull Shader header?**:
+  * *Answer*: It specifies the patch geometry type. The value `tri` tells the Tessellator to subdivide a triangle patch and generate barycentric coordinates ($u,v,w$). Other options include `quad` (for quad patches, generating $u,v$ UV coordinates) and `isoline` (for lines).
+* **If we render a model with Phong Tessellation enabled but forget to write the Domain Shader, what happens?**:
+  * *Answer*: The D3D11 runtime will generate a validation error. The tessellator subdivisions will occur, but because there is no Domain Shader to process the generated vertices and output them to the geometry or pixel shader, the pipeline fails, and the model renders invisible.

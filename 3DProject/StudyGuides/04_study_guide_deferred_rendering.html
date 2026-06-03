@@ -336,128 +336,138 @@
 
     
     <main class="main-content">
-        <h1>Study Guide 2: Deferred Rendering vs. Forward Rendering &amp; G-Buffer Design</h1>
-<p>This guide explains the fundamental differences between forward and deferred rendering, details the G-Buffer layout of this project, walks through the initialization of G-Buffer textures, and details how the lighting pass is performed via compute shaders.</p>
+        <h1>Study Guide 4: Deferred Rendering &amp; G-Buffer Design</h1>
+<p>This guide explains the Deferred Shading pipeline: comparing it to Forward Shading, designing G-Buffers, allocating pixel formats, packing geometric attributes, managing resource binding hazards, and writing the lighting Compute Shader.</p>
 <hr>
-<h2>1. Forward vs. Deferred Rendering: Theoretical Comparison</h2>
-<p>When rendering a 3D scene with $N$ objects and $M$ light sources:</p>
-<h3>Forward Rendering</h3>
+<h2>1. Forward vs. Deferred Shading Pipeline</h2>
+<p>The primary challenge in real-time 3D graphics is calculating lighting from many light sources.</p>
+<pre><code class="language-plaintext">FORWARD PIPELINE:
+Vertex Shader -&gt; Rasterizer -&gt; Pixel Shader (Draw Mesh + Calculate All Lights) -&gt; Render Target
+* Shading occurs for every rasterized fragment, even if overwritten later (High Overdraw).
+
+DEFERRED PIPELINE:
+Pass 1: Vertex Shader -&gt; Rasterizer -&gt; Pixel Shader -&gt; G-Buffer (Pack Positions, Normals, Albedo)
+Pass 2: Lighting Compute Shader (Bind G-Buffer SRVs + Calculate Lighting) -&gt; Render Target
+* Lighting is calculated exactly once per screen pixel for visible surfaces.</code></pre>
+<h3>Computational Complexity Analysis</h3>
 <ul>
-  <li><strong>How it works</strong>: For each of the $N$ objects, you submit a draw call. The pixel shader calculates the contribution of all $M$ lights for every single rasterized fragment.</li>
-  <li><strong>Complexity</strong>: $\mathcal{O}(N \times M)$ shading operations.</li>
-  <li><strong>Drawback</strong>: <strong>Overdraw</strong>. If object A is drawn, and then object B is drawn directly in front of it, object A’s pixels were shaded and lit, only to be overwritten. Shading is wasted on hidden surfaces.</li>
-</ul>
-<h3>Deferred Rendering</h3>
+  <li><strong>Forward Shading</strong>:</li>
+</ul>  $$\text{Complexity} = \mathcal{O}(F \cdot L)$$
+  where $F$ is the number of rasterized fragments (including overdraw) and $L$ is the number of lights. If a pixel is overwritten 4 times (overdraw factor of 4), the GPU runs expensive lighting math 4 times for that pixel, only to display the final result.
 <ul>
-  <li><strong>How it works</strong>: Splitting the rendering pipeline into two distinct passes:</li>
-</ul>  1. <strong>Geometry Pass (Write)</strong>: Render all objects once. Instead of performing expensive lighting calculations, write raw material properties (diffuse color, normal, position, specularity) into a set of screen-sized textures called the <strong>G-Buffer</strong> (Geometry Buffer).
-  2. <strong>Lighting/Shading Pass (Read)</strong>: Run a screen-space shader (in our case, a Compute Shader <code>LightingCS.hlsl</code>) that reads from the G-Buffer textures. For each screen pixel, compute the lighting using the unpacked material properties.
-<ul>
-  <li><strong>Complexity</strong>: $\mathcal{O}(N + M)$ operations. The geometry is processed once to fill the G-Buffer, and then the lights are processed once in screen space.</li>
-  <li><strong>Advantages</strong>:</li>
-  <li>Shading is only performed for visible pixels (no overdraw for lighting calculations).</li>
-  <li>Highly scaleable to dozens of dynamic lights.</li>
-  <li><strong>Disadvantages</strong>:</li>
-  <li>High memory bandwidth requirements.</li>
-  <li>Difficult to handle semi-transparent objects (because only the closest surface depth/material is stored in the G-Buffer).</li>
-  <li>Anti-aliasing (like MSAA) is complex to implement.</li>
-</ul>
+  <li><strong>Deferred Shading</strong>:</li>
+</ul>  $$\text{Complexity} = \mathcal{O}(F) + \mathcal{O}(P \cdot L)$$
+  where $P$ is the number of screen pixels ($1024 \times 576 = 589,824$ threads in our project). Shading complexity is decoupled from scene geometry, allowing us to support hundreds of lights.
 <hr>
-<h2>2. G-Buffer Layout in this Project</h2>
-<p>Our G-Buffer is managed by <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/GBufferD3D11.h">GBufferD3D11.h</a> and holds three render target textures. All three render targets are initialized with <strong><code>DXGI_FORMAT_R16G16B16A16_FLOAT</code></strong> (64-bit float format: 16 bits per channel for Red, Green, Blue, Alpha). This high-precision float format prevents banding and allows storing values outside the $[0, 1]$ range (like world positions).</p>
+<h2>2. G-Buffer Layout and Memory Bandwidth</h2>
+<p>To calculate lighting in screen space during the second pass, the GPU needs access to the material and geometric properties of each visible pixel. We store these attributes in a collection of screen-sized textures called the <strong>Geometry Buffer (G-Buffer)</strong>.</p>
+<p>Our G-Buffer is defined in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/GBufferD3D11.h">GBufferD3D11.h</a>:</p>
 <table>
   <thead>
     <tr>
-      <th>G-Buffer Texture</th>
-      <th>Channels</th>
-      <th>Stored Property</th>
-      <th>Unpacking / Reconstruct Method in <code>LightingCS.hlsl</code></th>
+      <th>Render Target</th>
+      <th>Format</th>
+      <th>R Channel</th>
+      <th>G Channel</th>
+      <th>B Channel</th>
+      <th>A Channel</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td><strong><code>albedoRT</code></strong> (t0)</td>
-      <td><strong>RGB</strong> (16f)&lt;br&gt;<strong>A</strong> (16f)</td>
-      <td>Diffuse Color / Albedo&lt;br&gt;Ambient Strength</td>
-      <td><code>diffuseColor = albedoSample.rgb;</code>&lt;br&gt;<code>ambientStrength = albedoSample.a;</code></td>
+      <td><code>albedoRT</code> (slot 0)</td>
+      <td><code>R16G16B16A16_FLOAT</code></td>
+      <td>Diffuse R</td>
+      <td>Diffuse G</td>
+      <td>Diffuse B</td>
+      <td>Ambient Strength</td>
     </tr>
     <tr>
-      <td><strong><code>normalRT</code></strong> (t1)</td>
-      <td><strong>RGB</strong> (16f)&lt;br&gt;<strong>A</strong> (16f)</td>
-      <td>World Normal vector&lt;br&gt;Specular Strength</td>
-      <td><code>normal = normalize(normalPacked * 2.0f - 1.0f);</code>&lt;br&gt;<code>specularStrength = normalSample.a;</code></td>
+      <td><code>normalRT</code> (slot 1)</td>
+      <td><code>R16G16B16A16_FLOAT</code></td>
+      <td>Packed Normal X</td>
+      <td>Packed Normal Y</td>
+      <td>Packed Normal Z</td>
+      <td>Specular Strength</td>
     </tr>
     <tr>
-      <td><strong><code>positionRT</code></strong> (t2)</td>
-      <td><strong>RGB</strong> (16f)&lt;br&gt;<strong>A</strong> (16f)</td>
-      <td>World Position $(X, Y, Z)$&lt;br&gt;Specular Exponent (Exponent / 256.0f)</td>
-      <td><code>worldPosition = positionSample.xyz;</code>&lt;br&gt;<code>specularPower = max(specularPacked * 256.0f, 1.0f);</code></td>
+      <td><code>positionRT</code> (slot 2)</td>
+      <td><code>R16G16B16A16_FLOAT</code></td>
+      <td>World Position X</td>
+      <td>World Position Y</td>
+      <td>World Position Z</td>
+      <td>Specular Exponent</td>
     </tr>
   </tbody>
 </table>
-&gt; [!NOTE]
-&gt; Normals are unit vectors with components in $[-1.0, 1.0]$. To store them in textures, we pack them into the $[0.0, 1.0]$ range in pixel shaders: <code>packed = normal * 0.5f + 0.5f</code>. In the lighting pass compute shader, we unpack them using: <code>normal = normalize(normalPacked * 2.0f - 1.0f)</code>.
+<h3>Bandwidth and Selection of <code>R16G16B16A16_FLOAT</code></h3>
+Using traditional 8-bit formats like <code>R8G8B8A8_UNORM</code> clamps values to the $[0.0, 1.0]$ range and has only 256 discrete steps. 
+<ul>
+  <li><strong>Normals</strong> contain negative coordinates (range $[-1.0, 1.0]$). Compressing them into 8 bits leads to precision errors, causing blocky lighting artifacts (banding).</li>
+  <li><strong>World Positions</strong> can scale far beyond $1.0$ (e.g., $X = 354.2$, $Z = -102.5$).</li>
+</ul>We use <code>DXGI_FORMAT_R16G16B16A16_FLOAT</code> to store these values accurately. Each pixel in our G-Buffer writes 24 bytes ($8 \text{ bytes per target} \times 3$). At $1024 \times 576$ resolution and 60 FPS, this translates to:
+$$1024 \times 576 \times 24 \text{ bytes} \times 60 \text{ FPS} = 849.3 \text{ MB/sec of write bandwidth}$$
 <hr>
-<h2>3. G-Buffer Pipeline Life-Cycle (D3D11 Commands)</h2>
-<h3>1. Initialization</h3>
-In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/GBufferD3D11.cpp#L3">GBufferD3D11.cpp:L3</a>, each <code>RenderTargetD3D11</code> is initialized. This calls <code>CreateTexture2D</code> with bind flags:
-<code>texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;</code>
-This allows these textures to be written to as Render Targets in the geometry pass, and read from as Shader Resource Views (SRVs) in the lighting pass.
-<h3>2. Binding as Render Targets</h3>
-Before drawing geometry, we bind the three G-Buffer Render Target Views (RTVs) and the scene's Depth Stencil View (DSV):
-<pre><code class="language-cpp">void GBufferD3D11::SetAsRenderTargets(ID3D11DeviceContext* context, ID3D11DepthStencilView* dsv)
-{
-    ID3D11RenderTargetView* rtvs[3] = { albedoRT.GetRTV(), normalRT.GetRTV(), positionRT.GetRTV() };
-    context-&gt;OMSetRenderTargets(3, rtvs, dsv);
-}</code></pre>
-<ul>
-  <li><strong>D3D11 Call</strong>: <code>OMSetRenderTargets</code> sets the render targets to output pixels from the rasterizer's pixel shader stage.</li>
-</ul>
-<h3>3. Clearing the G-Buffer</h3>
-Every frame, the G-Buffer must be cleared to prevent old data from bleeding over:
-<pre><code class="language-cpp">void GBufferD3D11::Clear(ID3D11DeviceContext* context, const float clearColor[4])
-{
-    context-&gt;ClearRenderTargetView(albedoRT.GetRTV(), clearColor);
-    context-&gt;ClearRenderTargetView(normalRT.GetRTV(), clearColor);
-    context-&gt;ClearRenderTargetView(positionRT.GetRTV(), clearColor);
-}</code></pre>
+<h2>3. The Geometry Pass (Writing G-Buffer)</h2>
+<p>In <code>Main.cpp</code> at line 636, we begin the geometry pass: 1. <strong>Clear G-Buffers</strong>: We clear the three render target views and the main depth buffer: <pre><code class="language-cpp">   float clearColor[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+   context-&gt;ClearRenderTargetView(albedoRTV, clearColor);
+   context-&gt;ClearRenderTargetView(normalRTV, clearColor);
+   context-&gt;ClearRenderTargetView(positionRTV, clearColor);
+   context-&gt;ClearDepthStencilView(myDSV, D3D11_CLEAR_DEPTH, 1.0f, 0);</code></pre> 2. <strong>Bind Render Targets</strong>: We bind the G-Buffer targets and the depth-stencil view: <pre><code class="language-cpp">   ID3D11RenderTargetView* rtvs[3] = { albedoRTV, normalRTV, positionRTV };
+   context-&gt;OMSetRenderTargets(3, rtvs, myDSV);</code></pre> 3. <strong>Draw</strong>: We run the shaders. In the pixel shader <code>PixelShader.hlsl</code>, instead of writing a single color, we output a structure containing our target variables: <pre><code class="language-hlsl">   struct PS_OUTPUT
+   {
+       float4 albedo   : SV_Target0;
+       float4 normal   : SV_Target1;
+       float4 position : SV_Target2;
+   };</code></pre></p>
 <hr>
-<h2>4. The Lighting Pass: Compute Shader Shading</h2>
-<p>Once the G-Buffer contains the geometry data, we run the lighting pass. In our codebase, this is handled by <strong><code>LightingCS.hlsl</code></strong> (a Compute Shader).</p>
-<h3>Why a Compute Shader?</h3>
-<ul>
-  <li>It allows us to directly write to any screen pixel using random-access writes via an <code>RWTexture2D</code> (Unordered Access View or UAV), bypassing standard output merger restrictions.</li>
-  <li>High efficiency through thread grouping. Thread groups of $16 \times 16$ threads match GPU architecture warp sizes, optimizing performance.</li>
-</ul>
-<h3>Unpacking the G-Buffer</h3>
-In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/LightingCS.hlsl#L104">LightingCS.hlsl:L104</a>, the shader reads from the texture registers <code>t0</code>, <code>t1</code>, and <code>t2</code> using texture loads:
-<pre><code class="language-hlsl">float4 albedoSample = gAlbedo.Load(int3(pixel, 0));
-float4 normalSample = gNormal.Load(int3(pixel, 0));
-float4 positionSample = gWorldPos.Load(int3(pixel, 0));</code></pre>
-<ul>
-  <li><strong><code>gAlbedo.Load</code></strong> takes integer coordinates (<code>DTid.xy</code>) rather than UV coordinates (<code>0.0f</code> to <code>1.0f</code>), extracting exact texel values at the given screen pixel.</li>
-</ul>
-<h3>Lighting Accumulation</h3>
-The shader loops over all enabled light sources stored in a <code>StructuredBuffer&lt;LightData&gt; lights</code> (bound to <code>t4</code>).
-For each light, it calculates:
-1. <strong>Light Direction</strong>: Directional vs. Point/Spotlight.
-2. <strong>Distance Attenuation</strong>: Quadratic falloff for point/spotlights:
-   $$attenuation = \text{saturate}(1.0 - (\frac{d}{\text{range}}))^2$$
-3. <strong>Spotlight Cone Attenuation</strong>: Inside/outside cone angle calculation.
-4. <strong>Shadow Multiplier</strong>: Computes whether the pixel is shadowed using shadow maps (described in Study Guide 3).
-5. <strong>Blinn-Phong Shading</strong>:
-<ul>
-  <li><strong>Diffuse (Lambertian)</strong>: $I_{diff} = \max(\vec{N} \cdot \vec{L}, 0) \times \text{color} \times \text{intensity}$</li>
-  <li><strong>Specular (Blinn-Phong)</strong>: Uses the half-vector $\vec{H} = \text{normalize}(\vec{L} + \vec{V})$.</li>
-</ul>     $$I_{spec} = (\max(\vec{N} \cdot \vec{H}, 0))^{\text{specularPower}} \times \text{color} \times \text{intensity} \times \text{specularStrength}$$
-<p>Finally, it saturates the accumulated lighting and writes the color: <pre><code class="language-hlsl">outColor[pixel] = float4(lighting, 1.0f);</code></pre></p>
+<h2>4. The Lighting Pass (Compute Shader)</h2>
+<p>Once geometry is written, we unbind the G-Buffer render targets: <pre><code class="language-cpp">ID3D11RenderTargetView* nullRTVs[3] = { nullptr, nullptr, nullptr };
+context-&gt;OMSetRenderTargets(3, nullRTVs, nullptr); // Important: unbind DSV too</code></pre> This is required to avoid read/write binding conflicts. We then bind the G-Buffer textures as input <strong>Shader Resource Views (SRVs)</strong> to the Compute Shader: <pre><code class="language-cpp">ID3D11ShaderResourceView* srvs[3] = { albedoSRV, normalSRV, positionSRV };
+context-&gt;CSSetShaderResources(0, 3, srvs);
+context-&gt;CSSetUnorderedAccessViews(0, 1, &amp;lightingUAV, nullptr); // Output texture
+context-&gt;CSSetShader(lightingShader, nullptr, 0);</code></pre></p>
+<h3>Thread Grid Calculation</h3>
+In <code>LightingCS.hlsl</code>, we arrange our execution threads in blocks of $16 \times 16$:
+<code>[numthreads(16, 16, 1)]</code>
+To cover our $1024 \times 576$ screen, we compute the number of thread groups to dispatch:
+$$\text{GroupsX} = \frac{1024}{16} = 64, \quad \text{GroupsY} = \frac{576}{16} = 36$$
+<code>context-&gt;Dispatch(64, 36, 1);</code>
+<p>Inside the shader, each thread queries its global pixel coordinate using <code>SV_DispatchThreadID</code>: <pre><code class="language-hlsl">[numthreads(16, 16, 1)]
+void main(uint3 DTid : SV_DispatchThreadID)
+{
+    int2 pixelCoords = DTid.xy;
+    
+    // Load data from G-Buffer using direct texel loading (no UV sampling)
+    float4 albedo = gAlbedo.Load(int3(pixelCoords, 0));
+    float3 normal = gNormal.Load(int3(pixelCoords, 0)).xyz;
+    float3 worldPos = gPosition.Load(int3(pixelCoords, 0)).xyz;
+    
+    // Unpack normal vector from [0, 1] back to [-1, 1]
+    normal = normalize(normal * 2.0f - 1.0f);
+    
+    // Run Blinn-Phong lighting equations for each light source...
+    float3 finalColor = CalculateLighting(worldPos, normal, albedo);
+    
+    gOutput[pixelCoords] = float4(finalColor, 1.0f);
+}</code></pre></p>
+<hr>
+<h2>5. Optimization: Reconstructing World Position from Depth</h2>
+<p>In high-performance engines, storing the full $XYZ$ world position in a separate G-Buffer target (<code>positionRT</code>) is avoided because it takes 8 bytes per pixel and wastes bandwidth. Instead, we can reconstruct the world-space position using only the <strong>Depth Buffer</strong> ($Z$) and the camera's <strong>Inverse View-Projection Matrix ($M^{-1}$)</strong>.</p>
+<p>1. <strong>Calculate UV Coordinates</strong>: Find the pixel's location in the range $[0.0, 1.0]$:    $$u = \frac{\text{pixelCoords}.x}{\text{screenWidth}}, \quad v = \frac{\text{pixelCoords}.y}{\text{screenHeight}}$$ 2. <strong>Compute Normalized Device Coordinates (NDC)</strong>: Map the UV coordinates and depth to the $[-1, 1]$ range:    $$x_{\text{ndc}} = u \times 2.0 - 1.0$$    $$y_{\text{ndc}} = (1.0 - v) \times 2.0 - 1.0$$    $$z_{\text{ndc}} = \text{depthSample}$$ 3. <strong>Unproject to World Space</strong>: Multiply the NDC vector by the inverse View-Projection matrix:    $$\vec{P}_{\text{clip}} = (x_{\text{ndc}}, y_{\text{ndc}}, z_{\text{ndc}}, 1.0)$$    $$\vec{P}_{\text{temp}} = \vec{P}_{\text{clip}} \cdot M^{-1}$$    $$\vec{P}_{\text{world}} = \frac{\vec{P}_{\text{temp}.xyz}}{\vec{P}_{\text{temp}.w}}$$ This technique removes <code>positionRT</code> completely, reducing our geometry pass write bandwidth by 33%.</p>
 <hr>
 <h2>Teacher Presentation Tips 🎓</h2>
 <ul>
-  <li><strong>Be prepared to explain DXGI_FORMAT_R16G16B16A16_FLOAT</strong>: Why did you choose it over standard <code>R8G8B8A8_UNORM</code>?</li>
-  <li><em>Answer</em>: Standard 8-bit formats clamp values to $[0.0, 1.0]$ and suffer from precision issues. For normals and positions, we need negative numbers, floating-point coordinates, and high-precision normals to avoid rendering artifacts (like blocky shadows and banding).</li>
-  <li><strong>Explain how G-Buffer is unbound before Compute Shader execution</strong>:</li>
-  <li><em>Answer</em>: In Direct3D 11, a resource cannot be bound as a Render Target (output) and a Shader Resource View (input) at the same time. If we try to bind a G-Buffer texture as an input to the Compute Shader while it is still bound as a Render Target, the D3D11 runtime will force bind it to <code>nullptr</code> to prevent read/write conflicts. To avoid this, we must unbind the RTVs before dispatching the Compute Shader.</li>
+  <li><strong>Why must we clear the G-Buffer render targets every frame?</strong>:</li>
+  <li><em>Answer</em>: Render targets preserve their pixel values from the previous frame. If we do not clear them, areas where no new geometry is drawn will display old, stale position and normal data. The compute shader will run lighting math on these old values, creating visual glitches and trails across the screen.</li>
+  <li><strong>Explain why G-Buffer textures use <code>Load()</code> instead of <code>Sample()</code> in the Compute Shader</strong>:</li>
+  <li><em>Answer</em>: <code>Sample()</code> takes normalized floating-point UV coordinates ($[0,1]$) and uses the GPU's texture filtering unit to perform bilinear interpolation. This is useful for meshes, but deferred shading maps 1:1 with screen pixels. <code>Load()</code> queries exact integer pixel coordinates (e.g., $x=520, y=300$), bypassing UV interpolation to access the raw data quickly.</li>
+  <li><strong>What is the purpose of unbinding G-Buffer RTVs before binding them as SRVs?</strong>:</li>
+  <li><em>Answer</em>: Direct3D 11 enforces read-write resource safety. If a resource is bound as an active Render Target View (RTV), it is flagged as an output. If we attempt to bind it as a Shader Resource View (SRV) input in the compute shader without unbinding it first, the D3D11 runtime flags a pipeline hazard and binds the input slot to <code>nullptr</code>, causing our lighting shader to read empty data.</li>
+  <li><strong>How does Deferred Shading handle MSAA (Multi-Sample Anti-Aliasing)?</strong>:</li>
+  <li><em>Answer</em>: MSAA is difficult to implement in deferred shading. Since the G-Buffer stores raw geometric properties per pixel, averaging positions or normals at polygon edges generates invalid values (e.g., averaging normal $(1,0,0)$ and normal $(-1,0,0)$ results in normal $(0,0,0)$). To support MSAA, we must run the lighting compute shader for every individual sub-sample rather than once per pixel, which increases shading costs. Most deferred engines use post-processing anti-aliasing techniques like FXAA or TAA instead.</li>
+  <li><strong>Why do we store the specular exponent divided by 256 in the G-Buffer?</strong>:</li>
+  <li><em>Answer</em>: Specular exponents in Blinn-Phong lighting typically range from $1.0$ to $256.0$ (representing surface smoothness). G-Buffer targets clamp variables to the $[0,1]$ range if they use normalized integer formats. By dividing the exponent by 256.0 before writing, we scale the range down to $[0.0, 1.0]$. In the compute shader, we multiply the value by 256.0 to reconstruct the original specular exponent.</li>
 </ul>
     </main>
 </body>

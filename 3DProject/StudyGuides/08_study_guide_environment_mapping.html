@@ -336,77 +336,141 @@
 
     
     <main class="main-content">
-        <h1>Study Guide 6: Environment Mapping (Skybox, Texture Cubemaps &amp; Dynamic Reflections)</h1>
-<p>This guide explains how real-time reflections are implemented: allocating texture cubemaps, configuring six virtual cameras to capture environment perspectives, rendering the scene into the cubemap faces, and sampling the reflection vector in the pixel shader.</p>
+        <h1>Study Guide 8: Environment Maps</h1>
+<p>This guide covers environment mapping: initializing cubemap textures, configuring rendering view matrices for the 6 cube faces, calculating reflection vectors, and implementing mipmap filtering for rough reflections.</p>
 <hr>
-<h2>1. Core Concept of Dynamic Environment Mapping</h2>
-<p>To render a reflective surface (like a chrome sphere) that reflects its surroundings in real-time, the application must capture what the sphere "sees" in all directions. 1. We position six virtual cameras at the center of the reflective object. 2. Each camera points in a different cardinal direction (+X, -X, +Y, -Y, +Z, -Z) with a <strong>90-degree field of view</strong> and a <strong>1:1 aspect ratio</strong>. 3. We render the scene six times (once per camera) into a <strong>texture cube</strong>. 4. When rendering the reflective object, the pixel shader calculates the reflection vector based on the player's view angle and samples the texture cube.</p>
-<hr>
-<h2>2. Allocation of <code>TextureCubeD3D11</code></h2>
-<p>A Direct3D 11 cubemap is represented as a texture array containing exactly six 2D textures. In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TextureCubeD3D11.cpp#L18">TextureCubeD3D11.cpp:L18</a>:</p>
-<h3>Texture Description</h3>
-<pre><code class="language-cpp">desc.ArraySize = 6;
-desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-desc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE; // Crucial flag for cubemaps</code></pre>
-<ul>
-  <li><strong><code>D3D11_RESOURCE_MISC_TEXTURECUBE</code></strong>: Tells the D3D11 runtime that this texture array can be bound to shaders as a 3D texture cube (<code>TextureCube</code> in HLSL), enabling 3D directional vector sampling.</li>
-</ul>
-<h3>Render Target Views (RTVs)</h3>
-We create a separate RTV for each of the six faces. This allows rendering to each face individually:
-<pre><code class="language-cpp">D3D11_RENDER_TARGET_VIEW_DESC rtvDesc = {};
-rtvDesc.Format = desc.Format;
-rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2DARRAY;
-rtvDesc.Texture2DArray.ArraySize = 1;
+<h2>1. Dynamic Cubemap Texture Allocation</h2>
+<p>A Cubemap is a specialized texture array containing 6 faces representing the environment surrounding an object. We allocate it dynamically in C++ inside <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TextureCubeD3D11.cpp">TextureCubeD3D11.cpp</a>:</p>
+<pre><code class="language-cpp">D3D11_TEXTURE2D_DESC texDesc = {};
+texDesc.Width = 512;
+texDesc.Height = 512;
+texDesc.MipLevels = 0; // Automatically allocate full mipmap chain
+texDesc.ArraySize = 6;  // 6 faces of the cube
+texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+texDesc.SampleDesc.Count = 1;
+texDesc.Usage = D3D11_USAGE_DEFAULT;
+texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+texDesc.CPUAccessFlags = 0;
+texDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE; // Flag as cubemap
 
-for (int i = 0; i &lt; 6; ++i)
-{
-    rtvDesc.Texture2DArray.FirstArraySlice = i; // Map RTV to specific slice
-    device-&gt;CreateRenderTargetView(m_textureCube, &amp;rtvDesc, &amp;m_rtvs[i]);
-}</code></pre>
-<h3>Shared Depth Stencil View (DSV)</h3>
-To perform depth sorting while rendering into the cubemap faces, we create a single, shared depth texture of the same size ($512 \times 512$) and bind it alongside the active face RTV:
-<code>context-&gt;OMSetRenderTargets(1, &amp;cubeRTV, m_dsv);</code>
-<hr>
-<h2>3. Six Virtual Cameras and Orientations</h2>
-<p>To capture a seamless environment, the cameras must be oriented precisely to map to the DirectX cubemap specification. In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/EnvironmentMapRenderer.cpp#L29">EnvironmentMapRenderer.cpp:L29-52</a>: <ul>   <li><strong>FOV</strong>: <code>fovAngleY = XM_PIDIV2</code> (90 degrees). A larger FOV would overlap faces; a smaller FOV would leave gaps.</li>   <li><strong>Orientations</strong>:</li>   <li>Face 0 (+X, Right): Rotate right 90 degrees.</li>   <li>Face 1 (-X, Left): Rotate left 90 degrees.</li>   <li>Face 2 (+Y, Up): Rotate forward -90 degrees.</li>   <li>Face 3 (-Y, Down): Rotate forward 90 degrees, apply $\pi$ roll correction.</li>   <li>Face 4 (+Z, Forward): Facing forward (0 degrees).</li>   <li>Face 5 (-Z, Backward): Rotate right 180 degrees.</li> </ul> <hr></p>
-<h2>4. The Environment Render Loop</h2>
-<p>Dynamic environment map rendering occurs in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/EnvironmentMapRenderer.cpp#L54">EnvironmentMapRenderer.cpp:L54</a> before the main geometry pass.</p>
-<h3>Execution Sequence</h3>
-1. Move all six cameras to the reflective object's center:
-   <code>m_cameras[i].SetPosition(objectPosition);</code>
-2. Loop over the six faces (<code>faceIndex</code> 0 to 5):
+device-&gt;CreateTexture2D(&amp;texDesc, nullptr, &amp;cubeTexture);</code></pre>
+<h3>Views</h3>
 <ul>
-  <li>Bind the target slice RTV: <code>context-&gt;OMSetRenderTargets(1, &amp;m_rtvs[faceIndex], m_dsv);</code></li>
-  <li>Clear the face and depth buffer: <code>m_cubeMap.ClearFace(context, faceIndex, clearColor);</code></li>
-  <li>Set viewport: <code>context-&gt;RSSetViewports(1, &amp;cubeViewport);</code></li>
-  <li>Bind forward shaders (<code>VertexShader.hlsl</code> and <code>CubeMapPS.hlsl</code>).</li>
-  <li><strong>Crucial Step: Avoid Self-Reflection</strong>: We skip drawing the reflective object itself to prevent a feedback loop (or rendering its interior):</li>
-</ul><pre><code class="language-cpp">     if (objIdx == reflectiveObjectIndex)
-         continue;</code></pre>
-<ul>
-  <li>Draw the rest of the scene into the current face.</li>
+  <li><strong>Render Target Views (RTVs)</strong>: We create an array of 6 RTVs. Each RTV targets a specific face index slice using <code>D3D11_RENDER_TARGET_VIEW_DESC::Texture2DArray.FirstArraySlice</code>.</li>
+  <li><strong>Shader Resource View (SRV)</strong>: We create a single SRV with format <code>D3D11_SRV_DIMENSION_TEXTURECUBE</code> to bind the entire cubemap to the shaders as one resource.</li>
 </ul>
 <hr>
-<h2>5. Shading Dynamic Reflections</h2>
-<p>When drawing the reflective object in the main Geometry Pass, we bind the cubemap SRV to slot <code>t1</code> and run the pixel shader <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ReflectionPS.hlsl">ReflectionPS.hlsl</a>:</p>
-<pre><code class="language-hlsl">TextureCube reflectionTexture : register(t1);
-SamplerState samplerState : register(s0);</code></pre>
-<h3>Reflection Math in HLSL</h3>
-1. <strong>Incoming View Vector ($\vec{V}$)</strong>: The vector from the camera to the pixel position:
-   $$\vec{V} = \text{normalize}(\vec{P}_{\text{world}} - \vec{P}_{\text{camera}})$$
-2. <strong>Reflected Vector ($\vec{R}$)</strong>: The path light takes as it bounces off the surface normal ($\vec{N}$):
-   $$\vec{R} = \vec{V} - 2(\vec{V} \cdot \vec{N})\vec{N}$$
-   In HLSL: <code>float3 reflectedView = reflect(incomingView, normalizedNormal);</code>
-3. <strong>Sampling</strong>: We look up the color using the 3D reflection direction $\vec{R}$ as the coordinates:
-   <code>float4 sampledValue = reflectionTexture.Sample(samplerState, reflectedView);</code>
+<h2>2. Multi-Pass Face Rendering (6-Pass Loop)</h2>
+<p>To generate reflections in real-time, we position six virtual cameras at the center of the reflective object. In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/EnvironmentMapRenderer.cpp">EnvironmentMapRenderer.cpp</a>, we loop through each face and render the scene:</p>
+<pre><code class="language-plaintext">                  +--------------+
+                  |  +Y (Up)     |
+                  |  Face 2      |
+   +--------------+--------------+--------------+--------------+
+   |  -X (Left)   |  +Z (Front)  |  +X (Right)  |  -Z (Back)   |
+   |  Face 1      |  Face 4      |  Face 0      |  Face 5      |
+   +--------------+--------------+--------------+--------------+
+                  |  -Y (Down)   |
+                  |  Face 3      |
+                  +--------------+</code></pre>
+<h3>Face Camera Orientations</h3>
+Each face camera requires a $90^\circ$ Field of View (<code>XM_PIDIV2</code>) and a $1:1$ aspect ratio. The view matrix look-at directions and up-vectors are defined by DirectX coordinates:
+<table>
+  <thead>
+    <tr>
+      <th>Face Index</th>
+      <th>Target Direction</th>
+      <th>Look-At vector</th>
+      <th>Up Vector</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>0 ($+X$)</strong></td>
+      <td>Right</td>
+      <td><code>(1, 0, 0)</code></td>
+      <td><code>(0, 1, 0)</code></td>
+    </tr>
+    <tr>
+      <td><strong>1 ($-X$)</strong></td>
+      <td>Left</td>
+      <td><code>(-1, 0, 0)</code></td>
+      <td><code>(0, 1, 0)</code></td>
+    </tr>
+    <tr>
+      <td><strong>2 ($+Y$)</strong></td>
+      <td>Up</td>
+      <td><code>(0, 1, 0)</code></td>
+      <td><code>(0, 0, -1)</code></td>
+    </tr>
+    <tr>
+      <td><strong>3 ($-Y$)</strong></td>
+      <td>Down</td>
+      <td><code>(0, -1, 0)</code></td>
+      <td><code>(0, 0, 1)</code></td>
+    </tr>
+    <tr>
+      <td><strong>4 ($+Z$)</strong></td>
+      <td>Forward</td>
+      <td><code>(0, 0, 1)</code></td>
+      <td><code>(0, 1, 0)</code></td>
+    </tr>
+    <tr>
+      <td><strong>5 ($-Z$)</strong></td>
+      <td>Backward</td>
+      <td><code>(0, 0, -1)</code></td>
+      <td><code>(0, 1, 0)</code></td>
+    </tr>
+  </tbody>
+</table>
+<h3>The Shared Depth-Stencil View</h3>
+We clear the shared depth buffer (<code>m_dsv</code>) at the start of rendering <strong>each</strong> face slice:
+<code>context-&gt;ClearDepthStencilView(m_dsv, D3D11_CLEAR_DEPTH, 1.0f, 0);</code>
+Because all 6 passes share one depth buffer, the depth values written during the first pass are still present when we switch to the second face. If we do not clear the depth buffer, depth testing will fail, culling geometry on subsequent faces.
+<hr>
+<h2>3. Reflection Vector Calculations</h2>
+<p>To draw reflections, the pixel shader calculates the reflection vector using the camera view direction and the surface normal.</p>
+<pre><code class="language-plaintext">       View Vector (I)        Normal (N)       Reflection (R)
+                 \                |                /
+                  \               |               /
+                   \              |              /
+  __________________\_____________|_____________/___________</code></pre>
+<h3>The Reflection Equation</h3>
+Mathematically, given the incident view vector $\vec{I}$ (from camera to pixel position) and surface normal vector $\vec{N}$:
+$$\vec{R} = \vec{I} - 2(\vec{I} \cdot \vec{N})\vec{N}$$
+<p>In the pixel shader <code>ReflectionPS.hlsl</code>: <pre><code class="language-hlsl">// Calculate incident view vector in world space
+float3 incidentView = normalize(pixelWorldPos - cameraPosition);
+
+// Calculate reflection vector
+float3 reflectDir = reflect(incidentView, normalize(pixelNormal));
+
+// Sample the environment map using the 3D reflection direction vector
+float4 reflectedColor = environmentMap.Sample(samplerState, reflectDir);</code></pre></p>
+<hr>
+<h2>4. Glossy / Rough Reflections (Mipmap Filtering)</h2>
+<p>Perfect mirrors are rare. Most reflective materials (like brushed metal) have rough surfaces that scatter reflected light, creating blurry reflections.</p>
+<p>We simulate surface roughness using the cubemap's <strong>Mipmap Chain</strong>.</p>
+<pre><code class="language-plaintext">Mip 0 (Full Res: 512x512)   ---&gt; Mirror Reflection (Roughness = 0.0)
+Mip 2 (Low Res: 128x128)    ---&gt; Glossy Reflection (Roughness = 0.3)
+Mip 5 (Ultra Low: 16x16)    ---&gt; Diffuse/Blurry Reflection (Roughness = 0.8)</code></pre>
+<p>1. <strong>Mip Generation</strong>: After rendering the 6 faces, we generate mipmaps using the GPU device context:    <code>context-&gt;GenerateMips(cubeSRV);</code>    The GPU downsamples the cubemap, blurring details in lower mipmap levels. 2. <strong>Mip Selection</strong>: In the pixel shader, we sample a specific mipmap level based on the material's roughness using <code>SampleLevel</code>: <pre><code class="language-hlsl">   float mipLevel = roughness * maxMipLevels; // e.g., 0.3 * 9 = level 2.7
+   float4 reflection = environmentMap.SampleLevel(samplerState, reflectDir, mipLevel);</code></pre>    The GPU interpolates between adjacent mipmap levels, producing a smooth blur effect.</p>
 <hr>
 <h2>Teacher Presentation Tips 🎓</h2>
 <ul>
-  <li><strong>Explain why the dynamic cubemap pass uses forward rendering instead of deferred</strong>:</li>
-  <li><em>Answer</em>: Deferred rendering is optimized for drawing high-resolution screen images with many lights. The environment map has a low resolution ($512 \times 512$) and does not need particle effects or advanced POM. Performing deferred rendering 6 times per frame would require initializing six separate G-Buffers, which is extremely expensive in terms of GPU memory bandwidth. Simple forward rendering is much faster for capturing surrounding color.</li>
-  <li><strong>What is the difference between Texture2D and TextureCube in HLSL?</strong>:</li>
-  <li><em>Answer</em>: <code>Texture2D</code> is sampled using 2D UV coordinates. <code>TextureCube</code> is sampled using a 3D direction vector representing a ray cast from the center of a cube. The GPU automatically determines which face of the cube the ray intersects and performs bilinear filtering at the intersection point.</li>
+  <li><strong>Why must we skip rendering the reflective object itself during the cubemap passes?</strong>:</li>
+  <li><em>Answer</em>: To prevent a feedback loop and avoid rendering the interior geometry of the reflective object. When capturing what the sphere sees, the sphere itself is not visible in its own perspective. If we did not skip it, the camera would render the inside of the sphere, blocking the surrounding scene.</li>
+  <li><strong>Explain how the GPU samples a 3D vector from a cubemap</strong>:</li>
+  <li><em>Answer</em>: The GPU hardware texture unit processes the 3D direction vector $\vec{R} = (x,y,z)$. It finds the component with the largest absolute value to select the target face (e.g., if $+Y$ is largest, it selects the top face). It then projects the remaining coordinates onto that face to calculate standard 2D UV coordinates to sample the texture.</li>
+  <li><strong>What are the performance implications of real-time dynamic cubemaps?</strong>:</li>
+  <li><em>Answer</em>: Dynamic cubemaps are expensive. Rendering the scene 6 times per frame multiplies the vertex count and draw calls by 6. This can severely bottleneck the CPU.</li>
+  <li><strong>How do you optimize dynamic cubemap rendering in production games?</strong>:</li>
+  <li><em>Answer</em>:</li>
+</ul>    1. <strong>Time-Slicing</strong>: Update only 1 face of the cubemap per frame, updating the full cube over 6 frames.
+    2. <strong>Low Resolution</strong>: Render the faces at a reduced resolution (e.g., $128 \times 128$ or $256 \times 256$), which is sufficient for blurry reflections.
+    3. <strong>Cull Details</strong>: Skip rendering complex vertex details (like particles, grass, or small clutter) in the cubemap passes.
+<ul>
+  <li><strong>Explain the difference between <code>Sample</code> and <code>SampleLevel</code> in HLSL</strong>:</li>
+  <li><em>Answer</em>: <code>Sample</code> is used in pixel shaders, where the GPU automatically calculates gradients (<code>ddx</code>/<code>ddy</code>) based on screen pixel differences to select the mipmap level. <code>SampleLevel</code> is used to override this, allowing us to specify a specific mipmap level (the third argument) to control the blur.</li>
 </ul>
     </main>
 </body>

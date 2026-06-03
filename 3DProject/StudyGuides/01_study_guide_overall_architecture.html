@@ -339,44 +339,88 @@
         <h1>Study Guide 1: Overall Win32 and Direct3D 11 Architecture</h1>
 <p>This guide explains how the application initializes, manages its frame lifecycle, computes frame-rate independent updates, and controls the camera.</p>
 <hr>
-<h2>1. Application Lifecycle and Win32 Window Setup</h2>
+<h2>1. System Architecture Overview</h2>
+<p>Before looking at the code, it is important to understand how the components are organized. The application is a native Windows C++ desktop program that communicates directly with the graphics card via the Direct3D 11 API.</p>
+<pre><code class="language-plaintext">+--------------------------------------------------------------------------+
+|                                  WIN32 APP                               |
+|  +------------------+     +-------------------+     +-----------------+  |
+|  |    wWinMain()    | --&gt; |    WindowProc     | --&gt; |    Game Loop    |  |
+|  |  (Entry Point)   |     |  (Message Callback) |     |  (Frame Update) |  |
+|  +------------------+     +-------------------+     +-----------------+  |
++-----------|--------------------------------------------------|-----------+
+            |                                                  |
+            v                                                  v
++-----------------------+                         +------------------------+
+|      DIRECT3D 11      |                         |      SYSTEM MODULES    |
+|  +-----------------+  |                         |  +------------------+  |
+|  | ID3D11Device    |  |                         |  | CameraD3D11      |  |
+|  | (Allocations)   |  |                         |  +------------------+  |
+|  +-----------------+  |                         |  | LightManager     |  |
+|  | ID3D11DeviceCtx |  |                         |  +------------------+  |
+|  | (Draw Calls)    |  |                         |  | QuadTree         |  |
+|  +-----------------+  |                         |  +------------------+  |
+|  | IDXGISwapChain  |  |                         |  | ParticleSystem   |  |
+|  | (Frame Buffers) |  |                         |  +------------------+  |
+|  +-----------------+  |                         |  | GBufferD3D11     |  |
++-----------------------+                         +------------------------+</code></pre>
+<hr>
+<h2>2. Application Lifecycle and Win32 Window Setup</h2>
 <p>The entry point of your application is <code>wWinMain</code> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L180">Main.cpp</a>.</p>
 <h3>The Win32 Initialization Sequence</h3>
-1. <strong>Memory Leak Detection</strong>: At the very start of <code>wWinMain</code>, <code>_CrtSetDbgFlag</code> is configured. This instructs the MSVC runtime to check for memory leaks at program exit and print allocations that weren't released.
-2. <strong>Window Creation</strong>: Calling <code>SetupWindow()</code> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/WindowHelper.cpp#L20">WindowHelper.cpp</a> registers a Win32 window class with a custom callback <code>WindowProc</code> (handling messages like <code>WM_DESTROY</code> to post exit signals) and spawns an overlapping window of $1024 \times 576$ resolution.
-3. <strong>Mouse Centering</strong>: The cursor is moved to the center of the screen, and hidden via <code>ShowCursor(FALSE)</code> to enable smooth first-person camera mouse tracking.
-4. <strong>D3D11 Initialization</strong>: <code>SetupD3D11</code> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/D3D11Helper.cpp#L127">D3D11Helper.cpp</a> creates the D3D11 core interfaces:
-<ul>
-  <li><strong><code>ID3D11Device</code></strong>: Represents the virtual graphics adapter. Used to allocate GPU resources (buffers, textures, shaders).</li>
-  <li><strong><code>ID3D11DeviceContext</code></strong>: Represents the pipeline controller. Used to bind resources and dispatch draw commands to the GPU.</li>
-  <li><strong><code>IDXGISwapChain</code></strong>: Handles double buffering. It holds the back buffer texture that we render to and swaps it to the monitor when presenting.</li>
-  <li><strong><code>ID3D11RenderTargetView</code> (rtv)</strong>: Represents the back-buffer render target, allowing the Output Merger stage to write finalized color pixels to the swap chain.</li>
-</ul>
-<hr>
-<h2>2. The Main Game Loop</h2>
-<p>Once initialized, the program enters a message loop in <code>Main.cpp</code> that continues until <code>VK_ESCAPE</code> is pressed or a <code>WM_QUIT</code> window message is received: <pre><code class="language-cpp">while (!(GetKeyState(VK_ESCAPE) &amp; 0x8000) &amp;&amp; msg.message != WM_QUIT)
+<p>1. <strong>Memory Leak Detection</strong>: At the very start of <code>wWinMain</code>, <code>_CrtSetDbgFlag</code> is configured: <pre><code class="language-cpp">   _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);</code></pre>    This instructs the MSVC runtime debug heap allocator to record all allocations. When the program exits, if any memory blocks have not been freed using <code>delete</code> or <code>Release()</code>, they are dumped to the Output console with their allocation ID and file path.</p>
+<p>2. <strong>Window Creation</strong>: Calling <code>SetupWindow()</code> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/WindowHelper.cpp#L20">WindowHelper.cpp</a> registers a Win32 window class with a custom callback <code>WindowProc</code>. <ul>   <li><strong><code>WNDCLASSEX</code> Registration</strong>: The structure describes the window style, icon, cursor, background brush, and points to our message handler function <code>WindowProc</code>.</li>   <li><strong><code>CreateWindowEx</code></strong>: Spawns an overlapping window with client area dimensions $1024 \times 576$.</li>   <li><strong><code>WindowProc</code> Callback</strong>: Handles system messages (like <code>WM_DESTROY</code>, <code>WM_SIZE</code>, <code>WM_INPUT</code>). If it receives <code>WM_DESTROY</code> (when the window is closed), it calls <code>PostQuitMessage(0)</code> to push a <code>WM_QUIT</code> message into the thread's queue.</li> </ul> 3. <strong>Mouse Centering &amp; Locking</strong>:    The cursor is moved to the center of the window and hidden via <code>ShowCursor(FALSE)</code> to enable smooth first-person camera mouse tracking. To keep the cursor within the boundaries of the window, we use <code>ClipCursor(&amp;rect)</code>. This prevents the mouse from clicking off-screen or onto other windows when playing.</p>
+<p>4. <strong>D3D11 Initialization</strong>: <code>SetupD3D11</code> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/D3D11Helper.cpp#L127">D3D11Helper.cpp</a> initializes the hardware communication: <ul>   <li><strong><code>ID3D11Device</code></strong>: Represents the virtual graphics card. Used to allocate GPU resources (textures, constant buffers, vertex buffers, index buffers, and compile shaders). It is thread-safe.</li>   <li><strong><code>ID3D11DeviceContext</code></strong>: Represents the pipeline controller. Used to bind resources (buffers, textures, shaders) to pipeline stages and dispatch draw commands to the GPU. It is not thread-safe and is optimized for fast, single-threaded graphics command submission.</li>   <li><strong><code>IDXGISwapChain</code></strong>: Handles double buffering. It manages the swap chain textures: the <strong>Front Buffer</strong> (active on monitor) and the <strong>Back Buffer</strong> (being written to by the GPU). We swap them using <code>Present()</code>.</li>   <li><strong><code>ID3D11RenderTargetView</code> (RTV)</strong>: Wraps the swapchain's back-buffer texture so the Output Merger stage of the graphics pipeline can write color pixels to it.</li> </ul> <hr></p>
+<h2>3. The Main Game Loop</h2>
+<p>Once initialized, the program enters a message loop in <code>Main.cpp</code> that continues until <code>VK_ESCAPE</code> is pressed or a <code>WM_QUIT</code> window message is received:</p>
+<pre><code class="language-cpp">while (!(GetKeyState(VK_ESCAPE) &amp; 0x8000) &amp;&amp; msg.message != WM_QUIT)
 {
     if (PeekMessage(&amp;msg, 0, 0, 0, PM_REMOVE))
     {
         TranslateMessage(&amp;msg);
         DispatchMessage(&amp;msg);
     }
-    // Update and render frame...
-}</code></pre> <ul>   <li><strong><code>PeekMessage</code></strong> handles incoming operating system events (like keyboard input or resizing) without blocking the thread. If no window messages are queued, it proceeds to update the physics, update particles, and draw the frame.</li> </ul> <hr></p>
-<h2>3. Frame Delta Time Calculation</h2>
-<p>To ensure camera movement, rotating demo cubes, and particles update at the same speed regardless of the player's frame rate (FPS), the application calculates a <strong>Delta Time ($dt$)</strong> using high-resolution hardware timers: <pre><code class="language-cpp">auto currentTime = std::chrono::high_resolution_clock::now();
+    else
+    {
+        // Update physics, update camera, run animations, and render
+        UpdateAndRenderFrame();
+    }
+}</code></pre>
+<ul>
+  <li><strong><code>PeekMessage</code> vs <code>GetMessage</code></strong>:</li>
+  <li><strong><code>GetMessage</code></strong> is blocking; if there are no window messages (keyboard input, mouse moves) in the queue, it puts the thread to sleep. This is fine for word processors but pauses game loops.</li>
+  <li><strong><code>PeekMessage</code></strong> is non-blocking. It checks the queue. If a message exists (e.g., the window is being resized or dragged), it processes it using <code>TranslateMessage</code> and <code>DispatchMessage</code> (which routes it to our <code>WindowProc</code> callback). If no messages are queued, it returns <code>false</code> immediately, running our game update logic.</li>
+  <li><strong><code>PM_REMOVE</code> Flag</strong>: Tells the OS to delete processed messages from the queue.</li>
+</ul>
+<hr>
+<h2>4. Frame Delta Time Calculation</h2>
+<p>To ensure camera movement, rotating demo cubes, and particles update at the same speed regardless of the player's frame rate (FPS), the application calculates a <strong>Delta Time ($dt$)</strong> using high-resolution hardware timers:</p>
+<pre><code class="language-cpp">auto currentTime = std::chrono::high_resolution_clock::now();
 float dt = std::chrono::duration&lt;float&gt;(currentTime - previousTime).count();
-previousTime = currentTime;</code></pre> <ul>   <li><strong>Why it's crucial</strong>: High-end computers might run the game at 500 FPS ($dt \approx 0.002$s), whereas low-end machines might run it at 30 FPS ($dt \approx 0.033$s).</li>   <li><strong>Application</strong>: In <code>Main.cpp</code>, dynamic transformations use $dt$:</li>   <li>Movement speed: <code>camera.MoveForward(camSpeed * dt)</code></li>   <li>Rotations: <code>rotationAngle += XMConvertToRadians(30.f) * dt</code></li>   <li>Particle updates: <code>particleSystem.Update(context, dt)</code></li> </ul> <hr></p>
-<h2>4. The Camera Coordinate System</h2>
+previousTime = currentTime;</code></pre>
+<ul>
+  <li><strong>Why it's crucial</strong>: High-end computers might run the game at 500 FPS ($dt \approx 0.002$s), whereas low-end machines might run it at 30 FPS ($dt \approx 0.033$s). Without delta time, moving a camera forward by a static distance <code>0.1</code> per frame would translate to $50$ units per second on the 500 FPS computer and only $3$ units per second on the 30 FPS computer.</li>
+  <li><strong>Application</strong>: In <code>Main.cpp</code>, dynamic transformations use $dt$:</li>
+  <li>Movement speed: <code>camera.MoveForward(camSpeed * dt)</code></li>
+  <li>Rotations: <code>rotationAngle += XMConvertToRadians(30.f) * dt</code></li>
+  <li>Particle updates: <code>particleSystem.Update(context, dt)</code></li>
+  <li><strong>Delta Clamping</strong>: If the game window is dragged or frozen, $dt$ can spike (e.g., $dt = 2.0$s). If we run Euler integration with a huge timestep, physics calculations explode. We clamp delta time to a maximum threshold (like <code>0.1f</code> seconds) to protect simulation stability.</li>
+</ul>
+<hr>
+<h2>5. The Camera Coordinate System</h2>
 <p>The camera class <code>CameraD3D11</code> in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/CameraD3D11.h">CameraD3D11.h</a> manages the viewer's orientation in 3D world space.</p>
-<h3>1. Camera Vectors</h3>
-The camera maintains a local orthonormal basis (three mutually perpendicular vectors):
+<h3>1. Camera Vectors (Orthonormal Basis)</h3>
+The camera maintains a local orthonormal basis (three mutually perpendicular unit vectors):
 <ul>
   <li><strong><code>position</code></strong>: Coordinates in 3D world space.</li>
   <li><strong><code>forward</code></strong>: The direction the camera is looking.</li>
   <li><strong><code>right</code></strong>: The vector pointing to the camera's right side.</li>
   <li><strong><code>up</code></strong>: The vector pointing straight up relative to the camera.</li>
 </ul>
+<pre><code class="language-plaintext">       +Y (up)
+        |   -Z (forward)
+        |  /
+        | /
+        |/___ +X (right)</code></pre>
 <h3>2. Camera Rotations (Pitch and Yaw)</h3>
 Rotations are computed in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/CameraD3D11.cpp#L75">CameraD3D11.cpp:L75</a> by rotating vectors around specific axes using quaternions:
 <ul>
@@ -385,14 +429,20 @@ Rotations are computed in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-20
 </ul>
 <h3>3. View-Projection Matrices</h3>
 Every frame, the GPU needs to transform 3D world positions into 2D clip-space coordinates. This requires two matrices:
-1. <strong>View Matrix</strong>: Built in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/CameraD3D11.cpp#L145">CameraD3D11.cpp:L145</a> using <code>XMMatrixLookAtLH(pos, pos + forward, up)</code>. It transforms coordinates from global <strong>World Space</strong> to <strong>Camera Space</strong> (where the camera is at origin <code>(0,0,0)</code> looking down the Z axis).
-2. <strong>Projection Matrix</strong>: Built in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/CameraD3D11.cpp#L146">CameraD3D11.cpp:L146</a> using <code>XMMatrixPerspectiveFovLH(fov, aspect, nearZ, farZ)</code>. It scales geometry to simulate perspective (objects farther away look smaller) and maps coordinate bounds to <strong>Clip Space</strong> ($[-1, 1]$ in X/Y, $[0, 1]$ in Z).
-3. <strong>Combination</strong>: Multiplying these matrices <code>View * Projection</code> creates the camera view-projection matrix used to transform vertices in vertex shaders.
-<hr>
+<p>#### The View Matrix The View Matrix transforms coordinates from global <strong>World Space</strong> to <strong>Camera Space</strong> (putting the camera at origin <code>(0,0,0)</code> looking down the Z axis). It is constructed using <code>XMMatrixLookAtLH(pos, pos + forward, up)</code>. Mathematically, given a camera position $\vec{P}$ and its orthonormal basis axes $\vec{R}$ (right), $\vec{U}$ (up), and $\vec{F}$ (forward), the View Matrix $V$ is represented as: $$V = \begin{bmatrix} R_x &amp; U_x &amp; F_x &amp; 0 \\ R_y &amp; U_y &amp; F_y &amp; 0 \\ R_z &amp; U_z &amp; F_z &amp; 0 \\ -(\vec{P} \cdot \vec{R}) &amp; -(\vec{P} \cdot \vec{U}) &amp; -(\vec{P} \cdot \vec{F}) &amp; 1 \end{bmatrix}$$</p>
+<p>#### The Projection Matrix The Projection Matrix transforms coordinates from <strong>Camera Space</strong> to <strong>Clip Space</strong> ($[-1, 1]$ in X/Y, $[0, 1]$ in Z). It scales coordinates to simulate perspective (farther objects look smaller) and is built using <code>XMMatrixPerspectiveFovLH(fov, aspect, nearZ, farZ)</code>: $$P = \begin{bmatrix} \frac{d}{aspect} &amp; 0 &amp; 0 &amp; 0 \\ 0 &amp; d &amp; 0 &amp; 0 \\ 0 &amp; 0 &amp; \frac{f}{f - n} &amp; 1 \\ 0 &amp; 0 &amp; \frac{-n \cdot f}{f - n} &amp; 0 \end{bmatrix}$$ where: <ul>   <li>$d = \cot(\frac{\text{fov}}{2})$ represents the focal length.</li>   <li>$aspect$ is the viewport width divided by height.</li>   <li>$n$ and $f$ are the near and far clip plane distances.</li>   <li>Note that the coordinate $W'$ in clip space holds the original camera-space depth $Z$, which is used in the perspective divide stage ($X'/W', Y'/W', Z'/W'$).</li> </ul> <hr></p>
 <h2>Teacher Presentation Tips 🎓</h2>
 <ul>
-  <li><strong>Be prepared to explain why <code>GetFocus() == window</code> is checked</strong>: Point out that it prevents mouse-locking and camera spinning when the user Alt-Tabs out of the application.</li>
-  <li><strong>Explain high-resolution clocks</strong>: High-resolution clock uses the CPU's hardware performance counter (underlying Win32 API <code>QueryPerformanceCounter</code>), which is far more accurate than simple Millisecond timers like <code>timeGetTime</code> or <code>GetTickCount</code>.</li>
+  <li><strong>Why is <code>GetFocus() == window</code> checked before updating camera rotation?</strong>:</li>
+  <li><em>Answer</em>: This ensures we only capture mouse inputs if the game window is currently active and focused by the OS. If the user Alt-Tabs out of the game, focus is lost, and we disable mouse-centering. If we did not check this, the game would continue locking the cursor to the center of the screen, preventing the user from using other programs, and the camera would spin wildly due to invalid mouse coordinate updates.</li>
+  <li><strong>Explain how COM interfaces manage resource lifetimes</strong>:</li>
+  <li><em>Answer</em>: Direct3D 11 objects (like textures, buffers, and shaders) are Component Object Model (COM) interfaces. They manage their lifetimes using Reference Counting. When we create a COM interface, its ref count is 1. If we bind or copy it, the count increments. To prevent memory leaks, we must call <code>.GetAddressOf()</code> and <code>Release()</code> (or use <code>Microsoft::WRL::ComPtr</code> wrappers which handle this automatically via RAII, releasing when they fall out of scope).</li>
+  <li><strong>Why do we use Left-Handed coordinate conventions instead of Right-Handed?</strong>:</li>
+  <li><em>Answer</em>: Both work, but Direct3D 11 uses a Left-Handed system by default in its projection mathematics (<code>LH</code> functions). In Left-Handed space, the $+Z$ axis points forward <em>into</em> the screen. This is intuitive for depth buffer management, where depth increases from $0.0$ (near plane) to $1.0$ (far plane) moving away from the camera.</li>
+  <li><strong>What is the purpose of the Perspective Divide stage, and is it handled in shaders?</strong>:</li>
+  <li><em>Answer</em>: The perspective divide projects 3D clip-space coordinates into 2D Normalized Device Coordinates (NDC) by dividing $X, Y, Z$ by the homogeneous coordinate $W$. This division ($X/W$, $Y/W$) scales coordinates based on distance, creating perspective. It is <strong>not</strong> handled in shaders; it is a fixed-function hardware step executed by the GPU rasterizer unit immediately after the vertex (or domain) shader and clip checking.</li>
+  <li><strong>Why does VSync prevent screen tearing, and how do you toggle it in D3D11?</strong>:</li>
+  <li><em>Answer</em>: Screen tearing occurs when the GPU writes to the backbuffer and swaps it to the screen while the monitor is mid-refresh, displaying parts of two different frames simultaneously. VSync forces the swapchain present call to block until the monitor enters its vertical blanking interval (Vsync scanline). In D3D11, we toggle it by passing <code>1</code> (VSync active) or <code>0</code> (VSync disabled) as the first argument in <code>IDXGISwapChain::Present(SyncInterval, Flags)</code>.</li>
 </ul>
     </main>
 </body>

@@ -336,86 +336,151 @@
 
     
     <main class="main-content">
-        <h1>Study Guide 8: GPU-Based Particle System (Compute Shaders, Geometry Shader Billboarding, and Blending)</h1>
-<p>This guide covers the GPU-driven particle system in this project: structured buffers with read/write access (UAV), Euler integration in compute shaders, vertex pulling, billboard geometry expansion, radial pixel masking, and alpha blending.</p>
+        <h1>Study Guide 9: GPU Particle System</h1>
+<p>This guide covers our GPU particle system: writing the Compute Shader update pass, allocating Structured Buffers with UAV/SRV binds, using Geometry Shaders to expand points into camera-facing billboards, and configuring alpha blend states.</p>
 <hr>
-<h2>1. Why GPU-Based Particle Systems?</h2>
-<p>In a traditional CPU-based particle system: 1. The CPU updates particle positions and velocities. 2. The CPU writes all particle positions to a dynamic vertex buffer every frame. 3. The CPU uploads this buffer to the GPU. <ul>   <li><strong>The Bottleneck</strong>: Uploading megabytes of data from CPU memory to GPU memory across the PCIe bus every frame creates a major performance bottleneck.</li> </ul> In our GPU-based particle system: 1. The particle data stays in GPU memory inside a <strong>Structured Buffer</strong> with Unordered Access View (UAV) and Shader Resource View (SRV) bindings. 2. The <strong>Compute Shader</strong> updates the particle physics directly on the GPU. 3. The <strong>Vertex/Geometry Shaders</strong> draw the particles directly from the buffer. <ul>   <li><strong>Result</strong>: Zero bandwidth transfer across the PCIe bus during the simulation loop. We can simulate thousands of particles with minimal overhead.</li> </ul> <hr></p>
-<h2>2. Structured Buffers (SRV &amp; UAV)</h2>
-<p>In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleSystemD3D11.cpp#L22">ParticleSystemD3D11.cpp:L22</a>, the particle pool is initialized: <code>particleBuffer.Initialize(device, sizeof(Particle), numberOfParticles, particles, false, true);</code> This creates a structured buffer of 300 elements, each storing a <code>Particle</code> struct (48 bytes). It is initialized with two key views: <ul>   <li><strong>UAV (Unordered Access View)</strong>: Allows the Compute Shader to read and write randomly to any particle in the buffer:</li> </ul>  <code>RWStructuredBuffer&lt;Particle&gt; Particles : register(u0);</code> <ul>   <li><strong>SRV (Shader Resource View)</strong>: Allows the Vertex Shader to read the particle properties during rendering:</li> </ul>  <code>StructuredBuffer&lt;Particle&gt; Particles : register(t0);</code></p>
-<hr>
-<h2>3. Update Pass: Compute Shader (<code>ParticleUpdateCS.hlsl</code>)</h2>
-<p>Every frame, the update logic runs in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleSystemD3D11.cpp#L86">ParticleSystemD3D11.cpp:L86-124</a>: 1. <strong>Bind UAV</strong>: <code>context-&gt;CSSetUnorderedAccessViews(0, 1, &amp;uav, nullptr);</code> 2. <strong>Dispatch Groups</strong>: The compute shader processes particles in threads. The thread layout is defined as <code>[numthreads(32, 1, 1)]</code> (32 threads per group). We divide the total particle count by 32 to determine how many thread groups to launch:    <code>unsigned int numGroups = (numParticles + 31) / 32;</code>    <code>context-&gt;Dispatch(numGroups, 1, 1);</code> 3. <strong>Unbind UAV</strong>: We must set the UAV slot back to <code>nullptr</code> before using the buffer as an input to the rendering pipeline:    <code>context-&gt;CSSetUnorderedAccessViews(0, 1, &amp;nullUAV, nullptr);</code></p>
-<h3>Physics Integration inside the Compute Shader</h3>
-For each particle index, <code>ParticleUpdateCS.hlsl</code> performs Euler integration:
-<pre><code class="language-hlsl">// Position integration
-particle.position += particle.velocity * deltaTime;
-// Gravity acceleration (constant downward force)
-particle.velocity.y += -2.0f * deltaTime;
-// Age update
-particle.lifetime += deltaTime;</code></pre>
-If a particle exceeds its maximum lifetime, the shader calls <code>RespawnParticle()</code>. It uses a pseudo-random hash generator based on the thread index and current time to calculate a new position (emitter position) and a randomized velocity vector within <code>velocityMin</code> and <code>velocityMax</code>.
-<hr>
-<h2>4. Render Pass: Vertex Pulling and Geometry Billboarding</h2>
-<h3>Vertex Pulling (Vertex Buffer-less Drawing)</h3>
-Instead of binding a traditional vertex buffer, we bind <code>nullptr</code> and set the topology to a point list:
-<pre><code class="language-cpp">context-&gt;IASetInputLayout(nullptr);
-context-&gt;IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
-context-&gt;VSSetShaderResources(0, 1, &amp;srv);
-context-&gt;Draw(numParticles, 0);</code></pre>
-During drawing, the GPU generates a sequential vertex index (<code>vertexID</code>). In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleVS.hlsl#L23">ParticleVS.hlsl:L23</a>, the shader pulls the vertex data manually:
-<pre><code class="language-hlsl">VS_OUTPUT main(uint vertexID : SV_VertexID)
-{
-    Particle particle = Particles[vertexID]; // Pull vertex from structured buffer SRV
-    ...
-}</code></pre>
-<h3>Geometry Billboarding (<code>ParticleGS.hlsl</code>)</h3>
-The vertex shader outputs a point (center position). The Geometry Shader <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleGS.hlsl">ParticleGS.hlsl</a> expands this single point into a 2D quad (2 triangles / 6 vertices) that always faces the camera.
-It uses the camera's <code>right</code> and <code>up</code> vectors (passed in the constant buffer <code>b0</code>):
-<pre><code class="language-hlsl">float3 right = cameraRight * quadSize;
-float3 up = cameraUp * quadSize;
+<h2>1. Structured Buffer Allocation (GPU Memory)</h2>
+<p>Traditional particles are updated on the CPU and sent to the GPU every frame, which consumes PCI-Express bus bandwidth. To solve this, we store and simulate our particles directly on the GPU in a <strong>Structured Buffer</strong>.</p>
+<p>We allocate the buffer in C++ inside <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/StructuredBufferD3D11.cpp">StructuredBufferD3D11.cpp</a>:</p>
+<pre><code class="language-cpp">D3D11_BUFFER_DESC desc = {};
+desc.Usage = D3D11_USAGE_DEFAULT; // Default usage allows GPU writes
+desc.ByteWidth = sizeof(Particle) * maxParticles;
+desc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+desc.CPUAccessFlags = 0;
+desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+desc.StructureByteStride = sizeof(Particle);
 
-// Compute 4 corner points around the particle center position
-float3 vertex1 = particlePosition - right + up; // Top-Left
-float3 vertex2 = particlePosition + right + up; // Top-Right
-float3 vertex3 = particlePosition - right - up; // Bottom-Left
-float3 vertex4 = particlePosition + right - up; // Bottom-Right</code></pre>
-We project each corner vertex to screen coordinates using <code>viewProjection</code> and output UVs:
+device-&gt;CreateBuffer(&amp;desc, nullptr, &amp;buffer);</code></pre>
+<h3>Double Binding Views</h3>
 <ul>
-  <li>Vertex 1: UV <code>(0.0, 0.0)</code></li>
-  <li>Vertex 2: UV <code>(1.0, 0.0)</code></li>
-  <li>Vertex 3: UV <code>(0.0, 1.0)</code></li>
-  <li>Vertex 4: UV <code>(1.0, 1.0)</code></li>
-</ul>These are streamed into two triangles using <code>output.Append(o)</code>.
+  <li><strong>Unordered Access View (UAV)</strong>: Created with format typeless, allowing the Compute Shader to read and write to the buffer.</li>
+  <li><strong>Shader Resource View (SRV)</strong>: Created to allow the Vertex Shader to read the particle positions during rendering.</li>
+</ul>
 <hr>
-<h2>5. Shading and Alpha Blending</h2>
-<h3>Pixel Shading (<code>ParticlePS.hlsl</code>)</h3>
-To make the particles soft and round instead of square:
-1. Map UVs from $[0,1]$ to a centered $[-1,1]$ coordinate system:
-   <code>float2 centeredUV = input.uv * 2.0f - 1.0f;</code>
-2. Compute distance from the center: <code>float radiusSquared = dot(centeredUV, centeredUV);</code>
-3. Apply a smooth edge falloff using HLSL <code>smoothstep</code>:
-   <code>float alphaMask = 1.0f - smoothstep(0.85f, 1.0f, radiusSquared);</code>
-4. Discard pixels outside the radius to optimize performance:
-   <code>if (outputColor.a &lt;= 0.001f) discard;</code>
-<h3>Alpha Blending Configuration</h3>
-Because particles are transparent, they must blend with the geometry already drawn to the screen. In <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L874">Main.cpp:L874</a>, the particle pass is performed immediately after the deferred lighting calculation. We bind the blend state:
-<pre><code class="language-cpp">context-&gt;OMSetBlendState(particleBlendState, nullptr, 0xffffffff);</code></pre>
-This is configured with:
+<h2>2. Compute Shader Physics Simulation</h2>
+<p>The particle update pass runs in <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleUpdateCS.hlsl">ParticleUpdateCS.hlsl</a>. We dispatch groups of 256 threads to simulate physics in parallel:</p>
+<pre><code class="language-hlsl">// ParticleUpdateCS.hlsl
+struct Particle
+{
+    float3 position;
+    float3 velocity;
+    float lifetime;
+    float maxLifetime;
+};
+
+RWStructuredBuffer&lt;Particle&gt; particles : register(u0);
+
+cbuffer TimeBuffer : register(b0)
+{
+    float deltaTime;
+    float3 padding;
+};
+
+[numthreads(256, 1, 1)]
+void main(uint3 DTid : SV_DispatchThreadID)
+{
+    uint id = DTid.x;
+    Particle p = particles[id];
+    
+    // Update lifetime
+    p.lifetime += deltaTime;
+    
+    if (p.lifetime &gt;= p.maxLifetime)
+    {
+        // Recycle particle (reset position and velocity)
+        p.position = float3(0, 0, 0); // Spawn origin
+        p.lifetime = 0.0f;
+    }
+    else
+    {
+        // Simple gravity integration (Euler integration)
+        p.velocity.y += -9.81f * deltaTime; // Apply gravity force
+        p.position += p.velocity * deltaTime;
+    }
+    
+    particles[id] = p; // Write back to buffer
+}</code></pre>
+<hr>
+<h2>3. Geometry Shader Billboarding</h2>
+<p>Particles are stored as 3D points. To render them as texture-mapped quads facing the camera, we use the <strong>Geometry Shader</strong> <a href="file:///c:/Users/Barnen/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleGS.hlsl">ParticleGS.hlsl</a> to expand the points into billboards.</p>
+<pre><code class="language-plaintext">                  Top-Left              Top-Right
+                     o----------------------o
+                     |                      |
+  Position (Point)   |          *           |  &lt;--- Face Camera
+                     |                      |
+                     o----------------------o
+                 Bottom-Left          Bottom-Right</code></pre>
+<h3>Billboarding Equations</h3>
+Given the particle position $P_{\text{center}}$ and the camera's local <strong>Right</strong> ($\vec{R}_{\text{cam}}$) and <strong>Up</strong> ($\vec{U}_{\text{cam}}$) vectors, we calculate the four corner coordinates in world space:
+$$C_{0} = P_{\text{center}} - \vec{R}_{\text{cam}} \cdot \text{halfSize} - \vec{U}_{\text{cam}} \cdot \text{halfSize} \quad (\text{Bottom-Left})$$
+$$C_{1} = P_{\text{center}} - \vec{R}_{\text{cam}} \cdot \text{halfSize} + \vec{U}_{\text{cam}} \cdot \text{halfSize} \quad (\text{Top-Left})$$
+$$C_{2} = P_{\text{center}} + \vec{R}_{\text{cam}} \cdot \text{halfSize} - \vec{U}_{\text{cam}} \cdot \text{halfSize} \quad (\text{Bottom-Right})$$
+$$C_{3} = P_{\text{center}} + \vec{R}_{\text{cam}} \cdot \text{halfSize} + \vec{U}_{\text{cam}} \cdot \text{halfSize} \quad (\text{Top-Right})$$
+<h3>GS Shader Implementation</h3>
+<pre><code class="language-hlsl">[maxvertexcount(4)]
+void main(point GS_INPUT input[1], inout TriangleStream&lt;PS_INPUT&gt; triStream)
+{
+    float3 center = input[0].position;
+    float halfSize = 0.1f; // Particle size scale
+    
+    // Four corner offsets in world space relative to camera axes
+    float3 corners[4];
+    corners[0] = center - rightVector * halfSize - upVector * halfSize; // Bottom-Left
+    corners[1] = center - rightVector * halfSize + upVector * halfSize; // Top-Left
+    corners[2] = center + rightVector * halfSize - upVector * halfSize; // Bottom-Right
+    corners[3] = center + rightVector * halfSize + upVector * halfSize; // Top-Right
+    
+    float2 uvs[4] = { float2(0,1), float2(0,0), float2(1,1), float2(1,0) };
+    
+    PS_INPUT output;
+    [unroll]
+    for(int i = 0; i &lt; 4; ++i)
+    {
+        output.position = mul(float4(corners[i], 1.0f), viewProjMatrix);
+        output.uv = uvs[i];
+        output.lifetimeFactor = input[0].lifetimeFactor;
+        triStream.Append(output);
+    }
+    triStream.RestartStrip();
+}</code></pre>
+<hr>
+<h2>4. Alpha Blending &amp; Depth Testing</h2>
+<p>Particles are transparent and must blend with the background scene. We configure this using an <strong>Alpha Blend State</strong>:</p>
+<h3>Blend State Equations</h3>
+When rendering particles, we blend the shader output color ($\vec{C}_{\text{src}}$, $\alpha_{\text{src}}$) with the existing pixel color in the render target ($\vec{C}_{\text{dest}}$):
+$$\vec{C}_{\text{final}} = \vec{C}_{\text{src}} \cdot \alpha_{\text{src}} + \vec{C}_{\text{dest}} \cdot (1 - \alpha_{\text{src}})$$
+We configure this in D3D11:
 <ul>
-  <li><code>SrcBlend = D3D11_BLEND_SRC_ALPHA</code> (new particle color factor = alpha)</li>
-  <li><code>DestBlend = D3D11_BLEND_INV_SRC_ALPHA</code> (existing screen color factor = $1 - \text{alpha}$)</li>
+  <li><code>BlendEnable = TRUE</code></li>
+  <li><code>SrcBlend = D3D11_BLEND_SRC_ALPHA</code></li>
+  <li><code>DestBlend = D3D11_BLEND_INV_SRC_ALPHA</code></li>
   <li><code>BlendOp = D3D11_BLEND_OP_ADD</code></li>
-</ul>This produces standard alpha transparency:
-$$\text{Color}_{\text{final}} = \text{Color}_{\text{src}} \times A_{\text{src}} + \text{Color}_{\text{dest}} \times (1 - A_{\text{src}})$$
+</ul>
+<h3>Depth-Testing Configuration</h3>
+If particles wrote to the depth buffer, the first particle rendered would block all particles behind it, making the system look sparse and blocky. 
+To resolve this, we bind a <strong>Depth-Stencil State</strong> configured to perform depth tests (so particles are correctly culled behind walls) but disable depth writes:
+<ul>
+  <li><code>DepthEnable = TRUE</code></li>
+  <li><code>DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO</code> (Read-only depth)</li>
+</ul>
 <hr>
 <h2>Teacher Presentation Tips 🎓</h2>
 <ul>
-  <li><strong>Explain the difference between SV_VertexID and SV_InstanceID</strong>:</li>
-  <li><em>Answer</em>: <code>SV_VertexID</code> is a system-generated index pointing to the current vertex in a draw call. In our vertex pulling setup, we call <code>Draw(numParticles, 0)</code>, which tells the GPU to render <code>numParticles</code> vertices. The GPU automatically increments <code>SV_VertexID</code> from $0$ to <code>numParticles - 1</code> for each vertex, allowing us to index our structured buffer. <code>SV_InstanceID</code> is used for instanced drawing, which is a different technique.</li>
-  <li><strong>Explain why you unbind the Geometry Shader after the particle pass</strong>:</li>
-  <li><em>Answer</em>: The Geometry Shader remains bound to the pipeline until it is explicitly unbound by setting it to <code>nullptr</code>. If we don't unbind it (<code>context-&gt;GSSetShader(nullptr, nullptr, 0)</code>), the next draw call in the next frame will attempt to run standard triangles through the particle geometry shader, leading to rendering errors or crashes.</li>
-</ul>
+  <li><strong>Explain why the particle structured buffer must be unbound as a UAV before rendering</strong>:</li>
+  <li><em>Answer</em>: During the update pass, the structured buffer is bound as a write-accessible UAV (<code>CSSetUnorderedAccessViews</code>). During the render pass, the Vertex Shader reads from this buffer as an input SRV (<code>VSSetShaderResources</code>). If we do not unbind it from the UAV slot by binding a null pointer, the D3D11 runtime flags a read-write conflict and disables the input SRV, rendering the particles invisible.</li>
+  <li><strong>Why do we use the Geometry Shader to expand points instead of generating quad vertex buffers on the CPU?</strong>:</li>
+  <li><em>Answer</em>: Generating quad vertex buffers on the CPU requires updating the positions of four vertices per particle and uploading them over the PCIe bus to the GPU every frame. By using the Geometry Shader, we only store and process one point per particle on the GPU. The expansion into four vertices occurs directly in GPU memory, saving PCIe bandwidth and CPU cycles.</li>
+  <li><strong>What is the purpose of <code>RestartStrip()</code> in the Geometry Shader?</strong>:</li>
+  <li><em>Answer</em>: The Geometry Shader outputs primitives using <code>TriangleStream</code>. Calling <code>Append</code> writes vertices sequentially. <code>RestartStrip()</code> tells the GPU that the current triangle strip is complete, ensuring that subsequent vertices do not connect to the previous quad, preventing visual stretching between particles.</li>
+  <li><strong>What is particle back-to-front sorting, and why is it necessary for correct alpha blending?</strong>:</li>
+  <li><em>Answer</em>: The alpha blending formula is non-commutative:</li>
+</ul>    $$(A \text{ over } B) \ne (B \text{ over } A)$$
+    If we draw a transparent particle closer to the camera first, it writes its color to the frame buffer. When we draw a particle behind it, the blend equations cannot interpolate them correctly because the depth test culls the rear particle. To ensure correct blending, we must sort the particles back-to-front relative to the camera position before drawing them.
+<ul>
+  <li><strong>Explain how <code>smoothstep</code> is used to create soft round particles in the Pixel Shader</strong>:</li>
+  <li><em>Answer</em>: In <code>ParticlePS.hlsl</code>, we map the quad's UV coordinates to $[-1, 1]$ to calculate the radial distance from the center. We fade out the edges using:</li>
+</ul>    <code>alpha = 1.0f - smoothstep(0.85f, 1.0f, radiusSquared);</code>
+    Any pixel with a radius less than 0.85 remains opaque, pixels between 0.85 and 1.0 fade out smoothly to transparent, and pixels beyond 1.0 are discarded, creating soft, circular particles from square quads.
     </main>
 </body>
 </html>
