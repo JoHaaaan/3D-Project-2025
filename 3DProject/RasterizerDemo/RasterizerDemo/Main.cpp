@@ -122,7 +122,7 @@ void CreateComputeOutputResources(ID3D11Device* device, UINT width, UINT height,
 
 }
 
-// Add cleanup function before wWinMain
+// cleanup function
 void CleanupD3DResources(
 	ID3D11Device*& device,
 	ID3D11DeviceContext*& context,
@@ -713,7 +713,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 				}
 				else if (objIdx == NORMAL_MAP_OBJECT_INDEX && normalMapPS)
 				{
-					// Temporarily disable tessellation stages for this standard object
+
 					if (tessellationEnabled && tessVS && tessHS && tessDS)
 					{
 						context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -763,7 +763,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 					context->PSSetShaderResources(1, 1, &nullSRV);
 					context->PSSetShader(pShader, nullptr, 0);
 
-					// Restore tessellation stages if enabled
 					if (tessellationEnabled && tessVS && tessHS && tessDS)
 					{
 						context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
@@ -774,7 +773,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 				}
 				else if (objIdx == PARALLAX_OBJECT_INDEX && parallaxPS)
 				{
-					// Temporarily disable tessellation stages for this standard object
 					if (tessellationEnabled && tessVS && tessHS && tessDS)
 					{
 						context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -824,7 +822,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 					context->PSSetShaderResources(0, 2, nullSRVs);
 					context->PSSetShader(pShader, nullptr, 0);
 
-					// Restore tessellation stages if enabled
 					if (tessellationEnabled && tessVS && tessHS && tessDS)
 					{
 						context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST);
@@ -840,7 +837,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 			}
 		}
 
-		// ----- LIGHTING PASS (COMPUTE) -----
+		// ----- LIGHTING PASS -----
 		if (lightingCS)
 		{
 			ID3D11RenderTargetView* nullRTVs[3] = { nullptr, nullptr, nullptr };
