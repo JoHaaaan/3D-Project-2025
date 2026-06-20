@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>13. Presentation Prep - DV1542 Study Kit</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js for Code Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/tokyo-night-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+    
+    <!-- MathJax Configuration -->
+    <script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        :root {
+            --bg-main: #0b0f19;
+            --bg-card: #151b26;
+            --bg-sidebar: #0f131f;
+            --border-color: #242c3d;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --accent: #a855f7;
+            --accent-glow: rgba(168, 85, 247, 0.15);
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Sidebar Navigation Layout */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-nav {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-muted);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, var(--primary-glow), rgba(168, 85, 247, 0.05));
+            border-left: 3px solid var(--primary);
+            color: #fff;
+            padding-left: 11px;
+        }
+
+        /* Main Content Layout */
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        h1 {
+            font-size: 2.25rem;
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, #fff 60%, var(--text-muted));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+
+        p {
+            margin-bottom: 18px;
+            color: var(--text-muted);
+            font-size: 0.975rem;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        li input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: var(--primary);
+            transform: scale(1.1);
+            vertical-align: middle;
+        }
+
+        /* Code Blocks */
+        pre {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.875rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary);
+            word-break: break-word;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            color: inherit;
+            word-break: normal;
+        }
+
+        /* Links */
+        a {
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        a:hover {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        /* Horizontal Rule */
+        hr {
+            border: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            margin: 40px 0;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background-color: var(--bg-sidebar);
+            color: #fff;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            background-color: var(--bg-card);
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Alerts */
+        .alert {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            border-left: 4px solid var(--primary);
+        }
+
+        .alert-note {
+            border-left-color: var(--primary);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(99, 102, 241, 0.03));
+        }
+
+        .alert-tip {
+            border-left-color: var(--success);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(16, 185, 129, 0.03));
+        }
+
+        .alert-important {
+            border-left-color: var(--warning);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(245, 158, 11, 0.03));
+        }
+
+        .alert-warning {
+            border-left-color: var(--accent);
+            background: linear-gradient(90deg, var(--bg-card) 95%, rgba(168, 85, 247, 0.03));
+        }
+
+        .alert-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+        }
+
+        .alert-content {
+            flex: 1;
+        }
+
+        .alert-content p {
+            margin-bottom: 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--border-color);
+            padding-left: 16px;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+
+        .guide-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin: 24px auto;
+            display: block;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+  <div class="sidebar-header">DV1542 Study Kit</div>
+  <nav class="sidebar-nav">
+    <a class="nav-item " href="01_study_guide_overall_architecture.html">01. Overall Architecture</a>
+    <a class="nav-item " href="02_study_guide_obj_parser_buffers.html">02. Mesh Loading & Buffers</a>
+    <a class="nav-item " href="03_study_guide_quadtree_culling.html">03. Quadtree Culling</a>
+    <a class="nav-item " href="04_study_guide_deferred_rendering.html">04. Deferred Rendering</a>
+    <a class="nav-item " href="05_study_guide_shadow_mapping.html">05. Shadow Mapping</a>
+    <a class="nav-item " href="06_study_guide_phong_tessellation.html">06. Phong Tessellation</a>
+    <a class="nav-item " href="07_study_guide_normal_parallax.html">07. Normal & Parallax Maps</a>
+    <a class="nav-item " href="08_study_guide_environment_mapping.html">08. Environment Maps</a>
+    <a class="nav-item " href="09_study_guide_particle_system.html">09. GPU Particles</a>
+    <a class="nav-item " href="10_study_guide_binding_dispatch.html">10. Bindings & Dispatch</a>
+    <a class="nav-item " href="11_study_guide_master_faq.html">11. Master FAQ</a>
+    <a class="nav-item " href="12_mock_presentations_with_teacher.html">12. Mock Presentations</a>
+    <a class="nav-item active" href="13_presentation_prep_guide.html">13. Presentation Prep</a>
+  </nav>
+</div>
+
+    
+    <main class="main-content">
+        <h1>13. 1-on-1 Presentation Prep Guide</h1>
+<p>This guide is designed for your 1-hour 1-on-1 review. It breaks down the four core concepts (Binding, Dispatch, Phong Tessellation, and Shadowmapping) using custom diagrams, detailed code explanations, and direct file/line traces to your project.</p>
+<hr>
+<h2>1. Resource Binding &amp; D3D11 Pipeline Hazards</h2>
+<h3>Visual Introduction</h3>
+<img src="images/pipeline_binding_diagram.png" alt="Resource Binding Pipeline Diagram" class="guide-image">
+<p>To use any resource (a buffer or a texture) on the GPU, the CPU must assign a <strong>View</strong> to it and bind it to a specific <strong>Register Slot</strong> (e.g., <code>t0</code>, <code>u0</code>, <code>cb0</code>). <ul>   <li><strong>SRV (Shader Resource View):</strong> Read-only access for shaders (e.g., textures, shadow maps).</li>   <li><strong>UAV (Unordered Access View):</strong> Read-and-Write random access (e.g., compute shader output texture, particle buffer).</li>   <li><strong>RTV (Render Target View):</strong> Sequential write-only access for drawing pixels.</li> </ul> #### ⚠️ Pipeline Write Hazards In Direct3D 11, a resource <strong>cannot</strong> be bound as an output (RTV/UAV) and an input (SRV) at the same time. If you do this: 1. The D3D11 runtime will detect a <strong>Read-Write Hazard</strong>. 2. It will print a validation warning in the output log. 3. It will automatically unbind the input slot, replacing your texture with <code>nullptr</code> (black texture).</p>
+<hr>
+<h3>How it is Implemented in your Project</h3>
+To avoid this hazard in your deferred renderer, you must explicitly unbind the G-Buffer textures from the Output Merger (OM) stage before binding them to the Compute Shader (CS) stage:
+<pre><code class="language-cpp">// 1. Unbind RTVs by passing an array of null pointers to the Output Merger
+ID3D11RenderTargetView* nullRTVs[3] = { nullptr, nullptr, nullptr };
+context-&gt;OMSetRenderTargets(3, nullRTVs, nullptr);
+
+// 2. Now it is safe to bind them as inputs (SRVs) to the Compute Shader
+ID3D11ShaderResourceView* srvs[3] = { gbuffer.GetAlbedoSRV(), gbuffer.GetNormalSRV(), gbuffer.GetPositionSRV() };
+context-&gt;CSSetShaderResources(0, 3, srvs);</code></pre>
+<p>After the Compute Shader finishes, you perform the reverse operation to clean up slots, preventing hazards on the next frame: <pre><code class="language-cpp">// Unbind SRVs and UAVs from the Compute Shader
+ID3D11ShaderResourceView* nullSRVs[5] = { nullptr };
+context-&gt;CSSetShaderResources(0, 5, nullSRVs);
+ID3D11UnorderedAccessView* nullUAV = nullptr;
+context-&gt;CSSetUnorderedAccessViews(0, 1, &amp;nullUAV, nullptr);</code></pre></p>
+<hr>
+<h3>Where it Happens in the Project</h3>
+<ul>
+  <li><strong>Shadow Pass Bindings:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L571-580">Main.cpp:L571-580</a></li>
+  <li>Shaders, viewport, and depth views are bound; pixel shader is set to null.</li>
+  <li><strong>Geometry Pass Bindings:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L638-L658">Main.cpp:L638-658</a></li>
+  <li>G-Buffer RTVs and tessellation stages are bound.</li>
+  <li><strong>Compute Shader Unbinding &amp; Binding:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L846-L863">Main.cpp:L846-863</a></li>
+  <li>G-Buffer RTVs are unbound, and G-Buffer SRVs, shadow map arrays, and UAVs are bound.</li>
+  <li><strong>Compute Shader Cleanup:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L866-870">Main.cpp:L866-870</a></li>
+  <li>Bindings are cleared.</li>
+  <li><strong>Vertex Pulling (Buffer-less) Setup:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleSystemD3D11.cpp#L152-L168">ParticleSystemD3D11.cpp:L152-168</a></li>
+  <li>Vertex buffer set to null; particle structured buffer bound as an SRV to the vertex shader.</li>
+</ul>
+<hr>
+<h2>2. Compute Shader Dispatch &amp; Warp Scheduling</h2>
+<h3>Visual Introduction</h3>
+<img src="images/compute_dispatch_grid.png" alt="Compute Dispatch Grid Diagram" class="guide-image">
+<p>Compute Shaders execute in a grid of <strong>Thread Groups</strong>, which contain individual <strong>Threads</strong>. <ul>   <li><strong>Warps &amp; Wavefronts:</strong> The GPU hardware groups threads in sets of 32 (Nvidia) or 64 (AMD) and executes them in lockstep.</li>   <li><strong>Occupancy:</strong> Having group sizes that are multiples of 32 (e.g., 256 or 32 threads) ensures no execution lanes are left idle.</li>   <li><strong>Memory Locality:</strong> Processing pixels in a $16 \times 16$ tile layout ensures adjacent threads read adjacent texels, which maximizes texture L1 cache hits.</li> </ul> <hr></p>
+<h3>How it is Implemented in your Project</h3>
+To launch a compute shader to process every pixel on a $1024 \times 576$ screen, you define the group size in HLSL and compute the grid size in C++:
+<p>#### 1. In HLSL: Group Definition <pre><code class="language-hlsl">// LightingCS.hlsl
+[numthreads(16, 16, 1)] // A 16x16 grid of threads (256 threads total)</code></pre></p>
+<p>#### 2. In C++: Grid Calculation (Ceiling Division) To cover the screen, we divide screen dimensions by the group dimension. We use <strong>ceiling division</strong> <code>(Size + GroupDim - 1) / GroupDim</code> to prevent cutting off the edges of the screen: <pre><code class="language-cpp">// Main.cpp
+context-&gt;Dispatch((WIDTH + 15) / 16, (HEIGHT + 15) / 16, 1);
+// (1024 + 15)/16 = 64 groups on X
+// (576 + 15)/16  = 36 groups on Y</code></pre></p>
+<p>#### 3. Out-of-Bounds Guard in HLSL Since ceiling division rounds up, some threads at the right and bottom edges will process coordinates off-screen. We guard against memory errors: <pre><code class="language-hlsl">// LightingCS.hlsl
+uint2 pixel = DTid.xy;
+if (pixel.x &gt;= width || pixel.y &gt;= height)
+    return; // Stop thread execution before performing operations</code></pre></p>
+<hr>
+<h3>Where it Happens in the Project</h3>
+<ul>
+  <li><strong>Lighting Compute Dispatch:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L864">Main.cpp:L864</a></li>
+  <li>Triggers the deferred shading lighting pass.</li>
+  <li><strong>Particle Update Dispatch:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleSystemD3D11.cpp#L115-L117">ParticleSystemD3D11.cpp:L115-117</a></li>
+  <li>Dispatches particle simulation updates using 32 threads per group.</li>
+  <li><strong>Lighting CS Thread Layout &amp; Bounds Check:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/LightingCS.hlsl#L93-L102">LightingCS.hlsl:L93-102</a></li>
+  <li><strong>Particle Update CS Thread Layout &amp; Bounds Check:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/ParticleUpdateCS.hlsl#L60-L66">ParticleUpdateCS.hlsl:L60-66</a></li>
+</ul>
+<hr>
+<h2>3. Phong Tessellation &amp; LOD System</h2>
+<h3>Visual Introduction</h3>
+<img src="images/phong_tessellation_diagram.png" alt="Phong Tessellation Diagram" class="guide-image">
+<p>Tessellation takes a blocky model and subdivides its triangles dynamically on the GPU. <ul>   <li><strong>Hull Shader (HS):</strong> Computes tessellation factors (subdivision level) based on distance to the camera.</li>   <li><strong>Domain Shader (DS):</strong> Curves the subdivided vertices using the original vertex positions and normal vectors.</li> </ul> #### 🔗 Preventing Edge Cracks If two neighboring triangles calculate different subdivision levels on their shared boundary, visual holes will open in the model. We solve this by calculating the edge factor using the <strong>midpoint of the shared edge</strong>. Since both triangles share the same edge midpoint, they calculate the exact same subdivision factor, keeping the mesh water-tight.</p>
+<hr>
+<h3>How it is Implemented in your Project</h3>
+1. <strong>LOD Midpoint Calculation (Hull Shader):</strong>
+<pre><code class="language-hlsl">// TessellationHS.hlsl
+float3 edge0Midpoint = (patch[0].worldPosition + patch[1].worldPosition) * 0.5f;
+output.edges[0] = CalculateTessellationFactor(edge0Midpoint);</code></pre>
+<p>2. <strong>Projecting onto Tangent Planes (Domain Shader):</strong> For every new vertex coordinate created by the tessellator, we project its flat position onto the tangent plane defined by the three original corner control points: <pre><code class="language-hlsl">// TessellationDS.hlsl
+float3 ProjectToPlane(float3 position, float3 planePoint, float3 planeNormal)
+{
+    float3 toPosition = position - planePoint;
+    float distanceToPlane = dot(toPosition, planeNormal); // Perpendicular distance
+    return position - distanceToPlane * planeNormal;      // Project orthogonally
+}</code></pre></p>
+<p>We interpolate these three projections using barycentric coordinates $(u, v, w)$ and blend it with the flat triangle position using a blend factor (<code>PHONG_ALPHA = 0.75</code>): <pre><code class="language-hlsl">float3 phongPosition = projection0 * u + projection1 * v + projection2 * w;
+output.worldPosition = lerp(linearPosition, phongPosition, PHONG_ALPHA);</code></pre></p>
+<hr>
+<h3>Where it Happens in the Project</h3>
+<ul>
+  <li><strong>Tessellation Input Topology Setup:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L652">Main.cpp:L652</a></li>
+  <li>Sets the topology to <code>D3D11_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST</code>.</li>
+  <li><strong>Hull Shader Config &amp; LOD Math:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationHS.hlsl#L39-L87">TessellationHS.hlsl:L39-87</a></li>
+  <li>Computes edge/inside factors and sets up <code>fractional_odd</code> partitioning.</li>
+  <li><strong>Domain Shader Smoothing Math:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/TessellationDS.hlsl#L36-L82">TessellationDS.hlsl:L36-82</a></li>
+  <li>Implements point-plane projections and blends them to curve the geometry.</li>
+</ul>
+<hr>
+<h2>4. Shadow Mapping &amp; Precision Tuning</h2>
+<h3>Visual Introduction</h3>
+<img src="images/shadow_map_concept.png" alt="Shadow Mapping Depth Diagram" class="guide-image">
+<p>Shadow mapping works in two passes: 1. <strong>Pass 1 (Shadow Pass):</strong> We render the scene depth from the perspective of each light source and store it in a <strong>Texture Array</strong> (<code>shadowMap</code>). 2. <strong>Pass 2 (Lighting Pass):</strong> We compare the pixel's distance to the light against the distance stored in the shadow map.</p>
+<p>#### ⚡ High-Performance Depth-Only rendering During the shadow pass, we bind a <code>nullptr</code> Render Target and disable the Pixel Shader. Since we do not calculate colors, the GPU rasterizer writes depth values directly into VRAM using hardware-accelerated <strong>Early-Z</strong>, doubling performance.</p>
+<hr>
+<h3>How it is Implemented in your Project</h3>
+1. <strong>Typeless Format Setup (C++):</strong>
+To write depth and read it as a texture, the resource format must be typeless:
+<pre><code class="language-cpp">// DepthBufferD3D11.cpp
+texFormat = DXGI_FORMAT_R24G8_TYPELESS;
+dsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;       // Format used for writing depth
+srvFormat = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;   // Format used for reading in shader</code></pre>
+<p>2. <strong>The Shadow Test comparison (HLSL):</strong> We reconstruct the pixel's light-space coordinate and compare its actual depth (<code>depth</code>) against the value stored in the shadow map using a comparison sampler: <pre><code class="language-hlsl">// LightingCS.hlsl
+float shadow = shadowMaps.SampleCmpLevelZero(shadowSampler, float3(shadowUV, lightIndex), depth);</code></pre> <ul>   <li><strong>Comparison Operator:</strong> We use <code>D3D11_COMPARISON_LESS_EQUAL</code> (depth ranges from 0 = near to 1 = far). If <code>depth &lt;= shadowMapValue</code>, the pixel is lit (returns 1.0), otherwise it is occluded (returns 0.0).</li>   <li><strong>Smooth Edges (PCF):</strong> The comparison sampler performs the comparison on the 4 nearest texels <em>first</em>, then interpolates the resulting <code>0</code> or <code>1</code> values, rendering soft shadow edges.</li>   <li><strong>Preventing Acne with Shader Bias:</strong> To prevent self-shadowing acne, we apply a slope-dependent bias in the shader:</li> </ul><pre><code class="language-hlsl">  float cosTheta = saturate(dot(normal, lightDir));
+  float bias = 0.0005f * (sqrt(1.0f - cosTheta * cosTheta) / (cosTheta + 0.0001f));
+  bias = clamp(bias, 0.0f, 0.001f);
+  depth -= bias;</code></pre></p>
+<hr>
+<h3>Where it Happens in the Project</h3>
+<ul>
+  <li><strong>Shadow Map Array Setup:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L297-L298">Main.cpp:L297-298</a></li>
+  <li>Allocates the 4-slice shadow map buffer.</li>
+  <li><strong>Hardware Bias Config:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L77-L83">Main.cpp:L77-83</a></li>
+  <li>Sets up constant and slope-scaled depth bias inside <code>D3D11_RASTERIZER_DESC</code>.</li>
+  <li><strong>Comparison Sampler Setup:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L85-L100">Main.cpp:L85-100</a></li>
+  <li>Sets up comparison filtering and white border clamp.</li>
+  <li><strong>Shadow Pass Execution:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/Main.cpp#L571-L618">Main.cpp:L571-618</a></li>
+  <li>Configures the pipeline for depth-only rendering and updates light view-projections.</li>
+  <li><strong>Typeless Texture &amp; View Allocations:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/DepthBufferD3D11.cpp#L76-L153">DepthBufferD3D11.cpp:L76-153</a></li>
+  <li><strong>Shader Bias &amp; Comparison Sampling:</strong> <a href="file:///c:/Users/johan/OneDrive/Desktop/3D-Project-2025/3DProject/RasterizerDemo/RasterizerDemo/LightingCS.hlsl#L60-L91">LightingCS.hlsl:L60-91</a></li>
+  <li>Implements PCF sampling and receiver-plane-oriented depth bias.</li>
+</ul>
+    </main>
+</body>
+</html>

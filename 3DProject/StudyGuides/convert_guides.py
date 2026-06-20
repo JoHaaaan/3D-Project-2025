@@ -2,7 +2,7 @@ import os
 import re
 
 # Directory containing guides
-GUIDE_DIR = r"C:\Users\Barnen\Desktop\3D-Project-2025\3DProject\StudyGuides"
+GUIDE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # List of guides in order
 GUIDE_FILES = [
@@ -17,7 +17,8 @@ GUIDE_FILES = [
     "09_study_guide_particle_system.md",
     "10_study_guide_binding_dispatch.md",
     "11_study_guide_master_faq.md",
-    "12_mock_presentations_with_teacher.md"
+    "12_mock_presentations_with_teacher.md",
+    "13_presentation_prep_guide.md"
 ]
 
 # Map file base name to display name
@@ -33,7 +34,8 @@ GUIDE_NAMES = {
     "09_study_guide_particle_system": "09. GPU Particles",
     "10_study_guide_binding_dispatch": "10. Bindings & Dispatch",
     "11_study_guide_master_faq": "11. Master FAQ",
-    "12_mock_presentations_with_teacher": "12. Mock Presentations"
+    "12_mock_presentations_with_teacher": "12. Mock Presentations",
+    "13_presentation_prep_guide": "13. Presentation Prep"
 }
 
 def parse_markdown(md_text):
@@ -111,6 +113,9 @@ def parse_markdown(md_text):
 
     md_text = re.sub(r'(?:^\s*[-*+]\s+.*?$(?:\r?\n)?)+', parse_lists, md_text, flags=re.MULTILINE)
 
+    # Convert images first
+    md_text = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', r'<img src="\2" alt="\1" class="guide-image">', md_text)
+
     # Convert links
     def replace_links(match):
         text = match.group(1)
@@ -120,7 +125,7 @@ def parse_markdown(md_text):
                 url = url.replace(name + ".md", name + ".html")
         return f'<a href="{url}">{text}</a>'
         
-    md_text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', replace_links, md_text)
+    md_text = re.sub(r'(?<!!)\[([^\]]+)\]\(([^)]+)\)', replace_links, md_text)
 
     # Bold and italics (these run safely on text with placeholders, avoiding C++ asterisks)
     md_text = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', md_text)
@@ -502,6 +507,16 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             color: var(--text-muted);
             font-style: italic;
             margin-bottom: 20px;
+        }}
+
+        .guide-image {{
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin: 24px auto;
+            display: block;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
         }}
     </style>
 </head>
