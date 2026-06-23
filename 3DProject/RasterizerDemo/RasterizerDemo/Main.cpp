@@ -852,7 +852,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE, LPWSTR, int nCmdShow)
 			ID3D11ShaderResourceView* lightSRV = lightManager.GetLightBufferSRV();
 			context->CSSetShaderResources(4, 1, &lightSRV);
 
-			context->CSSetConstantBuffers(2, 1, &cameraCB);
+			context->CSSetConstantBuffers(3, 1, &cameraCB);
 			ID3D11Buffer* toggleCBBuf = lightingToggleCB.GetBuffer();
 			context->CSSetConstantBuffers(4, 1, &toggleCBBuf);
 			context->CSSetSamplers(1, 1, &shadowSampler);

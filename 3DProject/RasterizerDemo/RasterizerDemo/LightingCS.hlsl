@@ -18,7 +18,7 @@ struct LightData
 };
 
 // Constant Buffers
-cbuffer CameraBuffer : register(b2)
+cbuffer CameraBuffer : register(b3)
 {
     float3 cameraPosition;
     float padding_Camera;
